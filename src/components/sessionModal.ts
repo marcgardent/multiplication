@@ -180,9 +180,14 @@ export function startSessionModal(
           <div class="pause-icon">⏸️</div>
           <h3>Session en pause</h3>
           <p>Prends ton temps, le chronomètre est arrêté.</p>
-          <button type="button" class="btn-confirm-launch btn-resume-action" id="btn-resume-session">
-            Reprendre l'entraînement ▶️
-          </button>
+          <div class="quit-confirm-buttons" style="width: 100%;">
+            <button type="button" class="btn-confirm-launch btn-resume-action" id="btn-resume-session">
+              Reprendre l'entraînement ▶️
+            </button>
+            <button type="button" class="btn-confirm-launch" id="btn-pause-finish" style="background: linear-gradient(135deg, #10b981, #06b6d4);">
+              Terminer et voir mon bilan 📊
+            </button>
+          </div>
         </div>
       `;
       const container = modalEl.querySelector(".session-modal-container");
@@ -190,6 +195,16 @@ export function startSessionModal(
 
       pauseOverlay.querySelector("#btn-resume-session")?.addEventListener("click", () => {
         resumeSession();
+      });
+
+      pauseOverlay.querySelector("#btn-pause-finish")?.addEventListener("click", () => {
+        const elapsedMs = Math.round(performance.now() - sessionStartTime);
+        cleanUp();
+        onFinish({
+          completedWorkshops: currentWorkshopIndex + 1,
+          totalTimeMinutes: config.durationMinutes,
+          actualPracticeTimeMs: elapsedMs
+        });
       });
     }
   }
@@ -233,11 +248,14 @@ export function startSessionModal(
     confirmOverlay.innerHTML = `
       <div class="session-modal-container quit-confirm-modal">
         <div class="quit-confirm-icon">⚠️</div>
-        <h3>Quitter l'entraînement ?</h3>
-        <p>Veux-tu vraiment quitter ? Ton temps déjà passé sera bien enregistré dans ton carnet.</p>
+        <h3>Terminer ou quitter ?</h3>
+        <p>Tu peux terminer dès maintenant pour valider tes calculs et tes points, ou continuer l'exercice.</p>
         <div class="quit-confirm-buttons">
           <button type="button" class="btn-confirm-launch btn-continue-action" id="btn-confirm-stay">
             Continuer l'activité 🚀
+          </button>
+          <button type="button" class="btn-confirm-launch" id="btn-confirm-finish" style="background: linear-gradient(135deg, #10b981, #06b6d4);">
+            Terminer et voir mon bilan 📊
           </button>
           <button type="button" class="btn-quit-danger" id="btn-confirm-quit">
             Quitter la session
@@ -253,6 +271,17 @@ export function startSessionModal(
       if (!wasPausedBefore) {
         resumeSession();
       }
+    });
+
+    confirmOverlay.querySelector("#btn-confirm-finish")?.addEventListener("click", () => {
+      confirmOverlay.remove();
+      const elapsedMs = Math.round(performance.now() - sessionStartTime);
+      cleanUp();
+      onFinish({
+        completedWorkshops: currentWorkshopIndex + 1,
+        totalTimeMinutes: config.durationMinutes,
+        actualPracticeTimeMs: elapsedMs
+      });
     });
 
     confirmOverlay.querySelector("#btn-confirm-quit")?.addEventListener("click", () => {

@@ -37,7 +37,9 @@ export function showRewardsFlow(options: RewardsFlowOptions): void {
   const { profile, discoveredCount, learnedCount, pointsGained = 0, oldPoints, matrixStore, audioService, onDone } = options;
 
   const currentPoints = matrixStore.getPoints();
-  const startPoints = oldPoints !== undefined ? oldPoints : Math.max(0, currentPoints - pointsGained);
+  const startPoints = oldPoints !== undefined && oldPoints < currentPoints
+    ? oldPoints
+    : Math.max(0, currentPoints - pointsGained);
 
   const allItems = matrixStore.getAll();
   const openedGifts = new Set(matrixStore.getOpenedGifts());
@@ -90,6 +92,9 @@ export function showRewardsFlow(options: RewardsFlowOptions): void {
             <button type="button" class="btn-confirm-launch btn-open-rewards" id="btn-show-rewards-grid">
               🎁 Découvrir mes récompenses — ${pendingGifts.length} cadeau${pendingGifts.length > 1 ? "x" : ""} à ouvrir !
             </button>
+            <button type="button" class="btn-confirm-launch btn-rewards-finish" id="btn-finish-congrats" style="background: rgba(255, 255, 255, 0.12); margin-top: 6px;">
+              Retourner à l'accueil 🌟
+            </button>
           `
           : `
             <button type="button" class="btn-confirm-launch btn-rewards-finish" id="btn-finish-congrats">
@@ -130,6 +135,10 @@ export function showRewardsFlow(options: RewardsFlowOptions): void {
     splashEl.querySelector("#btn-show-rewards-grid")?.addEventListener("click", () => {
       splashEl.remove();
       openRewardsBoardModal(matrixStore, audioService, onDone);
+    });
+    splashEl.querySelector("#btn-finish-congrats")?.addEventListener("click", () => {
+      splashEl.remove();
+      onDone();
     });
   } else {
     splashEl.querySelector("#btn-finish-congrats")?.addEventListener("click", () => {

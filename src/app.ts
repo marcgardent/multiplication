@@ -413,7 +413,26 @@ export function createApp(): AppInstance {
           if (cancelledTimeMs > 0) {
             matrixStore.addPracticeTimeMs(cancelledTimeMs);
           }
-          renderApp();
+          const afterCounts = matrixStore.getCountsByStatus();
+          const afterPoints = matrixStore.getPoints();
+          const newDiscovered = Math.max(0, afterCounts.discovery - beforeCounts.discovery);
+          const newLearned = Math.max(0, afterCounts.mastered - beforeCounts.mastered);
+          const pointsGained = Math.max(0, afterPoints - beforePoints);
+
+          if (activeProfile && (pointsGained > 0 || newDiscovered > 0 || newLearned > 0 || cancelledTimeMs >= 3000)) {
+            showRewardsFlow({
+              profile: activeProfile,
+              discoveredCount: newDiscovered,
+              learnedCount: newLearned,
+              pointsGained,
+              oldPoints: beforePoints,
+              matrixStore,
+              audioService: audio,
+              onDone: () => renderApp()
+            });
+          } else {
+            renderApp();
+          }
         }
       );
     });
@@ -530,7 +549,26 @@ export function createApp(): AppInstance {
           if (cancelledTimeMs > 0) {
             matrixStore.addPracticeTimeMs(cancelledTimeMs);
           }
-          renderApp();
+          const afterCounts = matrixStore.getCountsByStatus();
+          const afterPoints = matrixStore.getPoints();
+          const newDiscovered = Math.max(0, afterCounts.discovery - beforeCounts.discovery);
+          const newLearned = Math.max(0, afterCounts.mastered - beforeCounts.mastered);
+          const pointsGained = Math.max(0, afterPoints - beforePoints);
+
+          if (activeProfile && (pointsGained > 0 || newDiscovered > 0 || newLearned > 0 || cancelledTimeMs >= 3000)) {
+            showRewardsFlow({
+              profile: activeProfile,
+              discoveredCount: newDiscovered,
+              learnedCount: newLearned,
+              pointsGained,
+              oldPoints: beforePoints,
+              matrixStore,
+              audioService: audio,
+              onDone: () => renderApp()
+            });
+          } else {
+            renderApp();
+          }
         }
       );
     });

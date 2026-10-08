@@ -146,9 +146,14 @@ export function startEvaluationModal(
           <div class="pause-icon">⏸️</div>
           <h3>Évaluation en pause</h3>
           <p>Prends ton temps pour te reposer.</p>
-          <button type="button" class="btn-confirm-launch btn-resume-action" id="btn-resume-eval">
-            Reprendre l'évaluation ▶️
-          </button>
+          <div class="quit-confirm-buttons" style="width: 100%;">
+            <button type="button" class="btn-confirm-launch btn-resume-action" id="btn-resume-eval">
+              Reprendre l'évaluation ▶️
+            </button>
+            <button type="button" class="btn-confirm-launch" id="btn-pause-finish-eval" style="background: linear-gradient(135deg, #10b981, #06b6d4);">
+              Terminer et voir mon bilan 📊
+            </button>
+          </div>
         </div>
       `;
       const container = modalEl.querySelector(".session-modal-container");
@@ -156,6 +161,20 @@ export function startEvaluationModal(
 
       pauseOverlay.querySelector("#btn-resume-eval")?.addEventListener("click", () => {
         resumeEval();
+      });
+
+      pauseOverlay.querySelector("#btn-pause-finish-eval")?.addEventListener("click", () => {
+        const elapsed = Math.round(performance.now() - evalStartTime);
+        cleanUp();
+        const avgTime = times.length > 0 ? Math.round(times.reduce((a, b) => a + b, 0) / times.length) : 0;
+        onComplete({
+          total: Math.max(1, currentIndex),
+          correct: correctCount,
+          wrongItems,
+          avgTimeMs: avgTime,
+          times,
+          actualPracticeTimeMs: elapsed
+        });
       });
     }
   }
@@ -199,14 +218,17 @@ export function startEvaluationModal(
     confirmOverlay.innerHTML = `
       <div class="session-modal-container quit-confirm-modal">
         <div class="quit-confirm-icon">⚠️</div>
-        <h3>Quitter l'évaluation ?</h3>
-        <p>Veux-tu vraiment quitter ? Ton temps déjà passé sera bien comptabilisé.</p>
+        <h3>Terminer ou quitter ?</h3>
+        <p>Tu peux terminer dès maintenant pour valider tes calculs et tes points, ou continuer l'exercice.</p>
         <div class="quit-confirm-buttons">
           <button type="button" class="btn-confirm-launch btn-continue-action" id="btn-confirm-stay-eval">
             Continuer l'évaluation 🚀
           </button>
+          <button type="button" class="btn-confirm-launch" id="btn-confirm-finish-eval" style="background: linear-gradient(135deg, #10b981, #06b6d4);">
+            Terminer et voir mon bilan 📊
+          </button>
           <button type="button" class="btn-quit-danger" id="btn-confirm-quit-eval">
-            Quitter maintenant
+            Quitter la session
           </button>
         </div>
       </div>
@@ -219,6 +241,21 @@ export function startEvaluationModal(
       if (!wasPausedBefore) {
         resumeEval();
       }
+    });
+
+    confirmOverlay.querySelector("#btn-confirm-finish-eval")?.addEventListener("click", () => {
+      confirmOverlay.remove();
+      const elapsed = Math.round(performance.now() - evalStartTime);
+      cleanUp();
+      const avgTime = times.length > 0 ? Math.round(times.reduce((a, b) => a + b, 0) / times.length) : 0;
+      onComplete({
+        total: Math.max(1, currentIndex),
+        correct: correctCount,
+        wrongItems,
+        avgTimeMs: avgTime,
+        times,
+        actualPracticeTimeMs: elapsed
+      });
     });
 
     confirmOverlay.querySelector("#btn-confirm-quit-eval")?.addEventListener("click", () => {

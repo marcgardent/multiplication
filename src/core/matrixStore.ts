@@ -152,11 +152,10 @@ export function createMatrixStore(storage: StorageService, initialProfileId = "d
       }
 
       if (mode === "discovery") {
-        // En mode découverte passive, l'item passe de unknown à discovery (+5 points découverte)
         if (item.status === "unknown") {
           item.status = "discovery";
-          points += 5;
         }
+        points += 5;
       } else {
         // Enregistrer tous les temps mesurés
         if (responseTimeMs > 0) {
