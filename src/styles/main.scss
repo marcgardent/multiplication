@@ -462,6 +462,17 @@ body {
         border: 2px solid #ffffff;
       }
     }
+
+    .btn-cloud-header {
+      background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
+      border: 2px solid #38bdf8;
+      box-shadow: 0 2px 8px #000000;
+
+      &:hover {
+        transform: scale(1.05);
+        box-shadow: 0 4px 12px #000000;
+      }
+    }
   }
 }
 
@@ -2219,6 +2230,47 @@ body {
       }
     }
   }
+
+  .btn-parent-drive-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    background: linear-gradient(135deg, #0369a1 0%, #1e40af 100%);
+    border: 2px solid #38bdf8;
+    padding: 14px 18px;
+    border-radius: 16px;
+    cursor: pointer;
+    color: #ffffff;
+    font-size: 0.95rem;
+    font-weight: 900;
+    margin-top: 6px;
+    box-shadow: 0 4px 16px #000000;
+    transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+
+    &:hover {
+      background: linear-gradient(135deg, #0284c7 0%, #1d4ed8 100%);
+      border-color: #7dd3fc;
+      box-shadow: 0 6px 22px #000000;
+      transform: translateY(-2px);
+    }
+
+    .drive-toggle-icon {
+      font-size: 1.25rem;
+      margin-right: 8px;
+    }
+
+    .drive-toggle-title {
+      flex: 1;
+      text-align: left;
+    }
+
+    .drive-toggle-arrow {
+      font-size: 0.9rem;
+      color: #7dd3fc;
+      font-weight: 900;
+    }
+  }
 }
 
 /* Écrans de Jeu Modes */
@@ -3438,3 +3490,254 @@ body {
     }
   }
 }
+
+/* Modale Synchronisation Google Drive App Data */
+.drive-modal-card {
+  max-width: 520px;
+  background: #1e293b;
+  border: 2px solid #38bdf8;
+  box-shadow: 0 25px 60px #000000;
+
+  .drive-modal-header {
+    .drive-modal-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+
+      .drive-cloud-icon {
+        font-size: 1.6rem;
+      }
+
+      h3 {
+        font-size: 1.3rem;
+        font-weight: 900;
+        color: #ffffff;
+      }
+    }
+  }
+
+  .drive-modal-body {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding-top: 6px;
+
+    .drive-info-banner {
+      background: #0f172a;
+      border: 2px solid #334155;
+      border-radius: 14px;
+      padding: 12px 14px;
+
+      p {
+        color: #cbd5e1;
+        font-size: 0.88rem;
+        line-height: 1.45;
+        font-weight: 700;
+      }
+    }
+
+    .drive-section-card {
+      background: #0f172a;
+      border: 2px solid #334155;
+      border-radius: 16px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+
+      .section-title-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+
+        h4 {
+          font-size: 0.95rem;
+          font-weight: 900;
+          color: #ffffff;
+        }
+
+        .drive-status-badge {
+          padding: 4px 12px;
+          border-radius: 10px;
+          font-size: 0.78rem;
+          font-weight: 900;
+          border: 1.5px solid #ffffff;
+
+          &.badge-online {
+            background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+            color: #ffffff;
+          }
+
+          &.badge-offline {
+            background: linear-gradient(135deg, #475569 0%, #334155 100%);
+            color: #f1f5f9;
+          }
+        }
+      }
+
+      .section-hint {
+        font-size: 0.8rem;
+        color: #94a3b8;
+        font-weight: 600;
+        line-height: 1.4;
+      }
+
+      .client-id-input-group {
+        display: flex;
+        gap: 8px;
+
+        .drive-text-input {
+          flex: 1;
+          background: #1e293b;
+          border: 2px solid #475569;
+          border-radius: 12px;
+          color: #ffffff;
+          padding: 10px 12px;
+          font-size: 0.85rem;
+          font-weight: 700;
+
+          &:focus {
+            outline: none;
+            border-color: #38bdf8;
+          }
+        }
+
+        .btn-save-key {
+          background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+          border: 2px solid #38bdf8;
+          color: #ffffff;
+          border-radius: 12px;
+          padding: 10px 14px;
+          font-weight: 900;
+          font-size: 0.85rem;
+          cursor: pointer;
+          white-space: nowrap;
+          transition: transform 0.15s ease;
+
+          &:active {
+            transform: scale(0.95);
+          }
+        }
+      }
+
+      .drive-sync-meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.82rem;
+        font-weight: 800;
+        background: #1e293b;
+        border: 1px solid #475569;
+        padding: 8px 12px;
+        border-radius: 10px;
+
+        .meta-label {
+          color: #94a3b8;
+        }
+
+        .meta-val {
+          color: #facc15;
+        }
+      }
+
+      .drive-actions-group, .local-actions-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .local-actions-group {
+        flex-direction: row;
+      }
+
+      .btn-drive-action {
+        border-radius: 14px;
+        padding: 12px;
+        font-size: 0.95rem;
+        font-weight: 900;
+        cursor: pointer;
+        text-align: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        box-shadow: 0 4px 12px #000000;
+        transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+
+        &:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 6px 16px #000000;
+        }
+
+        &:active {
+          transform: scale(0.96);
+        }
+
+        &.btn-drive-login {
+          background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+          border: 2px solid #60a5fa;
+          color: #ffffff;
+          width: 100%;
+        }
+
+        &.btn-drive-upload {
+          background: linear-gradient(135deg, #059669 0%, #047857 100%);
+          border: 2px solid #34d399;
+          color: #ffffff;
+          width: 100%;
+        }
+
+        &.btn-drive-download {
+          background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+          border: 2px solid #38bdf8;
+          color: #ffffff;
+          width: 100%;
+        }
+
+        &.btn-drive-logout {
+          background: #334155;
+          border: 2px solid #64748b;
+          color: #f1f5f9;
+          width: 100%;
+          font-size: 0.85rem;
+          padding: 8px;
+        }
+
+        &.btn-local-export {
+          background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+          border: 2px solid #c084fc;
+          color: #ffffff;
+          flex: 1;
+        }
+
+        &.btn-local-import {
+          background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
+          border: 2px solid #fb923c;
+          color: #ffffff;
+          flex: 1;
+        }
+      }
+
+      .drive-feedback-log {
+        padding: 10px 14px;
+        border-radius: 12px;
+        font-size: 0.85rem;
+        font-weight: 800;
+        line-height: 1.4;
+
+        &.log-success {
+          background: #064e3b;
+          border: 2px solid #10b981;
+          color: #ecfdf5;
+        }
+
+        &.log-error {
+          background: #7f1d1d;
+          border: 2px solid #ef4444;
+          color: #fef2f2;
+        }
+      }
+    }
+  }
+}
+

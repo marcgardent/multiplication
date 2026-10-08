@@ -10,6 +10,7 @@ import { showRewardsFlow, openRewardsBoardModal } from "./components/rewardsBoar
 import { openLuckyWheelModal } from "./components/luckyWheel";
 import { initAppBackground, applyAppBackground, BACKGROUNDS } from "./core/backgrounds";
 import { openBackgroundGalleryModal } from "./components/backgroundGalleryModal";
+import { openGoogleDriveModal } from "./components/googleDriveModal";
 import { SessionConfig, UserProfile } from "./types";
 
 export interface AppInstance {
@@ -17,7 +18,7 @@ export interface AppInstance {
 }
 
 export function createApp(): AppInstance {
-  const storage = createStorageService("mult_clean_v2"); // Nouveau namespace propre (zéro reprise de données)
+  const storage = createStorageService("mult_clean_v2");
   const audio = createAudioService();
   const profileService: ProfileService = createProfileService(storage);
 
@@ -105,6 +106,7 @@ export function createApp(): AppInstance {
               `
               : ""
           }
+          <button type="button" class="icon-btn btn-cloud-header" id="btn-header-cloud" aria-label="Sauvegarde Google Drive" title="Sauvegarde Google Drive">☁️</button>
           <button type="button" class="icon-btn" id="btn-audio-mute" aria-label="Couper ou activer le son">🔊</button>
           <button type="button" class="icon-btn" id="btn-pwa-install" aria-label="Installer l'application" style="display: none;">📲</button>
         </div>
@@ -116,7 +118,7 @@ export function createApp(): AppInstance {
     return shell;
   }
 
-  // --- 1. ÉCRAN DE LOGIN AVEC BOUTON (+) ---
+  // --- 1. ÉCRAN DE LOGIN AVEC BOUTON AJOUT ---
   function renderLoginScreen(container: HTMLElement) {
     container.innerHTML = "";
     const profiles = profileService.getProfiles();
@@ -576,7 +578,24 @@ export function createApp(): AppInstance {
     document.body.appendChild(modal);
   }
 
-  // --- 3. CARNET DE SUIVI (ESPACE PARENT) ---
+  function openDriveModal(): void {
+    openGoogleDriveModal({
+      storage,
+      onDataRestored: () => {
+        activeProfile = profileService.getActiveProfile();
+        if (activeProfile) {
+          matrixStore.setProfile(activeProfile.id);
+          repetitionEngine = createRepetitionEngine(matrixStore, sessionConfig);
+          initAppBackground(activeProfile.id);
+        } else {
+          applyAppBackground(BACKGROUNDS[0].filename);
+        }
+        renderApp();
+      }
+    });
+  }
+
+  // --- 3. CARNET DE SUIVI ESPACE PARENT ---
   function renderCarnetView(container: HTMLElement) {
     container.innerHTML = "";
     if (!activeProfile) return;
@@ -599,7 +618,9 @@ export function createApp(): AppInstance {
     carnetContainer.className = "carnet-content-wrapper";
     container.appendChild(carnetContainer);
 
-    const matrixView = createMatrixView(matrixStore, audio, repetitionEngine);
+    const matrixView = createMatrixView(matrixStore, audio, repetitionEngine, () => {
+      openDriveModal();
+    });
     matrixView.mount(carnetContainer);
   }
 
@@ -613,6 +634,11 @@ export function createApp(): AppInstance {
     // Écouteur pour changer d'utilisateur via le badge
     shell.querySelector("#btn-switch-user")?.addEventListener("click", () => {
       profileService.logout();
+    });
+
+    // Clic sur l icone Cloud dans le header -> Ouvre la sauvegarde Google Drive
+    shell.querySelector("#btn-header-cloud")?.addEventListener("click", () => {
+      openDriveModal();
     });
 
     // Clic sur le compteur de points dans le header -> Ouvre le tableau des récompenses

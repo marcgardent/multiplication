@@ -14,7 +14,8 @@ export interface MatrixViewComponent {
 export function createMatrixView(
   matrixStore: MatrixStore,
   audioService: AudioService,
-  repetitionEngine?: RepetitionEngine
+  repetitionEngine?: RepetitionEngine,
+  onOpenDrive?: () => void
 ): MatrixViewComponent {
   let element: HTMLElement | null = null;
   let unsubscribe: (() => void) | null = null;
@@ -264,6 +265,12 @@ export function createMatrixView(
               </div>
             </div>
           </div>
+
+          <button type="button" class="btn-parent-drive-toggle" id="btn-open-parent-drive">
+            <span class="drive-toggle-icon">☁️</span>
+            <span class="drive-toggle-title">Sauvegarde & Synchronisation Google Drive</span>
+            <span class="drive-toggle-arrow">➔</span>
+          </button>
         </div>
       `;
     }
@@ -324,6 +331,10 @@ export function createMatrixView(
         content.style.display = isHidden ? "block" : "none";
         if (arrow) arrow.textContent = isHidden ? "▲" : "▼";
       }
+    });
+
+    header.querySelector("#btn-open-parent-drive")?.addEventListener("click", () => {
+      onOpenDrive?.();
     });
 
     header.querySelectorAll(".btn-display-mode").forEach((btn) => {
