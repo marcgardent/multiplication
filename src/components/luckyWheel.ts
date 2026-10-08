@@ -204,17 +204,19 @@ export function openLuckyWheelModal(
       renderModalLayout();
     });
 
-    // Animation visuelle d'incrémentation du compteur de points
+    // Animation visuelle d'incrémentation du compteur de points après 3 secondes et ralentie
     const pointsValEl = splashEl.querySelector("#win-points-val") as HTMLElement | null;
-    if (pointsValEl) {
-      animateCounter(
-        pointsValEl,
-        oldPoints,
-        newPoints,
-        1200,
-        () => audioService.playCoinSound(),
-        () => audioService.playWheelTick()
-      );
+    if (pointsValEl && newPoints > oldPoints) {
+      setTimeout(() => {
+        animateCounter(
+          pointsValEl,
+          oldPoints,
+          newPoints,
+          2500,
+          () => audioService.playCoinSound(),
+          () => audioService.playWheelTick()
+        );
+      }, 3000);
     }
 
     splashEl.querySelector("#btn-collect-win")?.addEventListener("click", () => {
@@ -232,7 +234,7 @@ export function animateCounter(
   element: HTMLElement,
   start: number,
   end: number,
-  durationMs = 1000,
+  durationMs = 2500,
   onFinish?: () => void,
   onTick?: () => void
 ): void {

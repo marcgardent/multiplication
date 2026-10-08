@@ -90,15 +90,12 @@ export function showRewardsFlow(options: RewardsFlowOptions): void {
         hasGiftsToDiscover
           ? `
             <button type="button" class="btn-confirm-launch btn-open-rewards" id="btn-show-rewards-grid">
-              🎁 Découvrir mes récompenses — ${pendingGifts.length} cadeau${pendingGifts.length > 1 ? "x" : ""} à ouvrir !
-            </button>
-            <button type="button" class="btn-confirm-launch btn-rewards-finish" id="btn-finish-congrats" style="background: rgba(255, 255, 255, 0.12); margin-top: 6px;">
-              Retourner à l'accueil 🌟
+              🎁 Récompenses — ${pendingGifts.length} cadeau${pendingGifts.length > 1 ? "x" : ""} à ouvrir !
             </button>
           `
           : `
             <button type="button" class="btn-confirm-launch btn-rewards-finish" id="btn-finish-congrats">
-              Retourner à l'accueil 🌟
+              Terminer 🌟
             </button>
           `
       }
@@ -114,7 +111,7 @@ export function showRewardsFlow(options: RewardsFlowOptions): void {
     onDone();
   });
 
-  // Animation des points gagnés
+  // Animation des points gagnés après 3 secondes d'attente et ralentie
   if (pointsGained > 0 && currentPoints > startPoints) {
     setTimeout(() => {
       const ptsCounterEl = splashEl.querySelector("#congrats-pts-counter") as HTMLElement | null;
@@ -123,22 +120,18 @@ export function showRewardsFlow(options: RewardsFlowOptions): void {
           ptsCounterEl,
           startPoints,
           currentPoints,
-          1000,
+          2500,
           () => audioService.playCoinSound(),
           () => audioService.playWheelTick()
         );
       }
-    }, 400);
+    }, 3000);
   }
 
   if (hasGiftsToDiscover) {
     splashEl.querySelector("#btn-show-rewards-grid")?.addEventListener("click", () => {
       splashEl.remove();
       openRewardsBoardModal(matrixStore, audioService, onDone);
-    });
-    splashEl.querySelector("#btn-finish-congrats")?.addEventListener("click", () => {
-      splashEl.remove();
-      onDone();
     });
   } else {
     splashEl.querySelector("#btn-finish-congrats")?.addEventListener("click", () => {
@@ -319,12 +312,12 @@ export function openRewardsBoardModal(
             valEl,
             oldPoints,
             newPoints,
-            1000,
+            2500,
             () => audioService.playCoinSound(),
             () => audioService.playWheelTick()
           );
         }
-      }, 300);
+      }, 3000);
     }
 
     giftSplash.querySelector("#btn-collect-gift")?.addEventListener("click", () => {

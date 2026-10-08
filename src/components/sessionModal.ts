@@ -32,6 +32,8 @@ export function startSessionModal(
   let questionStartTime = 0;
   let currentInput = "";
   let hasUsedHelp = false;
+  let isDiscoveryAudioActive = false;
+  let hasDiscoveryWorkshopTimerEnded = false;
 
   const modalEl = document.createElement("div");
   modalEl.className = "session-modal-overlay";
@@ -305,6 +307,23 @@ export function startSessionModal(
     return isRunning;
   }
 
+  function proceedToNextWorkshop() {
+    audioService.stop();
+    audioService.playFeedback("finish");
+    if (currentWorkshopIndex < 2) {
+      showActivityTransitionSplash(currentWorkshopIndex + 1);
+    } else {
+      // Fin de la session complète (les 3 ateliers sont terminés)
+      const elapsedMs = Math.round(performance.now() - sessionStartTime);
+      cleanUp();
+      onFinish({
+        completedWorkshops: 3,
+        totalTimeMinutes: config.durationMinutes,
+        actualPracticeTimeMs: elapsedMs
+      });
+    }
+  }
+
   function startWorkshop(idx: number) {
     if (!isRunning) return;
     currentWorkshopIndex = idx;
@@ -313,6 +332,9 @@ export function startSessionModal(
     const info = getWorkshopInfo(idx);
     const cueEl = modalEl.querySelector("#modal-cue");
     if (cueEl) cueEl.textContent = `Bienvenue dans l'${info.tag} : ${info.name}`;
+
+    hasDiscoveryWorkshopTimerEnded = false;
+    isDiscoveryAudioActive = false;
 
     // Configurer le timer pour cet atelier
     timer = createSessionTimer(
@@ -325,19 +347,12 @@ export function startSessionModal(
       },
       () => {
         // Fin de l'atelier courant
-        audioService.playFeedback("finish");
-        if (currentWorkshopIndex < 2) {
-          showActivityTransitionSplash(currentWorkshopIndex + 1);
-        } else {
-          // Fin de la session complète (les 3 ateliers sont terminés)
-          const elapsedMs = Math.round(performance.now() - sessionStartTime);
-          cleanUp();
-          onFinish({
-            completedWorkshops: 3,
-            totalTimeMinutes: config.durationMinutes,
-            actualPracticeTimeMs: elapsedMs
-          });
+        if (currentWorkshopIndex === 0 && isDiscoveryAudioActive) {
+          // Un calcul d'écoute est en cours : on laisse la question et la réponse se terminer avant le splash !
+          hasDiscoveryWorkshopTimerEnded = true;
+          return;
         }
+        proceedToNextWorkshop();
       }
     );
 
@@ -357,6 +372,7 @@ export function startSessionModal(
   function showActivityTransitionSplash(nextIdx: number) {
     const nextInfo = getWorkshopInfo(nextIdx);
     keypad?.setEnabled(false);
+    audioService.stop();
     audioService.playFeedback("finish");
 
     const splashOverlay = document.createElement("div");
@@ -364,18 +380,15 @@ export function startSessionModal(
 
     let stepTitle = "";
     let stepDescription = "";
-    let buttonLabel = "";
     let iconEmoji = "";
 
     if (nextIdx === 1) {
       stepTitle = "Bravo ! Étape 1 validée !";
       stepDescription = "Place au Quiz ! Écoute le calcul et tape la bonne réponse au clavier !";
-      buttonLabel = "C'est parti pour le Quiz ! 🚀";
       iconEmoji = "🎯";
     } else {
       stepTitle = "Génial ! Étape 2 réussie !";
       stepDescription = "Place au Défi Chrono ! Sois le plus rapide avant la fin du chronomètre !";
-      buttonLabel = "Je suis prêt pour le Défi Chrono ! ⚡";
       iconEmoji = "⚡";
     }
 
@@ -387,7 +400,7 @@ export function startSessionModal(
         <h2 class="transition-title">${stepTitle}</h2>
         <p class="transition-subtitle">${stepDescription}</p>
         <button type="button" class="btn-confirm-launch btn-start-next-workshop" id="btn-start-next-step">
-          ${buttonLabel}
+          Continuer 🚀
         </button>
       </div>
     `;
@@ -405,21 +418,17 @@ export function startSessionModal(
     };
 
     splashOverlay.querySelector("#btn-start-next-step")?.addEventListener("click", proceedToNext);
-
-    // Auto-démarrage après 4.5 secondes si pas de clic
-    setTimeout(() => {
-      proceedToNext();
-    }, 4500);
   }
 
   // --- ATELIER 1 : DÉCOUVERTE ---
   async function runDiscoveryStep() {
-    if (!isRunning || currentWorkshopIndex !== 0) return;
+    if (!isRunning || currentWorkshopIndex !== 0 || hasDiscoveryWorkshopTimerEnded) return;
     while (isPaused) {
       if (!isRunning) return;
       await new Promise((r) => setTimeout(r, 100));
     }
 
+    isDiscoveryAudioActive = true;
     currentItem = engine.getNextQuestion();
 
     const factorsEl = modalEl.querySelector("#modal-factors");
@@ -435,11 +444,17 @@ export function startSessionModal(
     if (cueEl) cueEl.textContent = `Question : ${currentItem.a} fois ${currentItem.b}...`;
 
     await audioService.playQuestion(currentItem.a, currentItem.b);
-    if (!isRunning || currentWorkshopIndex !== 0) return;
+    if (!isRunning || currentWorkshopIndex !== 0) {
+      isDiscoveryAudioActive = false;
+      return;
+    }
 
     if (cueEl) cueEl.textContent = "Réfléchissez au résultat...";
     const ok1 = await waitWithPauseCheck(config.pauseBetweenAudioMs);
-    if (!ok1 || currentWorkshopIndex !== 0) return;
+    if (!ok1 || currentWorkshopIndex !== 0) {
+      isDiscoveryAudioActive = false;
+      return;
+    }
 
     if (answerEl) {
       answerEl.textContent = currentItem.result.toString();
@@ -449,12 +464,22 @@ export function startSessionModal(
     if (cueEl) cueEl.textContent = `Réponse : ${currentItem.result} !`;
 
     await audioService.playAnswer(currentItem.result);
-    if (!isRunning || currentWorkshopIndex !== 0) return;
+    if (!isRunning || currentWorkshopIndex !== 0) {
+      isDiscoveryAudioActive = false;
+      return;
+    }
 
     engine.registerResult(currentItem, "discovery", true, 0);
+    isDiscoveryAudioActive = false;
+
+    // Si le minuteur s'est écoulé pendant cette lecture, on termine l'atelier proprement maintenant
+    if (hasDiscoveryWorkshopTimerEnded) {
+      proceedToNextWorkshop();
+      return;
+    }
 
     const ok2 = await waitWithPauseCheck(1100);
-    if (ok2 && currentWorkshopIndex === 0) {
+    if (ok2 && currentWorkshopIndex === 0 && !hasDiscoveryWorkshopTimerEnded) {
       runDiscoveryStep();
     }
   }
