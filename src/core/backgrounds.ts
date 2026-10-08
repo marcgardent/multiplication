@@ -91,7 +91,7 @@ export function setActiveBackground(profileId: string, bgId: string): void {
 
 export function applyAppBackground(filename: string): void {
   const bgUrl = `/backgrounds/${filename}`;
-  document.body.style.backgroundImage = `linear-gradient(rgba(15, 23, 42, 0.82), rgba(15, 23, 42, 0.90)), url("${bgUrl}")`;
+  document.body.style.backgroundImage = `url("${bgUrl}")`;
   document.body.style.backgroundSize = "cover";
   document.body.style.backgroundPosition = "center center";
   document.body.style.backgroundRepeat = "no-repeat";
