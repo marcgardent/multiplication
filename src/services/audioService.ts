@@ -1,0 +1,202 @@
+export interface AudioManifest {
+  questions: Record<string, { file: string; text: string; a: number; b: number }>;
+  answers: Record<string, { file: string; text: string; val: number }>;
+}
+
+export interface AudioService {
+  init(): Promise<void>;
+  playQuestion(a: number, b: number): Promise<void>;
+  playAnswer(result: number): Promise<void>;
+  playFeedback(type: "correct" | "wrong" | "finish"): Promise<void>;
+  playCheer(): Promise<void>;
+  playWheelTick(): void;
+  playCoinSound(): void;
+  stop(): void;
+  isMuted(): boolean;
+  toggleMute(): boolean;
+}
+
+export function createAudioService(): AudioService {
+  let isMutedState = false;
+  let currentAudio: HTMLAudioElement | null = null;
+  const audioCache = new Map<string, HTMLAudioElement>();
+
+  // Web Audio API synthétiseur léger pour les sons d'effets (bips de succès / erreur)
+  let audioCtx: AudioContext | null = null;
+
+  function getAudioContext(): AudioContext | null {
+    if (typeof window === "undefined") return null;
+    if (!audioCtx) {
+      const AudioCtxClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      if (AudioCtxClass) {
+        audioCtx = new AudioCtxClass();
+      }
+    }
+    if (audioCtx && audioCtx.state === "suspended") {
+      audioCtx.resume();
+    }
+    return audioCtx;
+  }
+
+  function playTone(freq: number, type: OscillatorType, duration: number, delay = 0) {
+    if (isMutedState) return;
+    try {
+      const ctx = getAudioContext();
+      if (!ctx) return;
+      setTimeout(() => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, ctx.currentTime);
+        gain.gain.setValueAtTime(0.15, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + duration);
+      }, delay * 1000);
+    } catch (e) {
+      console.warn("Erreur AudioContext tone", e);
+    }
+  }
+
+  function playAudioFile(url: string): Promise<void> {
+    if (isMutedState) return Promise.resolve();
+
+    return new Promise((resolve) => {
+      try {
+        if (currentAudio) {
+          currentAudio.pause();
+          currentAudio.currentTime = 0;
+        }
+
+        let audio = audioCache.get(url);
+        if (!audio) {
+          audio = new Audio(url);
+          audio.preload = "auto";
+          audioCache.set(url, audio);
+        } else {
+          audio.currentTime = 0;
+        }
+
+        currentAudio = audio;
+
+        const onEnded = () => {
+          audio?.removeEventListener("ended", onEnded);
+          audio?.removeEventListener("error", onError);
+          resolve();
+        };
+
+        const onError = (e: Event) => {
+          console.warn(`Erreur lecture audio ${url}`, e);
+          audio?.removeEventListener("ended", onEnded);
+          audio?.removeEventListener("error", onError);
+          resolve();
+        };
+
+        audio.addEventListener("ended", onEnded);
+        audio.addEventListener("error", onError);
+
+        audio.play().catch((err) => {
+          console.warn(`Lecture audio bloquée ou échouée: ${url}`, err);
+          resolve();
+        });
+      } catch (err) {
+        console.warn("Exception playAudioFile", err);
+        resolve();
+      }
+    });
+  }
+
+  return {
+    async init(): Promise<void> {
+      try {
+        const resp = await fetch("/audio/index.json");
+        if (resp.ok) {
+          const manifest = (await resp.json()) as AudioManifest;
+          // Précharger les questions les plus fréquentes en tâche de fond
+          Object.values(manifest.answers).forEach((ans) => {
+            const a = new Audio(ans.file);
+            a.preload = "auto";
+            audioCache.set(ans.file, a);
+          });
+        }
+      } catch (e) {
+        console.warn("Initialisation audio offline/fallback", e);
+      }
+    },
+
+    playQuestion(a: number, b: number): Promise<void> {
+      return playAudioFile(`/audio/q_${a}_${b}.mp3`);
+    },
+
+    playAnswer(result: number): Promise<void> {
+      return playAudioFile(`/audio/ans_${result}.mp3`);
+    },
+
+    playFeedback(type: "correct" | "wrong" | "finish"): Promise<void> {
+      if (type === "correct") {
+        playTone(523.25, "sine", 0.12, 0);       // C5
+        playTone(659.25, "sine", 0.18, 0.08);    // E5
+      } else if (type === "wrong") {
+        playTone(250, "sawtooth", 0.25, 0);
+      } else if (type === "finish") {
+        playTone(523.25, "sine", 0.15, 0);
+        playTone(659.25, "sine", 0.15, 0.12);
+        playTone(783.99, "sine", 0.3, 0.24);     // G5
+      }
+      return Promise.resolve();
+    },
+
+    playCheer(): Promise<void> {
+      const cheers = ["bravo", "felicitations", "genial", "super", "magnifique"];
+      const chosen = cheers[Math.floor(Math.random() * cheers.length)];
+      return playAudioFile(`/audio/cheer_${chosen}.mp3`);
+    },
+
+    playWheelTick(): void {
+      if (isMutedState) return;
+      try {
+        const ctx = getAudioContext();
+        if (!ctx) return;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(800 + Math.random() * 200, ctx.currentTime);
+        gain.gain.setValueAtTime(0.08, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.04);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.04);
+      } catch (e) {
+        // Ignorer
+      }
+    },
+
+    playCoinSound(): void {
+      if (isMutedState) return;
+      playTone(987.77, "sine", 0.08, 0);    // B5
+      playTone(1318.51, "sine", 0.18, 0.06); // E6
+    },
+
+    stop(): void {
+      if (currentAudio) {
+        currentAudio.pause();
+        currentAudio.currentTime = 0;
+      }
+    },
+
+    isMuted(): boolean {
+      return isMutedState;
+    },
+
+    toggleMute(): boolean {
+      isMutedState = !isMutedState;
+      if (isMutedState && currentAudio) {
+        currentAudio.pause();
+      }
+      return isMutedState;
+    }
+  };
+}

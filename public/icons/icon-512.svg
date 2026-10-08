@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4f46e5"/>
+      <stop offset="100%" stop-color="#9333ea"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="128" fill="url(#grad)"/>
+  <!-- Symbole de multiplication stylisé avec badge audio -->
+  <path d="M160 160 L352 352 M352 160 L160 352" stroke="#ffffff" stroke-width="48" stroke-linecap="round"/>
+  <circle cx="380" cy="130" r="45" fill="#10b981"/>
+  <path d="M368 120 L378 120 L390 110 L390 150 L378 140 L368 140 Z" fill="#ffffff"/>
+  <path d="M397 122 C402 127 402 133 397 138" stroke="#ffffff" stroke-width="4" stroke-linecap="round" fill="none"/>
+</svg>
