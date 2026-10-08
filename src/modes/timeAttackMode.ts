@@ -122,7 +122,7 @@ export function createTimeAttackMode(
       audioService.playFeedback("correct");
     } else {
       cardEl?.classList.add("card-wrong");
-      if (cueEl) cueEl.textContent = `Erreur (${currentItem.a} × ${currentItem.b} = ${currentItem.result}) ⚠️`;
+      if (cueEl) cueEl.textContent = `Correction : ${currentItem.a} × ${currentItem.b} = ${currentItem.result} ⚠️`;
       audioService.playFeedback("wrong");
     }
 

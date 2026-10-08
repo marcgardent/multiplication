@@ -3,7 +3,7 @@ import { MultiplicationItem, ItemStatus } from "../types";
 import { AudioService } from "../services/audioService";
 import { RepetitionEngine } from "../core/repetitionEngine";
 
-export type MatrixDisplayMode = "status" | "errorRate" | "responseTime";
+export type MatrixDisplayMode = "status" | "accuracy" | "responseTime";
 
 export interface MatrixViewComponent {
   mount(parent: HTMLElement): void;
@@ -27,16 +27,17 @@ export function createMatrixView(
     mastered: { label: "Maîtrisé", class: "status-mastered", icon: "🟢" }
   };
 
-  function getErrorRate(item: MultiplicationItem): number {
+  function getAccuracy(item: MultiplicationItem): number {
     if (item.seenCount === 0) return 0;
-    return Math.round((item.errorCount / item.seenCount) * 100);
+    const accuracy = Math.round(((item.seenCount - item.errorCount) / item.seenCount) * 100);
+    return Math.max(0, Math.min(100, accuracy));
   }
 
-  function getErrorRateColorClass(errorRate: number, seenCount: number): string {
+  function getAccuracyColorClass(accuracy: number, seenCount: number): string {
     if (seenCount === 0) return "heat-none";
-    if (errorRate === 0) return "heat-safe";
-    if (errorRate <= 25) return "heat-low";
-    if (errorRate <= 50) return "heat-medium";
+    if (accuracy === 100) return "heat-safe";
+    if (accuracy >= 75) return "heat-low";
+    if (accuracy >= 50) return "heat-medium";
     return "heat-high";
   }
 
@@ -53,7 +54,7 @@ export function createMatrixView(
     modal.className = "matrix-detail-modal";
 
     const st = statusLabels[item.status];
-    const errorRate = getErrorRate(item);
+    const accuracy = getAccuracy(item);
     const times = item.responseTimesMs || [];
     const minTime = times.length > 0 ? Math.min(...times) : 0;
     const maxTime = times.length > 0 ? Math.max(...times) : 0;
@@ -75,11 +76,11 @@ export function createMatrixView(
               <span class="stat-val">${item.seenCount}</span>
             </div>
             <div class="stat-item">
-              <span class="stat-label">Taux d'erreur :</span>
-              <span class="stat-val ${errorRate > 30 ? "text-danger" : ""}">${item.seenCount > 0 ? errorRate + "%" : "-"}</span>
+              <span class="stat-label">Précision :</span>
+              <span class="stat-val ${accuracy < 70 && item.seenCount > 0 ? "text-danger" : ""}">${item.seenCount > 0 ? accuracy + "%" : "-"}</span>
             </div>
             <div class="stat-item">
-              <span class="stat-label">Erreurs total :</span>
+              <span class="stat-label">Erreurs au total :</span>
               <span class="stat-val">${item.errorCount}</span>
             </div>
             <div class="stat-item">
@@ -97,7 +98,7 @@ export function createMatrixView(
           </div>
 
           <div class="all-times-history">
-            <span class="times-title">Chronomètres enregistrés (${times.length}) :</span>
+            <span class="times-title">Historique des chronos - ${times.length} mesure${times.length > 1 ? "s" : ""} :</span>
             <div class="times-list">${recentTimes ? recentTimes : "Aucune mesure"}</div>
           </div>
 
@@ -238,8 +239,8 @@ export function createMatrixView(
         <button type="button" class="btn-display-mode ${currentDisplayMode === "status" ? "active" : ""}" data-mode="status">
           Statut
         </button>
-        <button type="button" class="btn-display-mode ${currentDisplayMode === "errorRate" ? "active" : ""}" data-mode="errorRate">
-          Erreurs
+        <button type="button" class="btn-display-mode ${currentDisplayMode === "accuracy" ? "active" : ""}" data-mode="accuracy">
+          Précision
         </button>
         <button type="button" class="btn-display-mode ${currentDisplayMode === "responseTime" ? "active" : ""}" data-mode="responseTime">
           Vitesse
@@ -255,12 +256,12 @@ export function createMatrixView(
               <span class="legend-item"><span class="dot dot-review"></span> ${counts.review} en révision</span>
               <span class="legend-item"><span class="dot dot-mastered"></span> ${counts.mastered} maîtrisés</span>
             `
-            : currentDisplayMode === "errorRate"
+            : currentDisplayMode === "accuracy"
             ? `
-              <span class="legend-item"><span class="dot heat-safe"></span> Sans erreur</span>
-              <span class="legend-item"><span class="dot heat-low"></span> Moins de 25%</span>
-              <span class="legend-item"><span class="dot heat-medium"></span> 25 à 50%</span>
-              <span class="legend-item"><span class="dot heat-high"></span> Plus de 50%</span>
+              <span class="legend-item"><span class="dot heat-safe"></span> 100% parfait</span>
+              <span class="legend-item"><span class="dot heat-low"></span> 75 à 99%</span>
+              <span class="legend-item"><span class="dot heat-medium"></span> 50 à 74%</span>
+              <span class="legend-item"><span class="dot heat-high"></span> Moins de 50%</span>
             `
             : `
               <span class="legend-item"><span class="dot heat-safe"></span> Moins de 2s</span>
@@ -328,10 +329,10 @@ export function createMatrixView(
           if (currentDisplayMode === "status") {
             cellClass = `status-${item.status || "unknown"}`;
             displayText = (a * b).toString();
-          } else if (currentDisplayMode === "errorRate") {
-            const errRate = getErrorRate(item);
-            cellClass = getErrorRateColorClass(errRate, item.seenCount);
-            subText = item.seenCount > 0 ? `${errRate}%` : "-";
+          } else if (currentDisplayMode === "accuracy") {
+            const accuracy = getAccuracy(item);
+            cellClass = getAccuracyColorClass(accuracy, item.seenCount);
+            subText = item.seenCount > 0 ? `${accuracy}%` : "-";
           } else if (currentDisplayMode === "responseTime") {
             cellClass = getResponseTimeColorClass(item.avgResponseTimeMs);
             subText = item.avgResponseTimeMs > 0 ? `${(item.avgResponseTimeMs / 1000).toFixed(1)}s` : "-";
