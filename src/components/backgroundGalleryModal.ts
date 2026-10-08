@@ -55,7 +55,7 @@ export function openBackgroundGalleryModal(options: BackgroundGalleryOptions): v
       cardsHtml += `
         <div class="bg-gallery-card ${isUnlocked ? "unlocked" : "locked"} ${isActive ? "active-choice" : ""}">
           <div class="bg-preview-wrap">
-            <img src="/backgrounds/${bg.filename}" alt="${bg.name}" class="bg-preview-img" loading="lazy" />
+            <img src="${import.meta.env.BASE_URL}backgrounds/${bg.filename}" alt="${bg.name}" class="bg-preview-img" loading="lazy" />
             ${!isUnlocked ? '<div class="bg-lock-overlay"><span class="lock-big-icon">🔒</span></div>' : ""}
             <span class="bg-pts-badge">${bg.pointsRequired === 0 ? "Gratuit" : `${bg.pointsRequired} pts`}</span>
           </div>

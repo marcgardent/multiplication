@@ -21,7 +21,7 @@ export function createAudioService(): AudioService {
   let currentAudio: HTMLAudioElement | null = null;
   const audioCache = new Map<string, HTMLAudioElement>();
 
-  // Web Audio API synthétiseur léger pour les sons d'effets (bips de succès / erreur)
+  // Web Audio API synthétiseur léger pour les sons d effets bips de succès ou erreur
   let audioCtx: AudioContext | null = null;
 
   function getAudioContext(): AudioContext | null {
@@ -60,8 +60,16 @@ export function createAudioService(): AudioService {
     }
   }
 
+  function resolveAudioUrl(path: string): string {
+    if (path.startsWith("/")) {
+      return `${import.meta.env.BASE_URL}${path.slice(1)}`;
+    }
+    return path;
+  }
+
   function playAudioFile(url: string): Promise<void> {
     if (isMutedState) return Promise.resolve();
+    const resolvedUrl = resolveAudioUrl(url);
 
     return new Promise((resolve) => {
       try {
@@ -70,11 +78,11 @@ export function createAudioService(): AudioService {
           currentAudio.currentTime = 0;
         }
 
-        let audio = audioCache.get(url);
+        let audio = audioCache.get(resolvedUrl);
         if (!audio) {
-          audio = new Audio(url);
+          audio = new Audio(resolvedUrl);
           audio.preload = "auto";
-          audioCache.set(url, audio);
+          audioCache.set(resolvedUrl, audio);
         } else {
           audio.currentTime = 0;
         }
@@ -88,7 +96,7 @@ export function createAudioService(): AudioService {
         };
 
         const onError = (e: Event) => {
-          console.warn(`Erreur lecture audio ${url}`, e);
+          console.warn(`Erreur lecture audio ${resolvedUrl}`, e);
           audio?.removeEventListener("ended", onEnded);
           audio?.removeEventListener("error", onError);
           resolve();
@@ -98,7 +106,7 @@ export function createAudioService(): AudioService {
         audio.addEventListener("error", onError);
 
         audio.play().catch((err) => {
-          console.warn(`Lecture audio bloquée ou échouée: ${url}`, err);
+          console.warn(`Lecture audio bloquée ou échouée: ${resolvedUrl}`, err);
           resolve();
         });
       } catch (err) {
@@ -111,18 +119,19 @@ export function createAudioService(): AudioService {
   return {
     async init(): Promise<void> {
       try {
-        const resp = await fetch("/audio/index.json");
+        const resp = await fetch(resolveAudioUrl("/audio/index.json"));
         if (resp.ok) {
           const manifest = (await resp.json()) as AudioManifest;
-          // Précharger les questions les plus fréquentes en tâche de fond
           Object.values(manifest.answers).forEach((ans) => {
-            const a = new Audio(ans.file);
+            const resolved = resolveAudioUrl(ans.file);
+            const a = new Audio(resolved);
             a.preload = "auto";
             audioCache.set(ans.file, a);
+            audioCache.set(resolved, a);
           });
         }
       } catch (e) {
-        console.warn("Initialisation audio offline/fallback", e);
+        console.warn("Initialisation audio offline fallback", e);
       }
     },
 

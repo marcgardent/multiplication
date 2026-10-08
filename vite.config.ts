@@ -1,7 +1,10 @@
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 
+const base = process.env.GITHUB_ACTIONS ? "/multiplication/" : "/";
+
 export default defineConfig({
+  base,
   plugins: [
     VitePWA({
       registerType: "autoUpdate",
@@ -14,17 +17,17 @@ export default defineConfig({
         background_color: "#0f172a",
         display: "standalone",
         orientation: "portrait",
-        start_url: "/",
-        scope: "/",
+        start_url: base,
+        scope: base,
         icons: [
           {
-            src: "/icons/icon-192.svg",
+            src: `${base}icons/icon-192.svg`,
             sizes: "192x192",
             type: "image/svg+xml",
             purpose: "any"
           },
           {
-            src: "/icons/icon-512.svg",
+            src: `${base}icons/icon-512.svg`,
             sizes: "512x512",
             type: "image/svg+xml",
             purpose: "any maskable"
@@ -33,7 +36,7 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ["**/*.{js,css,html,svg,png,ico,mp3,json}"],
-        maximumFileSizeToCacheInBytes: 15 * 1024 * 1024 // 15MB pour inclure l'ensemble des 142 fichiers audios
+        maximumFileSizeToCacheInBytes: 15 * 1024 * 1024
       }
     })
   ]

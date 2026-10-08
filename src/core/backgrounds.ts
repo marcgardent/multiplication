@@ -90,7 +90,7 @@ export function setActiveBackground(profileId: string, bgId: string): void {
 }
 
 export function applyAppBackground(filename: string): void {
-  const bgUrl = `/backgrounds/${filename}`;
+  const bgUrl = `${import.meta.env.BASE_URL}backgrounds/${filename}`;
   document.body.style.backgroundImage = `url("${bgUrl}")`;
   document.body.style.backgroundSize = "cover";
   document.body.style.backgroundPosition = "center center";

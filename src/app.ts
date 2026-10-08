@@ -89,7 +89,7 @@ export function createApp(): AppInstance {
               `
               : `
                 <div class="app-title-plain">
-                  <img src="/icons/icon-192.svg" alt="Logo" class="app-logo-mini" />
+                  <img src="${import.meta.env.BASE_URL}icons/icon-192.svg" alt="Logo" class="app-logo-mini" />
                   <h1>Multiplications</h1>
                 </div>
               `
