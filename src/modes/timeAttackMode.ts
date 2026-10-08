@@ -28,7 +28,7 @@ export function createTimeAttackMode(
     root.className = "mode-screen mode-timeattack";
     root.innerHTML = `
       <div class="mode-header">
-        <div class="session-badge">⚡ Time-Attack (Statistiques)</div>
+        <div class="session-badge">⚡ Time-Attack Vitesse</div>
         <div class="timer-display" id="ta-timer">--:--</div>
       </div>
 

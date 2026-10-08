@@ -49,6 +49,34 @@ export function createMatrixView(
     return "heat-high";
   }
 
+  function formatNextReview(item: MultiplicationItem): string {
+    if (item.seenCount === 0 || item.nextReviewAt === null) {
+      return "Non programmée";
+    }
+    const now = Date.now();
+    const diffMs = item.nextReviewAt - now;
+    if (diffMs <= 0 || item.status === "review") {
+      return "À réviser ce jour";
+    }
+    const diffMinutes = Math.round(diffMs / 60000);
+    if (diffMinutes < 60) {
+      return `Dans ${Math.max(1, diffMinutes)} min`;
+    }
+    const diffHours = Math.round(diffMs / 3600000);
+    if (diffHours < 24) {
+      return `Dans ${diffHours} h`;
+    }
+    const diffDays = Math.round(diffMs / 86400000);
+    return `Dans ${diffDays} jour${diffDays > 1 ? "s" : ""}`;
+  }
+
+  function formatInterval(item: MultiplicationItem): string {
+    if (item.seenCount === 0) return "-";
+    if (item.intervalDays < 0.05) return "10 minutes";
+    if (item.intervalDays < 1.5) return "1 jour";
+    return `${Math.round(item.intervalDays)} jours`;
+  }
+
   function renderModal(item: MultiplicationItem): HTMLElement {
     const modal = document.createElement("div");
     modal.className = "matrix-detail-modal";
@@ -59,6 +87,7 @@ export function createMatrixView(
     const minTime = times.length > 0 ? Math.min(...times) : 0;
     const maxTime = times.length > 0 ? Math.max(...times) : 0;
     const recentTimes = times.slice(-5).map((t) => `${(t / 1000).toFixed(2)}s`).join(", ");
+    const isDue = matrixStore.isItemDue(item);
 
     modal.innerHTML = `
       <div class="modal-card">
@@ -78,6 +107,14 @@ export function createMatrixView(
             <div class="stat-item">
               <span class="stat-label">Précision :</span>
               <span class="stat-val ${accuracy < 70 && item.seenCount > 0 ? "text-danger" : ""}">${item.seenCount > 0 ? accuracy + "%" : "-"}</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">Prochaine révision :</span>
+              <span class="stat-val ${isDue && item.seenCount > 0 ? "text-warning" : ""}">${formatNextReview(item)}</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">Intervalle mémoire :</span>
+              <span class="stat-val">${formatInterval(item)}</span>
             </div>
             <div class="stat-item">
               <span class="stat-label">Erreurs au total :</span>
@@ -167,7 +204,7 @@ export function createMatrixView(
             </div>
             <div class="kpi-box">
               <span class="kpi-num">${qStats.reviewQueueCount}</span>
-              <span class="kpi-lbl">En révision</span>
+              <span class="kpi-lbl">À réviser ce jour</span>
             </div>
             <div class="kpi-box">
               <span class="kpi-num">${counts.discovery}</span>
@@ -180,7 +217,7 @@ export function createMatrixView(
           </div>
           ${
             isOverloaded
-              ? `<p class="kpi-advice">La file de révision contient ${qStats.reviewQueueCount} calculs en difficulté. L'application bloque l'ajout de nouvelles tables pour consolider les acquis.</p>`
+              ? `<p class="kpi-advice">La file de révision contient ${qStats.reviewQueueCount} calculs à consolider. L'application temporise l'ajout de nouvelles tables afin de fixer les acquis en premier.</p>`
               : `<p class="kpi-advice">L'élève alterne harmonieusement nouvelles découvertes et consolidation de ses erreurs.</p>`
           }
 
@@ -198,25 +235,31 @@ export function createMatrixView(
               <div class="guide-step-item">
                 <span class="step-num-badge">1</span>
                 <div class="step-desc">
-                  <strong>Les 4 boîtes de Leitner</strong> : Chaque calcul progresse de la boîte 0 à la boîte 4. Une bonne réponse rapide le fait monter de boîte, une erreur le fait redescendre pour être révisé plus tôt.
+                  <strong>Paliers temporels réels</strong> : Chaque calcul dispose d un calendrier précis. Après une erreur, la révision a lieu 10 minutes plus tard, puis l intervalle s élargit à 1 jour, 3 jours, 7 jours et jusqu à 21 jours pour une maîtrise durable.
                 </div>
               </div>
               <div class="guide-step-item">
                 <span class="step-num-badge">2</span>
                 <div class="step-desc">
-                  <strong>Pondération adaptative</strong> : Plus un calcul présente des erreurs récentes, plus il a de chances de réapparaître rapidement. Les calculs solides reviennent à intervalles de plus en plus espacés.
+                  <strong>Espacement intra-séance protecteur</strong> : Après une réponse incorrecte, l application attend au moins 3 calculs intercalaires avant de réinterroger votre enfant. Cela force l évocation active en mémoire profonde au lieu du simple souvenir immédiat.
                 </div>
               </div>
               <div class="guide-step-item">
                 <span class="step-num-badge">3</span>
                 <div class="step-desc">
-                  <strong>Régulation anti-surcharge</strong> : Si votre enfant a plusieurs calculs en difficulté en même temps, l'application bloque l'arrivée de nouvelles tables tant que les précédentes ne sont pas consolidées.
+                  <strong>Vitesse de réponse et réflexe</strong> : Une réponse ultra rapide en moins de 2,2 secondes élargit l intervalle de révision. À l inverse, une hésitation de plus de 3,8 secondes resserre le planning pour consolider le calcul sans précipitation.
                 </div>
               </div>
               <div class="guide-step-item">
                 <span class="step-num-badge">4</span>
                 <div class="step-desc">
-                  <strong>Critère de maîtrise par réflexe</strong> : Un calcul n'est validé comme maîtrisé qu'après plusieurs réponses exactes rapides en moins de 3,8 secondes pour garantir l'ancrage sans hésitation.
+                  <strong>Régulation anti-surcharge</strong> : Lorsque plusieurs tables demandent une révision prioritaire, l introduction de nouveaux calculs inconnus est suspendue pour protéger votre enfant de la surcharge cognitive.
+                </div>
+              </div>
+              <div class="guide-step-item">
+                <span class="step-num-badge">5</span>
+                <div class="step-desc">
+                  <strong>Contrôle d ancrage à 21 jours</strong> : Même lorsqu un calcul est validé comme maîtrisé, il est revu toutes les 3 semaines pour vérifier que le réflexe reste parfait au fil du temps.
                 </div>
               </div>
             </div>

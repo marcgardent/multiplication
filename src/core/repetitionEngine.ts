@@ -14,36 +14,44 @@ export function createRepetitionEngine(
   config: SessionConfig
 ): RepetitionEngine {
   let activePool: MultiplicationItem[] = [];
-  let lastItemId: string | null = null;
+  const recentPresentedIds: string[] = [];
+  const errorLockouts: Map<string, number> = new Map();
+
+  function isItemDue(item: MultiplicationItem, now = Date.now()): boolean {
+    if (item.status === "review") return true;
+    if (item.nextReviewAt !== null && now >= item.nextReviewAt) return true;
+    return false;
+  }
 
   function refreshPool() {
     const all = matrixStore.getAll();
-    const reviews = all.filter((i) => i.status === "review");
-    const discoveries = all.filter((i) => i.status === "discovery");
+    const now = Date.now();
+
+    const dueReviews = all.filter((i) => isItemDue(i, now));
+    const discoveries = all.filter((i) => i.status === "discovery" && !isItemDue(i, now));
     const unknowns = all.filter((i) => i.status === "unknown");
-    const mastered = all.filter((i) => i.status === "mastered");
+    const mastered = all.filter((i) => i.status === "mastered" && !isItemDue(i, now));
 
-    // Trier les révisions par priorité (les erreurs les plus récentes ou boxLevel le plus bas)
-    reviews.sort((a, b) => a.boxLevel - b.boxLevel || b.errorCount - a.errorCount);
+    // Tri des révisions échues par urgence
+    // Priorité 1 : erreurs au statut review
+    // Priorité 2 : calculs dont l échéance est la plus dépassée
+    dueReviews.sort((a, b) => {
+      const aIsReview = a.status === "review" ? 1 : 0;
+      const bIsReview = b.status === "review" ? 1 : 0;
+      if (aIsReview !== bIsReview) return bIsReview - aIsReview;
 
-    // Si on a déjà un pool actif, garder les éléments non encore maîtrisés
-    const currentActiveIds = new Set(activePool.map((i) => i.id));
+      if (a.boxLevel !== b.boxLevel) return a.boxLevel - b.boxLevel;
+
+      const aDueDiff = now - (a.nextReviewAt ?? a.lastReviewedAt ?? now);
+      const bDueDiff = now - (b.nextReviewAt ?? b.lastReviewedAt ?? now);
+      return bDueDiff - aDueDiff;
+    });
+
+    const currentActiveIds = new Set<string>();
     const nextPool: MultiplicationItem[] = [];
 
-    // 1. Récupérer les éléments déjà actifs
-    for (const item of activePool) {
-      const fresh = matrixStore.get(item.id);
-      if (fresh) {
-        nextPool.push(fresh);
-      }
-    }
-
-    // 2. Gestion de la surcharge (Backpressure)
-    // Seuil de surcharge : si la file de révision est trop chargée, on n'ajoute pas de nouvelles
-    const isOverloaded = reviews.length >= config.reviewThreshold;
-
-    // Remplir avec les révisions en priorité absolue
-    for (const rev of reviews) {
+    // 1. Remplir en priorité absolue avec les révisions échues
+    for (const rev of dueReviews) {
       if (nextPool.length >= config.maxActivePool) break;
       if (!currentActiveIds.has(rev.id)) {
         nextPool.push(rev);
@@ -51,9 +59,25 @@ export function createRepetitionEngine(
       }
     }
 
-    // Si la file de révision n'est pas surchargée, ajouter un panache de nouveaux calculs
+    // 2. Conserver les éléments du pool précédent qui restent pertinents
+    for (const item of activePool) {
+      if (nextPool.length >= config.maxActivePool) break;
+      const fresh = matrixStore.get(item.id);
+      if (fresh && !currentActiveIds.has(fresh.id)) {
+        const shouldKeep = fresh.status !== "mastered" || isItemDue(fresh, now);
+        if (shouldKeep) {
+          nextPool.push(fresh);
+          currentActiveIds.add(fresh.id);
+        }
+      }
+    }
+
+    // 3. Gestion de la surcharge régulatrice
+    const isOverloaded = dueReviews.length >= config.reviewThreshold;
+
+    // Si la file n est pas surchargée, injecter les découvertes puis des nouveautés
     if (!isOverloaded && nextPool.length < config.maxActivePool) {
-      // D'abord les découvertes en cours
+      // Découvertes en cours
       for (const disc of discoveries) {
         if (nextPool.length >= config.maxActivePool) break;
         if (!currentActiveIds.has(disc.id)) {
@@ -62,7 +86,7 @@ export function createRepetitionEngine(
         }
       }
 
-      // Ensuite les inconnus (jusqu'à config.newItemsBatch)
+      // Nouveaux calculs
       let addedNew = 0;
       for (const unk of unknowns) {
         if (nextPool.length >= config.maxActivePool || addedNew >= config.newItemsBatch) break;
@@ -74,8 +98,7 @@ export function createRepetitionEngine(
       }
     }
 
-    // Si le pool est toujours incomplet (par exemple l'élève a tout réussi et peu de révisions),
-    // on complète par des inconnus ou des consolidations de calculs maîtrisés les plus anciens
+    // Compléter le pool si nécessaire
     if (nextPool.length < config.maxActivePool) {
       for (const unk of unknowns) {
         if (nextPool.length >= config.maxActivePool) break;
@@ -86,8 +109,21 @@ export function createRepetitionEngine(
       }
     }
 
+    // Si le pool reste incomplet, planifier les calculs dont l échéance approche
+    if (nextPool.length < config.maxActivePool) {
+      const upcomingReviews = all
+        .filter((i) => !currentActiveIds.has(i.id) && i.nextReviewAt !== null)
+        .sort((a, b) => (a.nextReviewAt ?? 0) - (b.nextReviewAt ?? 0));
+
+      for (const up of upcomingReviews) {
+        if (nextPool.length >= config.maxActivePool) break;
+        nextPool.push(up);
+        currentActiveIds.add(up.id);
+      }
+    }
+
+    // Fallback si tout est maîtrisé et aucune échéance immédiate
     if (nextPool.length === 0) {
-      // Fallback si tout est maîtrisé : prendre les calculs avec le temps le plus lent
       mastered.sort((a, b) => b.avgResponseTimeMs - a.avgResponseTimeMs);
       nextPool.push(...mastered.slice(0, config.maxActivePool));
     }
@@ -111,18 +147,41 @@ export function createRepetitionEngine(
         return all[Math.floor(Math.random() * all.length)];
       }
 
-      // Pondération intelligente selon le boxLevel et le statut :
-      // Plus le boxLevel est bas (erreur récente), plus la probabilité de tirage est élevée.
-      // Éviter de répéter immédiatement la même question consécutive si possible.
-      const candidates = activePool.length > 1 && lastItemId 
-        ? activePool.filter((i) => i.id !== lastItemId) 
-        : activePool;
+      const now = Date.now();
 
-      // Calcul des poids : poids = (5 - boxLevel) * (status === 'review' ? 3 : 1)
+      // 1. Filtrer les calculs en période de verrouillage après une erreur
+      // L enfant doit voir au moins 3 autres calculs avant de revoir une erreur
+      const errorFreePool = activePool.filter((item) => {
+        const lockCount = errorLockouts.get(item.id) ?? 0;
+        return lockCount <= 0;
+      });
+
+      // 2. Éviter la répétition des 3 dernières questions présentées
+      const recentWindow = recentPresentedIds.slice(-3);
+      let candidates = errorFreePool.filter((item) => !recentWindow.includes(item.id));
+
+      // Si le filtre strict ne laisse aucun candidat, assouplir progressivement
+      if (candidates.length === 0) {
+        const lastId = recentPresentedIds[recentPresentedIds.length - 1];
+        candidates = errorFreePool.filter((item) => item.id !== lastId);
+      }
+      if (candidates.length === 0 && errorFreePool.length > 0) {
+        candidates = errorFreePool;
+      }
+      if (candidates.length === 0) {
+        const lastId = recentPresentedIds[recentPresentedIds.length - 1];
+        candidates = activePool.filter((item) => item.id !== lastId);
+      }
+      if (candidates.length === 0) {
+        candidates = activePool;
+      }
+
+      // Pondération intelligente
       const weights = candidates.map((item) => {
         let w = (5 - item.boxLevel) * 2;
         if (item.status === "review") w *= 3;
         if (item.status === "discovery") w *= 2;
+        if (isItemDue(item, now)) w *= 2;
         return Math.max(1, w);
       });
 
@@ -138,25 +197,52 @@ export function createRepetitionEngine(
         rand -= weights[i];
       }
 
-      lastItemId = selected.id;
+      // Décrémenter le verrouillage des autres calculs ratés
+      for (const [lockedId, count] of Array.from(errorLockouts.entries())) {
+        if (lockedId !== selected.id) {
+          if (count <= 1) {
+            errorLockouts.delete(lockedId);
+          } else {
+            errorLockouts.set(lockedId, count - 1);
+          }
+        }
+      }
+
+      // Mettre à jour l historique des présentations
+      recentPresentedIds.push(selected.id);
+      if (recentPresentedIds.length > 6) {
+        recentPresentedIds.shift();
+      }
+
       return selected;
     },
 
     registerResult(item: MultiplicationItem, mode: "discovery" | "practice" | "time-attack", isCorrect: boolean, timeMs: number): void {
+      if (!isCorrect) {
+        // Verrouillage de 3 questions intercalaires avant réapparition
+        errorLockouts.set(item.id, 3);
+      } else {
+        errorLockouts.delete(item.id);
+      }
+
       matrixStore.recordAttempt(item.a, item.b, mode, isCorrect, timeMs);
       refreshPool();
     },
 
     isReviewQueueOverloaded(): boolean {
-      const reviews = matrixStore.getAll().filter((i) => i.status === "review");
-      return reviews.length >= config.reviewThreshold;
+      const all = matrixStore.getAll();
+      const now = Date.now();
+      const dueCount = all.filter((i) => isItemDue(i, now)).length;
+      return dueCount >= config.reviewThreshold;
     },
 
     getQueueStats() {
       const all = matrixStore.getAll();
+      const now = Date.now();
+      const dueCount = all.filter((i) => isItemDue(i, now)).length;
       return {
         activePoolSize: activePool.length,
-        reviewQueueCount: all.filter((i) => i.status === "review").length,
+        reviewQueueCount: dueCount,
         newAvailableCount: all.filter((i) => i.status === "unknown").length,
         masteredCount: all.filter((i) => i.status === "mastered").length
       };

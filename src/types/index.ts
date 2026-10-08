@@ -6,13 +6,16 @@ export interface MultiplicationItem {
   b: number;
   result: number;
   status: ItemStatus;
-  boxLevel: number; // 0 à 4 pour répétition espacée (Leitner)
+  boxLevel: number; // 0 à 4 pour répétition espacée Leitner
   seenCount: number;
   errorCount: number;
   successStreak: number;
   avgResponseTimeMs: number;
   responseTimesMs: number[]; // Historique de tous les temps enregistrés
   lastReviewedAt: number | null;
+  nextReviewAt: number | null;
+  intervalDays: number;
+  easeFactor: number;
 }
 
 export interface AttemptLog {
@@ -28,9 +31,9 @@ export interface AttemptLog {
 
 export interface SessionConfig {
   durationMinutes: number; // N minutes
-  maxActivePool: number;   // Taille max du pool (ex: 8)
+  maxActivePool: number;   // Taille max du pool actif
   newItemsBatch: number;   // T nouveaux items injectés
-  reviewThreshold: number; // Seuil max de révision avant de bloquer l'injection de nouveaux items
+  reviewThreshold: number; // Seuil max de révision avant de bloquer l injection de nouveaux items
   pauseBetweenAudioMs: number; // Pause réflexive en mode découverte
 }
 

@@ -24,7 +24,7 @@ export function createDiscoveryMode(
     root.className = "mode-screen mode-discovery";
     root.innerHTML = `
       <div class="mode-header">
-        <div class="session-badge">🎧 Mode Découverte (Écoute Passive)</div>
+        <div class="session-badge">🎧 Mode Découverte et Écoute</div>
         <div class="timer-display" id="disc-timer">--:--</div>
       </div>
 

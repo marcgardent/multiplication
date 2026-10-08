@@ -8,6 +8,8 @@ export interface MatrixStore {
   update(item: MultiplicationItem): void;
   recordAttempt(a: number, b: number, mode: "discovery" | "practice" | "time-attack" | "evaluation", isCorrect: boolean, responseTimeMs: number): void;
   getCountsByStatus(): Record<ItemStatus, number>;
+  getDueItemsCount(): number;
+  isItemDue(item: MultiplicationItem, now?: number): boolean;
   getHistory(): AttemptLog[];
   addPracticeTimeMs(durationMs: number): void;
   getTotalPracticeTimeMs(): number;
@@ -38,6 +40,12 @@ export function createMatrixStore(storage: StorageService, initialProfileId = "d
   let points = 0;
   const listeners: Set<() => void> = new Set();
 
+  function isItemDueCheck(item: MultiplicationItem, now = Date.now()): boolean {
+    if (item.status === "review") return true;
+    if (item.nextReviewAt !== null && now >= item.nextReviewAt) return true;
+    return false;
+  }
+
   function initDefaultItems(): Map<string, MultiplicationItem> {
     const map = new Map<string, MultiplicationItem>();
     for (let a = 1; a <= 10; a++) {
@@ -55,7 +63,10 @@ export function createMatrixStore(storage: StorageService, initialProfileId = "d
           successStreak: 0,
           avgResponseTimeMs: 0,
           responseTimesMs: [],
-          lastReviewedAt: null
+          lastReviewedAt: null,
+          nextReviewAt: null,
+          intervalDays: 1,
+          easeFactor: 2.5
         });
       }
     }
@@ -84,6 +95,20 @@ export function createMatrixStore(storage: StorageService, initialProfileId = "d
       savedItems.forEach((item) => {
         if (!Array.isArray(item.responseTimesMs)) {
           item.responseTimesMs = [];
+        }
+        if (typeof item.easeFactor !== "number") {
+          item.easeFactor = 2.5;
+        }
+        if (typeof item.intervalDays !== "number") {
+          const baseDays = [10 / 1440, 1, 3, 7, 21][Math.min(4, Math.max(0, item.boxLevel || 0))];
+          item.intervalDays = baseDays;
+        }
+        if (item.nextReviewAt === undefined) {
+          if (item.lastReviewedAt) {
+            item.nextReviewAt = item.lastReviewedAt + Math.round(item.intervalDays * 24 * 3600 * 1000);
+          } else {
+            item.nextReviewAt = null;
+          }
         }
         itemsMap.set(item.id, item);
       });
@@ -126,6 +151,21 @@ export function createMatrixStore(storage: StorageService, initialProfileId = "d
       save();
     },
 
+    isItemDue(item: MultiplicationItem, now?: number): boolean {
+      return isItemDueCheck(item, now);
+    },
+
+    getDueItemsCount(): number {
+      const now = Date.now();
+      let count = 0;
+      itemsMap.forEach((item) => {
+        if (isItemDueCheck(item, now)) {
+          count++;
+        }
+      });
+      return count;
+    },
+
     recordAttempt(a: number, b: number, mode: "discovery" | "practice" | "time-attack" | "evaluation", isCorrect: boolean, responseTimeMs: number): void {
       const id = `${a}x${b}`;
       const item = itemsMap.get(id);
@@ -135,7 +175,7 @@ export function createMatrixStore(storage: StorageService, initialProfileId = "d
       item.seenCount += 1;
       item.lastReviewedAt = now;
 
-      // Historique
+      // Historique des tentatives
       const log: AttemptLog = {
         id: `${now}-${Math.random().toString(36).substring(2, 6)}`,
         itemId: id,
@@ -155,6 +195,10 @@ export function createMatrixStore(storage: StorageService, initialProfileId = "d
         if (item.status === "unknown") {
           item.status = "discovery";
         }
+        if (item.nextReviewAt === null) {
+          item.intervalDays = 1;
+          item.nextReviewAt = now + 24 * 3600 * 1000;
+        }
         points += 5;
       } else {
         // Enregistrer tous les temps mesurés
@@ -163,7 +207,7 @@ export function createMatrixStore(storage: StorageService, initialProfileId = "d
             item.responseTimesMs = [];
           }
           item.responseTimesMs.push(responseTimeMs);
-          const sum = item.responseTimesMs.reduce((a, b) => a + b, 0);
+          const sum = item.responseTimesMs.reduce((acc, cur) => acc + cur, 0);
           item.avgResponseTimeMs = Math.round(sum / item.responseTimesMs.length);
         }
 
@@ -171,19 +215,37 @@ export function createMatrixStore(storage: StorageService, initialProfileId = "d
           item.successStreak += 1;
           item.boxLevel = Math.min(4, item.boxLevel + 1);
 
-          // Toute bonne réponse donne des points (+10 points)
+          // Ajustement selon la vitesse de réponse
+          let speedFactor = 1.0;
+          if (responseTimeMs > 0 && responseTimeMs < 2200) {
+            speedFactor = 1.2;
+            item.easeFactor = Math.min(3.0, Number((item.easeFactor + 0.1).toFixed(2)));
+          } else if (responseTimeMs > 3800) {
+            speedFactor = 0.8;
+            item.easeFactor = Math.max(1.3, Number((item.easeFactor - 0.1).toFixed(2)));
+          }
+
+          // Paliers de référence : 0 = 10min, 1 = 1j, 2 = 3j, 3 = 7j, 4 = 21j
+          const baseDays = [10 / 1440, 1, 3, 7, 21][item.boxLevel];
+          const calculatedDays = baseDays * (item.easeFactor / 2.5) * speedFactor;
+          item.intervalDays = Math.max(0.007, Number(Math.min(21, calculatedDays).toFixed(2)));
+          item.nextReviewAt = now + Math.round(item.intervalDays * 24 * 3600 * 1000);
+
+          // Attribution des points
           points += 10;
 
-          // Bonus de rapidité (< 2500ms -> +5 points bonus)
+          // Bonus rapidité sous 2500ms
           if (responseTimeMs > 0 && responseTimeMs < 2500) {
             points += 5;
           }
 
           if (item.boxLevel >= 3 && item.successStreak >= 3 && (responseTimeMs === 0 || responseTimeMs < 3800)) {
             if (item.status !== "mastered") {
-              points += 50; // Super bonus maîtrise !
+              points += 50; // Super bonus maîtrise
             }
             item.status = "mastered";
+            item.intervalDays = 21;
+            item.nextReviewAt = now + 21 * 24 * 3600 * 1000;
           } else if (item.status === "unknown") {
             item.status = "discovery";
           }
@@ -192,6 +254,9 @@ export function createMatrixStore(storage: StorageService, initialProfileId = "d
           item.successStreak = 0;
           item.boxLevel = 0;
           item.status = "review";
+          item.easeFactor = Math.max(1.3, Number((item.easeFactor - 0.2).toFixed(2)));
+          item.intervalDays = Number((10 / 1440).toFixed(4));
+          item.nextReviewAt = now + 10 * 60 * 1000;
         }
       }
 
