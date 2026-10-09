@@ -1,6 +1,6 @@
-import { createStorageService } from "../services/storageService";
+import { createStorageService, STORAGE_NAMESPACE } from "../services/storageService";
 
-const storage = createStorageService("mult_clean_v2");
+const storage = createStorageService(STORAGE_NAMESPACE);
 
 export interface BackgroundItem {
   id: string;

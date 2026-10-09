@@ -47,7 +47,7 @@ export function createTimeAttackMode(
           <div class="stage-equals">=</div>
           <div class="stage-answer user-answer" id="ta-input">?</div>
         </div>
-        <div class="feedback-cue" id="ta-cue">Répondez le plus vite possible !</div>
+        <div class="feedback-cue" id="ta-cue">Réponds le plus vite possible !</div>
       </div>
 
       <div class="keypad-mount-point" id="ta-keypad"></div>

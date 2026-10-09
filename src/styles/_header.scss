@@ -1,0 +1,128 @@
+@use "variables" as *;
+@use "mixins" as *;
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px 10px 16px;
+  background: $surface;
+  border-bottom: 1px solid $line;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+
+  .app-branding {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .profile-badge-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 44px;
+    padding: 0 12px 0 6px;
+    background: $surface;
+    border: 1px solid $line;
+    border-radius: $radius-pill;
+    cursor: pointer;
+    min-width: 0;
+    transition: background $transition-base, transform $transition-base;
+
+    .profile-avatar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border-radius: $radius-pill;
+      background: $accent-soft;
+      font-size: 1.25rem;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+
+    .profile-name {
+      font-size: 0.9375rem;
+      font-weight: 600;
+      max-width: 130px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .profile-switch-icon {
+      font-size: $fs-small;
+      color: $ink-soft;
+    }
+
+    &:hover {
+      background: $ground;
+    }
+
+    &:active {
+      transform: scale(0.96);
+    }
+  }
+
+  .header-points-badge {
+    @include gold-pill;
+    height: 44px;
+    padding: 0 12px;
+    border: none;
+    font-size: 0.9375rem;
+    cursor: pointer;
+    transition: transform $transition-base;
+
+    .header-coin-icon {
+      font-size: 1.125rem;
+      line-height: 1;
+    }
+
+    .header-points-val {
+      font-variant-numeric: tabular-nums;
+    }
+
+    &:active {
+      transform: scale(0.96);
+    }
+  }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+
+    /* Dans l'en-tête, les icônes n'ont pas de cadre */
+    .icon-btn {
+      background: transparent;
+      border-color: transparent;
+
+      &:hover {
+        background: $ground;
+      }
+    }
+  }
+}
+
+.app-title-plain {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  .app-logo-mini {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+  }
+
+  h1 {
+    font-size: $fs-title;
+    font-weight: 600;
+    color: $ink;
+  }
+}

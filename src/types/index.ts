@@ -7,6 +7,7 @@ export interface MultiplicationItem {
   result: number;
   status: ItemStatus;
   boxLevel: number; // 0 à 4 pour répétition espacée Leitner
+  bestBoxLevel: number; // Plus haut palier jamais atteint : un cadeau gagné reste acquis
   seenCount: number;
   errorCount: number;
   successStreak: number;
@@ -30,10 +31,7 @@ export interface AttemptLog {
 }
 
 export interface SessionConfig {
-  durationMinutes: number; // N minutes
-  maxActivePool: number;   // Taille max du pool actif
-  newItemsBatch: number;   // T nouveaux items injectés
-  reviewThreshold: number; // Seuil max de révision avant de bloquer l injection de nouveaux items
+  durationMinutes: number; // N minutes ; fixe aussi la taille du lot de séance
   pauseBetweenAudioMs: number; // Pause réflexive en mode découverte
 }
 

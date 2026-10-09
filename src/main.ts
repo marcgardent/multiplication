@@ -1,3 +1,4 @@
+import "@fontsource-variable/lexend";
 import "./styles/main.scss";
 import { createApp } from "./app";
 

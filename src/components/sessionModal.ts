@@ -3,6 +3,7 @@ import { AudioService } from "../services/audioService";
 import { SessionTimer, createSessionTimer } from "../components/timer";
 import { KeypadComponent, createKeypad } from "../components/keypad";
 import { SessionConfig, MultiplicationItem } from "../types";
+import { runCelebration } from "./celebration";
 
 export interface SessionResult {
   completedWorkshops: number;
@@ -17,13 +18,16 @@ export function startSessionModal(
   onFinish: (result: SessionResult) => void,
   onCancel: (actualPracticeTimeMs: number) => void
 ): void {
-  // Découper la session globale de N minutes en 3 ateliers équilibrés
-  // Atelier 1: Découverte (1/3 du temps)
-  // Atelier 2: Quiz sans enjeu (1/3 du temps)
-  // Atelier 3: Time-Attack (1/3 du temps)
-  const workshopMinutes = config.durationMinutes / 3;
+  // Le lot de calculs est figé pour toute la séance
+  engine.startSession();
 
-  let currentWorkshopIndex = 0; // 0 = Découverte, 1 = Quiz, 2 = Time-Attack
+  // Ateliers : 0 = Découverte, 1 = Quiz sans enjeu, 2 = Time-Attack, à durées égales.
+  // Sans nouveau calcul ni erreur à réécouter, la séance commence directement au Quiz
+  const workshops = engine.getDiscoveryItems().length > 0 ? [0, 1, 2] : [1, 2];
+  const workshopMinutes = config.durationMinutes / workshops.length;
+  const workshopLabels = ["Découverte", "Quiz", "Time-Attack"];
+
+  let currentWorkshopIndex = workshops[0];
   let isRunning = true;
   let isPaused = false;
   let timer: SessionTimer | null = null;
@@ -39,14 +43,16 @@ export function startSessionModal(
   modalEl.className = "session-modal-overlay";
 
   function getWorkshopInfo(idx: number) {
+    const num = workshops.indexOf(idx) + 1;
+    const tag = `Atelier ${num}/${workshops.length}`;
     switch (idx) {
       case 0:
-        return { num: 1, name: "Découverte & Écoute", tag: "Atelier 1/3", class: "tag-disc" };
+        return { num, name: "Découverte & Écoute", tag, class: "tag-disc" };
       case 1:
-        return { num: 2, name: "Quiz Sans Enjeu", tag: "Atelier 2/3", class: "tag-prac" };
+        return { num, name: "Quiz Sans Enjeu", tag, class: "tag-prac" };
       case 2:
       default:
-        return { num: 3, name: "Time-Attack Défis", tag: "Atelier 3/3", class: "tag-ta" };
+        return { num, name: "Time-Attack Défis", tag, class: "tag-ta" };
     }
   }
 
@@ -69,9 +75,12 @@ export function startSessionModal(
         </div>
 
         <div class="session-tabs-indicator">
-          <div class="step-pill ${currentWorkshopIndex === 0 ? "active" : currentWorkshopIndex > 0 ? "done" : ""}">1. Découverte</div>
-          <div class="step-pill ${currentWorkshopIndex === 1 ? "active" : currentWorkshopIndex > 1 ? "done" : ""}">2. Quiz</div>
-          <div class="step-pill ${currentWorkshopIndex === 2 ? "active" : ""}">3. Time-Attack</div>
+          ${workshops
+            .map(
+              (w, i) =>
+                `<div class="step-pill ${currentWorkshopIndex === w ? "active" : currentWorkshopIndex > w ? "done" : ""}">${i + 1}. ${workshopLabels[w]}</div>`
+            )
+            .join("")}
         </div>
 
         <div class="progress-bar-container">
@@ -85,7 +94,7 @@ export function startSessionModal(
             <span class="stage-equals giant-equals">=</span>
             <span class="stage-answer giant-answer" id="modal-answer">?</span>
           </div>
-          <div class="feedback-cue" id="modal-cue">Préparez-vous...</div>
+          <div class="feedback-cue" id="modal-cue">Prépare-toi...</div>
         </div>
 
         <!-- Barre d'aide (Atelier 2 uniquement) -->
@@ -186,7 +195,7 @@ export function startSessionModal(
             <button type="button" class="btn-confirm-launch btn-resume-action" id="btn-resume-session">
               Reprendre l'entraînement ▶️
             </button>
-            <button type="button" class="btn-confirm-launch" id="btn-pause-finish" style="background: linear-gradient(135deg, #10b981, #06b6d4);">
+            <button type="button" class="btn-finish-action" id="btn-pause-finish">
               Terminer et voir mon bilan 📊
             </button>
           </div>
@@ -256,7 +265,7 @@ export function startSessionModal(
           <button type="button" class="btn-confirm-launch btn-continue-action" id="btn-confirm-stay">
             Continuer l'activité 🚀
           </button>
-          <button type="button" class="btn-confirm-launch" id="btn-confirm-finish" style="background: linear-gradient(135deg, #10b981, #06b6d4);">
+          <button type="button" class="btn-finish-action" id="btn-confirm-finish">
             Terminer et voir mon bilan 📊
           </button>
           <button type="button" class="btn-quit-danger" id="btn-confirm-quit">
@@ -383,11 +392,11 @@ export function startSessionModal(
     let iconEmoji = "";
 
     if (nextIdx === 1) {
-      stepTitle = "Bravo ! Étape 1 validée !";
+      stepTitle = "Bravo ! Découverte terminée !";
       stepDescription = "Place au Quiz ! Écoute le calcul et tape la bonne réponse au clavier !";
       iconEmoji = "🎯";
     } else {
-      stepTitle = "Génial ! Étape 2 réussie !";
+      stepTitle = "Génial ! Quiz réussi !";
       stepDescription = "Place au Défi Chrono ! Sois le plus rapide avant la fin du chronomètre !";
       iconEmoji = "⚡";
     }
@@ -406,6 +415,7 @@ export function startSessionModal(
     `;
 
     document.body.appendChild(splashOverlay);
+    runCelebration({ root: splashOverlay, audioService });
 
     let isClosed = false;
     const proceedToNext = () => {
@@ -429,7 +439,7 @@ export function startSessionModal(
     }
 
     isDiscoveryAudioActive = true;
-    currentItem = engine.getNextQuestion();
+    currentItem = engine.getNextDiscovery();
 
     const factorsEl = modalEl.querySelector("#modal-factors");
     const answerEl = modalEl.querySelector("#modal-answer");
@@ -449,7 +459,7 @@ export function startSessionModal(
       return;
     }
 
-    if (cueEl) cueEl.textContent = "Réfléchissez au résultat...";
+    if (cueEl) cueEl.textContent = "Réfléchis au résultat...";
     const ok1 = await waitWithPauseCheck(config.pauseBetweenAudioMs);
     if (!ok1 || currentWorkshopIndex !== 0) {
       isDiscoveryAudioActive = false;
@@ -539,7 +549,7 @@ export function startSessionModal(
       answerEl.textContent = "_";
       answerEl.className = "stage-answer giant-answer user-answer";
     }
-    if (cueEl) cueEl.textContent = "Prenez votre temps pour taper la réponse...";
+    if (cueEl) cueEl.textContent = "Prends ton temps pour taper la réponse...";
     if (cardEl) cardEl.className = "stage-card giant-card";
     fitOperation(cardEl);
 
@@ -567,7 +577,7 @@ export function startSessionModal(
       if (isRunning && currentWorkshopIndex === 1) nextPracticeQuestion();
     } else {
       cardEl?.classList.add("card-wrong");
-      if (cueEl) cueEl.textContent = "Pas tout à fait, réessayez ou demandez l'aide !";
+      if (cueEl) cueEl.textContent = "Pas tout à fait, réessaie ou demande de l'aide !";
       audioService.playFeedback("wrong");
 
       engine.registerResult(currentItem, "practice", false, timeMs);
@@ -651,7 +661,7 @@ export function startSessionModal(
       answerEl.textContent = "_";
       answerEl.className = "stage-answer giant-answer user-answer";
     }
-    if (cueEl) cueEl.textContent = "⚡ Répondez aussi vite que possible !";
+    if (cueEl) cueEl.textContent = "⚡ Réponds aussi vite que possible !";
     if (cardEl) cardEl.className = "stage-card giant-card";
     fitOperation(cardEl);
 
@@ -675,7 +685,7 @@ export function startSessionModal(
       audioService.playFeedback("correct");
     } else {
       cardEl?.classList.add("card-wrong");
-      if (cueEl) cueEl.textContent = `Erreur : ${currentItem.a} × ${currentItem.b} = ${currentItem.result}`;
+      if (cueEl) cueEl.textContent = `À revoir : ${currentItem.a} × ${currentItem.b} = ${currentItem.result}`;
       audioService.playFeedback("wrong");
     }
 
@@ -686,5 +696,5 @@ export function startSessionModal(
   }
 
   // Démarrer sur le premier atelier
-  startWorkshop(0);
+  startWorkshop(workshops[0]);
 }

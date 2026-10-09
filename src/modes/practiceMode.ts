@@ -38,7 +38,7 @@ export function createPracticeMode(
           <div class="stage-equals">=</div>
           <div class="stage-answer user-answer" id="prac-input">?</div>
         </div>
-        <div class="feedback-cue" id="prac-cue">Tapez votre réponse</div>
+        <div class="feedback-cue" id="prac-cue">Tape ta réponse</div>
       </div>
 
       <div class="action-bar-secondary">
@@ -73,7 +73,7 @@ export function createPracticeMode(
       inputEl.textContent = "_";
       inputEl.className = "stage-answer user-answer";
     }
-    if (cueEl) cueEl.textContent = "Prenez votre temps...";
+    if (cueEl) cueEl.textContent = "Prends ton temps...";
     if (cardEl) cardEl.className = "stage-card";
 
     // Lecture vocale de la question
@@ -104,7 +104,7 @@ export function createPracticeMode(
     } else {
       // Mauvaise réponse (sans enjeu : on peut recommencer immédiatement)
       cardEl?.classList.add("card-wrong");
-      if (cueEl) cueEl.textContent = "Pas tout à fait, réessayez ou demandez la réponse !";
+      if (cueEl) cueEl.textContent = "Pas tout à fait, réessaie ou demande la réponse !";
       audioService.playFeedback("wrong");
 
       // Rétrogradation dans la file de révision

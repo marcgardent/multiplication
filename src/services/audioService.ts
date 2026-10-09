@@ -10,6 +10,7 @@ export interface AudioService {
   playFeedback(type: "correct" | "wrong" | "finish"): Promise<void>;
   playCheer(): Promise<void>;
   playWheelTick(): void;
+  playPointTick(): void;
   playCoinSound(): void;
   stop(): void;
   isMuted(): boolean;
@@ -181,6 +182,11 @@ export function createAudioService(): AudioService {
       } catch (e) {
         // Ignorer
       }
+    },
+
+    // Décompte des points : plus aigu et plus doux que le cliquetis de la roue
+    playPointTick(): void {
+      playTone(1567.98, "triangle", 0.03, 0); // G6
     },
 
     playCoinSound(): void {

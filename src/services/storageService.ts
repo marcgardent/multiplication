@@ -5,6 +5,9 @@ export interface StorageService {
   clear(): void;
 }
 
+// Espace de stockage commun à toute l'application ; changer la version repart de données vierges
+export const STORAGE_NAMESPACE = "mult_clean_v3";
+
 export function createStorageService(namespace = "multiplication_app_v1"): StorageService {
   const getFullKey = (key: string) => `${namespace}:${key}`;
 

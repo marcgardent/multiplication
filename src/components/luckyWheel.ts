@@ -1,6 +1,11 @@
 import { MatrixStore } from "../core/matrixStore";
 import { AudioService } from "../services/audioService";
 import { getRewardForIndex } from "./rewardsBoard";
+import { runCelebration } from "./celebration";
+
+const SPIN_DURATION_MS = 4500;
+// Deux cliquetis ne peuvent pas être plus rapprochés : au démarrage la roue va trop vite pour l'oreille
+const MIN_TICK_GAP_MS = 45;
 
 export interface WheelItem {
   a: number;
@@ -24,7 +29,7 @@ export function openLuckyWheelModal(
         b,
         result: a * b,
         emoji: getRewardForIndex(a, b),
-        pointsReward: 20 + ((a * b) % 30) // Entre 20 et 50 points
+        pointsReward: a * b // Le résultat de la multiplication, de 1 à 100 points
       });
     }
   }
@@ -130,35 +135,51 @@ export function openLuckyWheelModal(
       track.appendChild(slot);
     });
 
-    // Chaque carte fait environ 120px + 8px gap = 128px
+    // Chaque carte fait environ 120px + 8px gap = 128px, après 12px de marge à gauche de la bande
     const cardWidth = 128;
+    const trackPadding = 12;
     const viewport = modalEl.querySelector("#wheel-viewport") as HTMLElement;
     const viewportHalf = (viewport?.clientWidth || 320) / 2;
     const targetOffset = -(45 * cardWidth + cardWidth / 2 - viewportHalf);
 
-    // Bruitages de cliquets pendant le défilement
-    let tickCount = 0;
-    const totalTicks = 35;
-    let tickInterval = 60; // Commence très vite
+    // Cliquetis calés sur le mouvement réel : un par carte qui passe sous la flèche
+    let isTracking = true;
+    let lastSlotIndex = -1;
+    let lastTickAt = 0;
 
-    function triggerNextTick() {
-      if (tickCount >= totalTicks) return;
-      audioService.playWheelTick();
-      tickCount++;
-      // Décélération progressive
-      tickInterval = Math.round(tickInterval * 1.09);
-      setTimeout(triggerNextTick, tickInterval);
+    function followTrack(now: number) {
+      if (!isTracking) return;
+      const x = new DOMMatrixReadOnly(getComputedStyle(track).transform).m41;
+      const slotIndex = Math.floor((viewportHalf - x - trackPadding) / cardWidth);
+      if (slotIndex !== lastSlotIndex) {
+        if (lastSlotIndex !== -1 && now - lastTickAt >= MIN_TICK_GAP_MS) {
+          audioService.playWheelTick();
+          lastTickAt = now;
+        }
+        lastSlotIndex = slotIndex;
+      }
+      requestAnimationFrame(followTrack);
     }
-    triggerNextTick();
+
+    // La carte gagnée ne s'ouvre qu'une fois la roue arrêtée et silencieuse
+    let hasStopped = false;
+    const onStop = () => {
+      if (hasStopped) return;
+      hasStopped = true;
+      isTracking = false;
+      track.removeEventListener("transitionend", onStop);
+      setTimeout(() => {
+        isSpinning = false;
+        showWinningCardSplash(winningItem);
+      }, 350);
+    };
+    track.addEventListener("transitionend", onStop);
+    setTimeout(onStop, SPIN_DURATION_MS + 400);
 
     // Animation CSS d'inertie fluide
-    track.style.transition = "transform 4.5s cubic-bezier(0.12, 0.8, 0.15, 1)";
+    track.style.transition = `transform ${SPIN_DURATION_MS}ms cubic-bezier(0.12, 0.8, 0.15, 1)`;
     track.style.transform = `translateX(${targetOffset}px)`;
-
-    setTimeout(() => {
-      isSpinning = false;
-      showWinningCardSplash(winningItem);
-    }, 4700);
+    requestAnimationFrame(followTrack);
   }
 
   // Affiche la carte gagnante sous forme de carte avec animation de points incrémentés
@@ -197,76 +218,25 @@ export function openLuckyWheelModal(
     `;
 
     document.body.appendChild(splashEl);
-    audioService.playCheer();
 
-    splashEl.querySelector("#btn-close-win")?.addEventListener("click", () => {
+    const closeWinSplash = () => {
+      audioService.stop();
       splashEl.remove();
       renderModalLayout();
-    });
+    };
+    splashEl.querySelector("#btn-close-win")?.addEventListener("click", closeWinSplash);
+    splashEl.querySelector("#btn-collect-win")?.addEventListener("click", closeWinSplash);
 
-    // Animation visuelle d'incrémentation du compteur de points après 3 secondes et ralentie
-    const pointsValEl = splashEl.querySelector("#win-points-val") as HTMLElement | null;
-    if (pointsValEl && newPoints > oldPoints) {
-      setTimeout(() => {
-        animateCounter(
-          pointsValEl,
-          oldPoints,
-          newPoints,
-          2500,
-          () => audioService.playCoinSound(),
-          () => audioService.playWheelTick()
-        );
-      }, 3000);
-    }
-
-    splashEl.querySelector("#btn-collect-win")?.addEventListener("click", () => {
-      splashEl.remove();
-      renderModalLayout();
+    // L'opération est dite, puis la félicitation pendant le décompte ; les boutons viennent à la fin
+    runCelebration({
+      root: splashEl,
+      audioService,
+      operation: { a: item.a, b: item.b, result: item.result },
+      cheer: true,
+      points: { element: splashEl.querySelector("#win-points-val") as HTMLElement | null, from: oldPoints, to: newPoints }
     });
   }
 
   renderModalLayout();
   document.body.appendChild(modalEl);
-}
-
-// Fonction utilitaire pour animer le compteur de points
-export function animateCounter(
-  element: HTMLElement,
-  start: number,
-  end: number,
-  durationMs = 2500,
-  onFinish?: () => void,
-  onTick?: () => void
-): void {
-  const range = end - start;
-  if (range <= 0) {
-    element.textContent = end.toString();
-    onFinish?.();
-    return;
-  }
-  const startTime = performance.now();
-  let lastVal = start;
-
-  function update(currentTime: number) {
-    const elapsed = currentTime - startTime;
-    const progress = Math.min(1, elapsed / durationMs);
-    // Easing out cubic
-    const ease = 1 - Math.pow(1 - progress, 3);
-    const current = Math.round(start + range * ease);
-
-    if (current !== lastVal) {
-      lastVal = current;
-      element.textContent = current.toString();
-      onTick?.();
-    }
-
-    if (progress < 1) {
-      requestAnimationFrame(update);
-    } else {
-      element.textContent = end.toString();
-      onFinish?.();
-    }
-  }
-
-  requestAnimationFrame(update);
 }

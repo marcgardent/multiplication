@@ -1,22 +1,54 @@
-$bg-dark: #0f172a;
-$bg-card: #1e293b;
-$bg-card-hover: #334155;
-$primary: #6366f1;
-$primary-hover: #4f46e5;
-$secondary: #06b6d4;
-$accent: #ec4899;
+// Neutres : fonds, traits, textes
+$ground: #f4f5f8;
+$surface: #ffffff;
+$line: #dfe3ea;
+$ink: #1b2437;
+$ink-soft: #5a6478;
 
-$text-light: #f8fafc;
-$text-muted: #94a3b8;
+// Action : bouton principal, sélection
+$accent: #4f46e5;
+$accent-hover: #4338ca;
+$accent-soft: #eef0fe;
+$accent-ink: #3730a3;
 
-// Statuts d'apprentissage
-$status-unknown: #64748b;
-$status-discovery: #38bdf8;
-$status-review: #f97316;
-$status-mastered: #10b981;
+// Statuts d'apprentissage : grille, pastilles, retours
+$status-unknown: #e6e9ef;
+$status-unknown-line: #9aa3b2;
+$status-discovery: #8dbcf2;
+$status-discovery-soft: #e6f0fc;
+$status-review: #e8922e;
+$status-review-soft: #fcefdc;
+$status-review-ink: #8a4f06;
+$status-mastered: #1f7a54;
+$status-mastered-soft: #e3f3ea;
 
-$danger: #ef4444;
-$success: #10b981;
+// Échelle Précision / Vitesse : du plus sûr au plus fragile
+$heat-safe: #bfe3d0;
+$heat-low: #f6d58a;
+$heat-medium: $status-review;
+$heat-high: #b4332a;
 
-$border-radius: 16px;
+// Récompenses : points, tours, cadeaux
+$gold-soft: #fbf1d9;
+$gold-ink: #7a4f04;
+
+// Danger : quitter, supprimer
+$danger: #b4332a;
+
+// Typographie
+$font: "Lexend Variable", system-ui, -apple-system, "Segoe UI", sans-serif;
+$fs-dense: 0.75rem;
+$fs-caption: 0.8125rem;
+$fs-small: 0.875rem;
+$fs-body: 1rem;
+$fs-title: 1.1875rem;
+$fs-display: 1.5rem;
+
+// Formes
+$radius-control: 12px;
+$radius-card: 16px;
+$radius-pill: 999px;
+$shadow: 0 1px 2px rgba($ink, 0.06), 0 6px 16px rgba($ink, 0.08);
+$scrim: rgba($ink, 0.55);
+
 $transition-base: 0.2s cubic-bezier(0.4, 0, 0.2, 1);

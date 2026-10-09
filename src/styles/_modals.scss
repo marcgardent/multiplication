@@ -1,0 +1,352 @@
+@use "variables" as *;
+@use "mixins" as *;
+
+/* Voile et carte communs à toutes les modales */
+.session-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: $scrim;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.session-modal-container {
+  @include card;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 480px;
+  max-height: 96vh;
+  display: flex;
+  flex-direction: column;
+  padding: 18px;
+  gap: 12px;
+  overflow-y: auto;
+
+  h3 {
+    @include modal-title;
+  }
+
+  /* Séance : plein écran, sur le fond neutre pour rester concentré */
+  &.workshop-active-modal {
+    max-width: 520px;
+    height: 98vh;
+    max-height: 98vh;
+    padding: 12px 14px;
+    justify-content: space-between;
+    overflow: hidden;
+    position: relative;
+    background: $ground;
+  }
+
+  &.notification-modal {
+    text-align: center;
+    padding: 24px;
+    gap: 16px;
+
+    .notification-body {
+      h3 { margin-bottom: 8px; }
+      p { font-size: $fs-small; line-height: 1.5; color: $ink-soft; margin: 4px 0; }
+      strong { color: $ink; font-weight: 600; }
+    }
+  }
+}
+
+/* Modales de choix : joueur, durée, tables */
+.prompt-choice-modal {
+  padding: 20px;
+  gap: 16px;
+
+  .prompt-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+  }
+
+  /* Grille des profils existants */
+  .profiles-list-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    max-height: 48vh;
+    overflow-y: auto;
+
+    .btn-profile-card {
+      @include selectable;
+      border-radius: $radius-card;
+      padding: 16px 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+
+      .avatar-large {
+        font-size: 2.4rem;
+        line-height: 1;
+      }
+
+      .profile-card-name {
+        font-size: $fs-body;
+        font-weight: 600;
+        max-width: 120px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      &.active {
+        @include selected;
+      }
+    }
+  }
+
+  /* Formulaire nouveau joueur */
+  .new-profile-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+
+    .form-lbl {
+      font-size: $fs-small;
+      font-weight: 500;
+      color: $ink-soft;
+    }
+
+    .input-profile-name {
+      background: $surface;
+      border: 2px solid $line;
+      border-radius: $radius-control;
+      padding: 12px 14px;
+      font-size: 1.0625rem;
+      font-weight: 500;
+      color: $ink;
+      outline: none;
+      user-select: text;
+
+      &::placeholder {
+        color: $ink-soft;
+        font-weight: 400;
+      }
+
+      &:focus {
+        border-color: $accent;
+      }
+    }
+
+    .animal-avatars-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 8px;
+      max-height: 30vh;
+      overflow-y: auto;
+      padding: 2px;
+
+      .btn-animal-option {
+        @include selectable;
+        border-radius: $radius-control;
+        font-size: 1.6rem;
+        padding: 6px 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: $ground;
+        border-color: transparent;
+
+        &.active {
+          @include selected;
+        }
+      }
+    }
+  }
+
+  .choice-durations-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+
+    .btn-choice-duration {
+      @include selectable;
+      border-radius: $radius-card;
+      padding: 16px 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+
+      .choice-val {
+        font-size: 1.75rem;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .choice-unit {
+        font-size: $fs-small;
+        color: $ink-soft;
+      }
+
+      &.active {
+        @include selected;
+
+        .choice-unit { color: $accent-ink; }
+      }
+    }
+  }
+
+  .choice-tables-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    max-height: 48vh;
+    overflow-y: auto;
+    padding: 2px;
+
+    .btn-choice-table {
+      @include selectable;
+      min-height: 48px;
+      padding: 10px 12px;
+      border-radius: $radius-control;
+      font-size: $fs-body;
+      font-weight: 500;
+
+      &.selected {
+        @include selected;
+        font-weight: 600;
+      }
+    }
+  }
+
+  .choice-footer {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+  }
+
+  .btn-confirm-launch {
+    flex: 1;
+  }
+}
+
+/* Overlay de Pause */
+.session-pause-overlay {
+  position: absolute;
+  inset: 0;
+  background: $ground;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  border-radius: 20px;
+  animation: fadeIn 0.2s ease;
+
+  .pause-card {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    max-width: 340px;
+
+    .pause-icon {
+      font-size: 3.5rem;
+      line-height: 1;
+    }
+
+    h3 {
+      font-size: $fs-display;
+    }
+
+    p {
+      font-size: $fs-body;
+      color: $ink-soft;
+      line-height: 1.4;
+    }
+  }
+}
+
+.quit-confirm-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+
+  > button {
+    width: 100%;
+  }
+}
+
+/* Modale de Confirmation avant de Quitter */
+.quit-confirm-overlay {
+  z-index: 1100;
+
+  .quit-confirm-modal {
+    max-width: 380px;
+    text-align: center;
+    padding: 24px 20px;
+    align-items: center;
+    gap: 16px;
+
+    .quit-confirm-icon {
+      font-size: 3rem;
+      line-height: 1;
+    }
+
+    p {
+      font-size: $fs-small;
+      color: $ink-soft;
+      line-height: 1.4;
+    }
+  }
+}
+
+/* Splashscreen Transition entre Activités / Ateliers */
+.activity-transition-overlay {
+  animation: fadeIn 0.25s ease;
+  z-index: 1200;
+
+  .activity-transition-card {
+    max-width: 420px;
+    text-align: center;
+    padding: 28px 22px;
+    align-items: center;
+    gap: 16px;
+
+    .transition-fireworks {
+      font-size: 2.4rem;
+      letter-spacing: 6px;
+      animation: pop 0.6s ease;
+    }
+
+    .transition-badge-tag {
+      @include pill;
+      background: $ground;
+      color: $ink-soft;
+    }
+
+    .transition-huge-icon {
+      font-size: 4.5rem;
+      line-height: 1;
+      animation: popHuge 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .transition-title {
+      font-size: $fs-display;
+      font-weight: 600;
+      line-height: 1.2;
+    }
+
+    .transition-subtitle {
+      font-size: $fs-body;
+      color: $ink-soft;
+      line-height: 1.45;
+    }
+
+    .btn-start-next-workshop {
+      width: 100%;
+    }
+  }
+}

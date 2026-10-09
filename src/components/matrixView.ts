@@ -23,7 +23,7 @@ export function createMatrixView(
 
   const statusLabels: Record<ItemStatus, { label: string; class: string; icon: string }> = {
     unknown: { label: "Non abordé", class: "status-unknown", icon: "⚪" },
-    discovery: { label: "En découverte", class: "status-discovery", icon: "🔵" },
+    discovery: { label: "En apprentissage", class: "status-discovery", icon: "🔵" },
     review: { label: "À réviser", class: "status-review", icon: "🟠" },
     mastered: { label: "Maîtrisé", class: "status-mastered", icon: "🟢" }
   };
@@ -186,7 +186,7 @@ export function createMatrixView(
           <div class="kpi-header">
             <h3>Temps utile & apprentissage</h3>
             <span class="kpi-badge ${isOverloaded ? "badge-warning" : "badge-ok"}">
-              ${isOverloaded ? "Priorité aux erreurs" : "Progression fluide"}
+              ${isOverloaded ? "Priorité aux révisions" : "Progression fluide"}
             </span>
           </div>
 
@@ -200,26 +200,26 @@ export function createMatrixView(
 
           <div class="kpi-grid">
             <div class="kpi-box">
-              <span class="kpi-num">${qStats.activePoolSize}</span>
-              <span class="kpi-lbl">Calculs en cours</span>
+              <span class="kpi-num">${qStats.dueCount}</span>
+              <span class="kpi-lbl">À réviser aujourd'hui</span>
             </div>
             <div class="kpi-box">
-              <span class="kpi-num">${qStats.reviewQueueCount}</span>
-              <span class="kpi-lbl">À réviser ce jour</span>
+              <span class="kpi-num">${qStats.learningCount}</span>
+              <span class="kpi-lbl">En apprentissage</span>
             </div>
             <div class="kpi-box">
-              <span class="kpi-num">${counts.discovery}</span>
-              <span class="kpi-lbl">En découverte</span>
-            </div>
-            <div class="kpi-box">
-              <span class="kpi-num">${counts.mastered}</span>
+              <span class="kpi-num">${qStats.masteredCount}</span>
               <span class="kpi-lbl">Maîtrisés</span>
+            </div>
+            <div class="kpi-box">
+              <span class="kpi-num">${qStats.nextSessionNewCount}</span>
+              <span class="kpi-lbl">Nouveaux à la prochaine séance</span>
             </div>
           </div>
           ${
             isOverloaded
-              ? `<p class="kpi-advice">La file de révision contient ${qStats.reviewQueueCount} calculs à consolider. L'application temporise l'ajout de nouvelles tables afin de fixer les acquis en premier.</p>`
-              : `<p class="kpi-advice">L'élève alterne harmonieusement nouvelles découvertes et consolidation de ses erreurs.</p>`
+              ? `<p class="kpi-advice">${qStats.dueCount} calculs sont à réviser : ils occupent toute la prochaine séance. Les nouveaux calculs reprendront une fois ces révisions faites.</p>`
+              : `<p class="kpi-advice">La prochaine séance mêle les révisions du jour et ${qStats.nextSessionNewCount} nouveaux calculs.</p>`
           }
 
           <button type="button" class="btn-parent-guide-toggle" id="btn-toggle-parent-guide">
@@ -236,7 +236,7 @@ export function createMatrixView(
               <div class="guide-step-item">
                 <span class="step-num-badge">1</span>
                 <div class="step-desc">
-                  <strong>Paliers temporels réels</strong> : Chaque calcul dispose d un calendrier précis. Après une erreur, la révision a lieu 10 minutes plus tard, puis l intervalle s élargit à 1 jour, 3 jours, 7 jours et jusqu à 21 jours pour une maîtrise durable.
+                  <strong>Paliers temporels réels</strong> : Chaque calcul dispose d un calendrier précis. Après une erreur, la révision a lieu 10 minutes plus tard, puis l intervalle s élargit à 1 jour, 3 jours, 7 jours et jusqu à 21 jours pour une maîtrise durable. Un calcul ne franchit un palier que le jour prévu : le réussir plusieurs fois dans la même séance l'entraîne, sans le faire monter plus vite.
                 </div>
               </div>
               <div class="guide-step-item">
@@ -254,7 +254,7 @@ export function createMatrixView(
               <div class="guide-step-item">
                 <span class="step-num-badge">4</span>
                 <div class="step-desc">
-                  <strong>Régulation anti-surcharge</strong> : Lorsque plusieurs tables demandent une révision prioritaire, l introduction de nouveaux calculs inconnus est suspendue pour protéger votre enfant de la surcharge cognitive.
+                  <strong>Un lot fixe par séance</strong> : Chaque séance travaille un lot de calculs choisi au départ, les révisions du jour d'abord, puis quelques nouveaux selon la durée (2 pour 3 minutes, jusqu'à 8 pour 15 minutes). Quand les révisions remplissent le lot, aucun nouveau calcul n'est ajouté, pour protéger votre enfant de la surcharge cognitive.
                 </div>
               </div>
               <div class="guide-step-item">
@@ -302,7 +302,7 @@ export function createMatrixView(
           currentDisplayMode === "status"
             ? `
               <span class="legend-item"><span class="dot dot-unknown"></span> ${counts.unknown} non abordés</span>
-              <span class="legend-item"><span class="dot dot-discovery"></span> ${counts.discovery} en découverte</span>
+              <span class="legend-item"><span class="dot dot-discovery"></span> ${counts.discovery} en apprentissage</span>
               <span class="legend-item"><span class="dot dot-review"></span> ${counts.review} en révision</span>
               <span class="legend-item"><span class="dot dot-mastered"></span> ${counts.mastered} maîtrisés</span>
             `
