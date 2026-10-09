@@ -2,6 +2,8 @@
 
 Application web progressive (PWA) d'apprentissage des tables de multiplication, spécialement conçue pour être installée et utilisée **100% hors-ligne sur Android**.
 
+https://marcgardent.github.io/multiplication/
+
 ---
 
 ## 🚀 Fonctionnalités Clés
