@@ -38,7 +38,7 @@ export function createDiscoveryMode(
           <div class="stage-equals">=</div>
           <div class="stage-answer" id="disc-answer">?</div>
         </div>
-        <div class="status-cue" id="disc-cue">Écoutez attentivement...</div>
+        <div class="status-cue" id="disc-cue">Écoute attentivement...</div>
       </div>
 
       <div class="mode-controls">
@@ -68,7 +68,7 @@ export function createDiscoveryMode(
     if (!isRunning) return;
 
     // 2. Pause réflexive
-    if (cueEl) cueEl.textContent = "Réfléchissez à la réponse...";
+    if (cueEl) cueEl.textContent = "Réfléchis à la réponse...";
     await new Promise((r) => setTimeout(r, config.pauseBetweenAudioMs));
     if (!isRunning) return;
 

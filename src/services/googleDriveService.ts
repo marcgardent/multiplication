@@ -1,4 +1,4 @@
-import { StorageService } from "./storageService";
+import { StorageService, STORAGE_NAMESPACE } from "./storageService";
 
 export interface AppDataBackup {
   version: number;
@@ -41,7 +41,7 @@ export function setLastSyncTime(storage: StorageService, timestamp: number): voi
   storage.set<number>("last_drive_sync_time", timestamp);
 }
 
-export function exportAllAppData(namespace = "mult_clean_v2"): AppDataBackup {
+export function exportAllAppData(namespace = STORAGE_NAMESPACE): AppDataBackup {
   const result: Record<string, any> = {};
   const prefix = `${namespace}:`;
   for (let i = 0; i < localStorage.length; i++) {
@@ -65,7 +65,7 @@ export function exportAllAppData(namespace = "mult_clean_v2"): AppDataBackup {
   };
 }
 
-export function importAllAppData(backup: AppDataBackup, namespace = "mult_clean_v2"): boolean {
+export function importAllAppData(backup: AppDataBackup, namespace = STORAGE_NAMESPACE): boolean {
   if (!backup || !backup.data || typeof backup.data !== "object") {
     throw new Error("Format de sauvegarde invalide");
   }

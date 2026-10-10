@@ -1,0 +1,577 @@
+@use "variables" as *;
+@use "mixins" as *;
+
+/* Carnet de suivi Vue Parent */
+.carnet-top-bar {
+  @include card;
+  @include lifted;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 8px 14px 8px 8px;
+
+  h2 {
+    font-size: 1.0625rem;
+    font-weight: 600;
+    min-width: 0;
+  }
+
+  .btn-back-home {
+    min-height: 44px;
+    padding: 8px 12px;
+    font-size: $fs-small;
+    flex-shrink: 0;
+
+    /* Flèche de retour, dessinée en CSS comme celles de l'accueil */
+    &::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      margin-left: 3px;
+      border-left: 2px solid $ink-soft;
+      border-bottom: 2px solid $ink-soft;
+      transform: rotate(45deg);
+    }
+  }
+}
+
+/* Panneau neutre : le carnet se lit sur un fond uni, pas sur le décor */
+.carnet-content-wrapper {
+  @include lifted;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: $ground;
+  border: 1px solid $line;
+  border-radius: 20px;
+  padding: 12px;
+}
+
+.parent-kpi-card {
+  @include card;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+
+  .kpi-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+
+    h3 {
+      font-size: $fs-body;
+      font-weight: 600;
+    }
+
+    /* Pastille : un point de couleur, le texte reste neutre */
+    .kpi-badge {
+      @include pill;
+      border: 1px solid $line;
+      white-space: nowrap;
+
+      &::before {
+        content: "";
+        width: 10px;
+        height: 10px;
+        border-radius: $radius-pill;
+        flex-shrink: 0;
+      }
+
+      &.badge-ok::before { background: $status-mastered; }
+      &.badge-warning::before { background: $status-review; }
+    }
+  }
+
+  .practice-time-banner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    .time-clock-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      width: 44px;
+      height: 44px;
+      border-radius: $radius-control;
+      background: $ground;
+      font-size: 1.5rem;
+      line-height: 1;
+    }
+
+    .time-banner-info {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+
+      .time-banner-val {
+        font-size: 1.625rem;
+        font-weight: 600;
+        line-height: 1.15;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .time-banner-lbl {
+        font-size: $fs-caption;
+        color: $ink-soft;
+      }
+    }
+  }
+
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+
+    .kpi-box {
+      background: $ground;
+      border-radius: $radius-control;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+
+      .kpi-num {
+        font-size: 1.375rem;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .kpi-lbl {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: $fs-caption;
+        color: $ink-soft;
+      }
+
+      /* Le point reprend le statut d'apprentissage concerné */
+      &:nth-child(-n + 3) .kpi-lbl::before {
+        content: "";
+        width: 10px;
+        height: 10px;
+        border-radius: $radius-pill;
+        flex-shrink: 0;
+      }
+
+      &:nth-child(1) .kpi-lbl::before { background: $status-review; }
+      &:nth-child(2) .kpi-lbl::before { background: $status-discovery; }
+      &:nth-child(3) .kpi-lbl::before { background: $status-mastered; }
+    }
+  }
+
+  .kpi-advice {
+    font-size: $fs-small;
+    color: $ink-soft;
+    line-height: 1.45;
+  }
+
+  /* Lignes de liste : méthode et sauvegarde */
+  .btn-parent-guide-toggle, .btn-parent-drive-toggle {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    min-height: 48px;
+    padding: 12px 0 0;
+    background: transparent;
+    border: none;
+    border-top: 1px solid $line;
+    text-align: left;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    color: $ink;
+    cursor: pointer;
+
+    .guide-toggle-icon, .drive-toggle-icon {
+      font-size: 1.25rem;
+      line-height: 1;
+    }
+
+    .guide-toggle-title, .drive-toggle-title {
+      flex: 1;
+    }
+
+    .guide-toggle-arrow, .drive-toggle-arrow {
+      font-size: $fs-small;
+      color: $ink-soft;
+    }
+  }
+
+  .parent-guide-content {
+    background: $ground;
+    border-radius: $radius-control;
+    padding: 14px;
+    animation: fadeIn 0.25s ease;
+
+    .guide-intro {
+      font-size: $fs-small;
+      line-height: 1.5;
+      margin-bottom: 12px;
+    }
+
+    .guide-steps-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+
+      .guide-step-item {
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+
+        .step-num-badge {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+          width: 26px;
+          height: 26px;
+          border-radius: $radius-pill;
+          background: $accent-soft;
+          color: $accent-ink;
+          font-size: $fs-caption;
+          font-weight: 600;
+        }
+
+        .step-desc {
+          font-size: $fs-small;
+          line-height: 1.45;
+          color: $ink-soft;
+
+          strong {
+            color: $ink;
+            font-weight: 600;
+          }
+        }
+      }
+    }
+  }
+}
+
+/* Matrice 10x10 */
+.matrix-view-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+
+  .matrix-header {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+
+    .matrix-title-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 8px;
+      padding: 4px 4px 0;
+
+      h2 {
+        font-size: 1.0625rem;
+        font-weight: 600;
+      }
+
+      .matrix-mastery-score {
+        font-size: $fs-caption;
+        color: $ink-soft;
+        font-variant-numeric: tabular-nums;
+      }
+    }
+
+    .matrix-view-mode-selector {
+      display: flex;
+      gap: 4px;
+      padding: 4px;
+      background: $surface;
+      border: 1px solid $line;
+      border-radius: $radius-control;
+
+      .btn-display-mode {
+        flex: 1;
+        min-height: 40px;
+        padding: 8px;
+        background: transparent;
+        border: none;
+        border-radius: 8px;
+        color: $ink-soft;
+        font-size: $fs-small;
+        font-weight: 500;
+        white-space: nowrap;
+        text-align: center;
+        cursor: pointer;
+        transition: background $transition-base;
+
+        &:hover:not(.active) {
+          background: $ground;
+        }
+
+        &.active {
+          background: $accent-soft;
+          color: $accent-ink;
+          font-weight: 600;
+        }
+      }
+    }
+
+    .matrix-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 14px;
+      padding: 0 4px;
+      font-size: $fs-caption;
+
+      .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+
+        .dot {
+          width: 12px;
+          height: 12px;
+          border-radius: 4px;
+          flex-shrink: 0;
+
+          &.dot-unknown, &.heat-none {
+            background: $status-unknown;
+            border: 1.5px solid $status-unknown-line;
+          }
+          &.dot-discovery { background: $status-discovery; }
+          &.dot-review { background: $status-review; }
+          &.dot-mastered { background: $status-mastered; }
+          &.heat-safe { background: $heat-safe; }
+          &.heat-low { background: $heat-low; }
+          &.heat-medium { background: $heat-medium; }
+          &.heat-high { background: $heat-high; }
+        }
+      }
+    }
+  }
+
+  .matrix-grid-scroll {
+    @include card;
+    overflow-x: auto;
+    padding: 8px;
+
+    .matrix-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 3px;
+      text-align: center;
+
+      th {
+        color: $ink-soft;
+        font-weight: 600;
+        font-size: $fs-dense;
+        padding: 6px 2px;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .matrix-cell {
+        padding: 0;
+        cursor: pointer;
+
+        .cell-content {
+          border-radius: 6px;
+          padding: 4px 1px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          min-height: 36px;
+          transition: transform 0.15s ease;
+
+          .cell-result {
+            font-size: $fs-dense;
+            font-weight: 500;
+            line-height: 1;
+            font-variant-numeric: tabular-nums;
+          }
+
+          .cell-sub {
+            font-size: 0.625rem;
+            font-weight: 500;
+            margin-top: 3px;
+            line-height: 1;
+            font-variant-numeric: tabular-nums;
+          }
+        }
+
+        &:hover .cell-content {
+          transform: scale(1.12);
+        }
+
+        &:active .cell-content {
+          transform: scale(0.94);
+        }
+
+        /* Statuts : la teinte dit l'état, la clarté dit l'avancement */
+        &.status-unknown .cell-content, &.heat-none .cell-content {
+          background: $status-unknown;
+          color: $ink-soft;
+        }
+        &.status-discovery .cell-content {
+          background: $status-discovery;
+          color: $ink;
+        }
+        &.status-review .cell-content {
+          background: $status-review;
+          color: $ink;
+        }
+        &.status-mastered .cell-content {
+          background: $status-mastered;
+          color: $surface;
+        }
+
+        /* Précision et Vitesse : du plus clair (sûr) au plus foncé (fragile) */
+        &.heat-safe .cell-content {
+          background: $heat-safe;
+          color: $ink;
+        }
+        &.heat-low .cell-content {
+          background: $heat-low;
+          color: $ink;
+        }
+        &.heat-medium .cell-content {
+          background: $heat-medium;
+          color: $ink;
+        }
+        &.heat-high .cell-content {
+          background: $heat-high;
+          color: $surface;
+        }
+      }
+    }
+  }
+}
+
+/* Détail d'un calcul */
+.matrix-detail-modal {
+  position: fixed;
+  inset: 0;
+  background: $scrim;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+
+  .modal-card {
+    @include card;
+    border-radius: 20px;
+    width: 100%;
+    max-width: 400px;
+    padding: 20px;
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+
+      h3 {
+        font-size: $fs-display;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+      }
+    }
+
+    .modal-body {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+
+      .status-badge {
+        display: block;
+        padding: 10px 14px;
+        border-radius: $radius-control;
+        font-size: $fs-small;
+        font-weight: 600;
+        text-align: center;
+
+        &.status-unknown {
+          background: $status-unknown;
+          color: $ink-soft;
+        }
+        &.status-discovery {
+          background: $status-discovery-soft;
+          color: $ink;
+        }
+        &.status-review {
+          background: $status-review-soft;
+          color: $status-review-ink;
+        }
+        &.status-mastered {
+          background: $status-mastered-soft;
+          color: $status-mastered;
+        }
+      }
+
+      .stats-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+
+        .stat-item {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+          background: $ground;
+          border-radius: $radius-control;
+          padding: 10px 12px;
+
+          .stat-label {
+            font-size: $fs-caption;
+            color: $ink-soft;
+          }
+
+          .stat-val {
+            font-size: 1.0625rem;
+            font-weight: 600;
+            font-variant-numeric: tabular-nums;
+
+            &.text-danger { color: $danger; }
+            &.text-warning { color: $status-review-ink; }
+            &.text-success { color: $status-mastered; }
+          }
+        }
+      }
+
+      .all-times-history {
+        background: $ground;
+        border-radius: $radius-control;
+        padding: 10px 12px;
+        font-size: $fs-small;
+
+        .times-title {
+          display: block;
+          margin-bottom: 4px;
+          font-weight: 600;
+        }
+
+        .times-list {
+          color: $ink-soft;
+          font-variant-numeric: tabular-nums;
+          word-break: break-all;
+        }
+      }
+
+      .modal-note {
+        font-size: $fs-caption;
+        color: $ink-soft;
+      }
+
+      .modal-actions {
+        margin-top: 4px;
+
+        .btn-play-audio {
+          width: 100%;
+        }
+      }
+    }
+  }
+}

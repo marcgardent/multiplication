@@ -70,7 +70,7 @@ export function startEvaluationModal(
           <span class="stage-equals giant-equals">=</span>
           <span class="stage-answer giant-answer user-answer" id="eval-input">_</span>
         </div>
-        <div class="feedback-cue" id="eval-cue">Calculez et entrez le résultat</div>
+        <div class="feedback-cue" id="eval-cue">Calcule et tape le résultat</div>
       </div>
 
       <!-- Emplacement Keypad (MOITIÉ INFÉRIEURE DE L'ÉCRAN) -->
@@ -150,7 +150,7 @@ export function startEvaluationModal(
             <button type="button" class="btn-confirm-launch btn-resume-action" id="btn-resume-eval">
               Reprendre l'évaluation ▶️
             </button>
-            <button type="button" class="btn-confirm-launch" id="btn-pause-finish-eval" style="background: linear-gradient(135deg, #10b981, #06b6d4);">
+            <button type="button" class="btn-finish-action" id="btn-pause-finish-eval">
               Terminer et voir mon bilan 📊
             </button>
           </div>
@@ -224,7 +224,7 @@ export function startEvaluationModal(
           <button type="button" class="btn-confirm-launch btn-continue-action" id="btn-confirm-stay-eval">
             Continuer l'évaluation 🚀
           </button>
-          <button type="button" class="btn-confirm-launch" id="btn-confirm-finish-eval" style="background: linear-gradient(135deg, #10b981, #06b6d4);">
+          <button type="button" class="btn-finish-action" id="btn-confirm-finish-eval">
             Terminer et voir mon bilan 📊
           </button>
           <button type="button" class="btn-quit-danger" id="btn-confirm-quit-eval">
@@ -331,7 +331,7 @@ export function startEvaluationModal(
 
     if (factorsEl) factorsEl.textContent = `${item.a} × ${item.b}`;
     if (inputEl) inputEl.textContent = "_";
-    if (cueEl) cueEl.textContent = "Calculez et entrez le résultat";
+    if (cueEl) cueEl.textContent = "Calcule et tape le résultat";
     if (cardEl) cardEl.className = "stage-card giant-card";
     fitOperation(cardEl);
     if (progressText) progressText.textContent = `${currentIndex + 1}/${pool.length}`;
@@ -362,7 +362,7 @@ export function startEvaluationModal(
     } else {
       wrongItems.push(item);
       cardEl?.classList.add("card-wrong");
-      if (cueEl) cueEl.textContent = `Faux : ${item.a} × ${item.b} = ${item.result}`;
+      if (cueEl) cueEl.textContent = `À revoir : ${item.a} × ${item.b} = ${item.result}`;
       audioService.playFeedback("wrong");
     }
 

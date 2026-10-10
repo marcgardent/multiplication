@@ -1,0 +1,612 @@
+@use "variables" as *;
+@use "mixins" as *;
+
+/* Bloc d'animation des compteurs de points utilisé partout où des points sont gagnés */
+.win-points-counter-box {
+  width: 100%;
+  max-width: 290px;
+  background: $gold-soft;
+  border-radius: $radius-card;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin: 4px 0;
+  color: $gold-ink;
+
+  .points-label {
+    font-size: $fs-caption;
+    font-weight: 500;
+  }
+
+  .points-animated-display {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    .points-coin-icon {
+      font-size: 1.5rem;
+      line-height: 1;
+    }
+
+    .points-value {
+      font-size: $fs-display;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* « +N » danse pendant le décompte des points, puis se pose */
+    .points-added-badge {
+      @include pill;
+      background: $gold-ink;
+      color: $surface;
+      font-size: $fs-body;
+      font-weight: 600;
+
+      &.is-counting {
+        animation: badgeDance 0.9s ease-in-out infinite;
+      }
+
+      &.is-counted {
+        animation: badgeSettle 0.45s ease-out;
+      }
+    }
+  }
+
+  &.congrats-points-box {
+    margin: 8px 0;
+  }
+}
+
+@keyframes badgeDance {
+  0%, 100% { transform: translateY(0) rotate(-8deg) scale(1); }
+  25% { transform: translateY(-6px) rotate(6deg) scale(1.2); }
+  50% { transform: translateY(0) rotate(-4deg) scale(1.05); }
+  75% { transform: translateY(-4px) rotate(8deg) scale(1.16); }
+}
+
+@keyframes badgeSettle {
+  0% { transform: scale(1.4); }
+  100% { transform: scale(1); }
+}
+
+/* --- Bilan de fin de séance --- */
+.congrats-splash-overlay {
+  animation: fadeIn 0.3s ease;
+
+  .congrats-card {
+    text-align: center;
+    padding: 24px 20px;
+    align-items: center;
+    gap: 14px;
+
+    .congrats-fireworks {
+      font-size: 2.2rem;
+      letter-spacing: 6px;
+      animation: pop 0.6s ease;
+    }
+
+    .congrats-avatar-bubble {
+      width: 80px;
+      height: 80px;
+      border-radius: $radius-pill;
+      background: $accent-soft;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 3.2rem;
+      line-height: 1;
+    }
+
+    .congrats-title {
+      font-size: $fs-display;
+      font-weight: 600;
+    }
+
+    .congrats-subtitle {
+      font-size: $fs-body;
+      color: $ink-soft;
+      margin-top: -6px;
+    }
+
+    .congrats-stats-row {
+      display: flex;
+      gap: 12px;
+      width: 100%;
+      max-width: 320px;
+      margin: 4px 0;
+
+      .congrats-stat-box {
+        @include card;
+        flex: 1;
+        padding: 12px 8px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+
+        .stat-big-num {
+          font-size: $fs-display;
+          font-weight: 600;
+          font-variant-numeric: tabular-nums;
+        }
+
+        .stat-lbl {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          font-size: $fs-caption;
+          color: $ink-soft;
+
+          &::before {
+            content: "";
+            width: 10px;
+            height: 10px;
+            border-radius: $radius-pill;
+          }
+        }
+
+        &.box-disc .stat-lbl::before { background: $status-discovery; }
+        &.box-master .stat-lbl::before { background: $status-mastered; }
+      }
+    }
+
+    .btn-open-rewards, .btn-rewards-finish {
+      width: 100%;
+      max-width: 340px;
+    }
+  }
+}
+
+/* --- En-tête, aide et pied communs aux tableaux de récompenses et de décors --- */
+.rewards-board-header, .wheel-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+
+  .rewards-title-wrap, .wheel-title-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .rewards-count-badge, .wheel-spins-badge {
+    font-size: $fs-caption;
+    color: $ink-soft;
+  }
+}
+
+.rewards-hint {
+  font-size: $fs-caption;
+  color: $gold-ink;
+  background: $gold-soft;
+  border-radius: $radius-control;
+  padding: 8px 12px;
+  text-align: center;
+}
+
+.rewards-footer, .wheel-footer {
+  display: flex;
+  margin-top: 4px;
+  width: 100%;
+
+  > button {
+    width: 100%;
+  }
+}
+
+/* Grille des 100 cadeaux */
+.rewards-board-overlay .rewards-board-card {
+  max-width: 520px;
+  padding: 16px;
+  gap: 10px;
+
+  .rewards-grid-wrapper {
+    max-height: 52vh;
+    overflow-y: auto;
+    background: $ground;
+    border-radius: $radius-card;
+    padding: 8px;
+  }
+
+  .rewards-grid-100 {
+    display: grid;
+    grid-template-columns: repeat(10, minmax(0, 1fr));
+    gap: 4px;
+  }
+
+  .reward-cell {
+    aspect-ratio: 1;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.15s ease;
+    position: relative;
+
+    &:active {
+      transform: scale(0.9);
+    }
+
+    .cell-calc-result, .cell-calc-preview {
+      font-size: 0.5625rem;
+      font-weight: 500;
+      line-height: 1;
+      margin-top: 1px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* 1. Case ouverte */
+    &.cell-opened {
+      background: $surface;
+      border-color: $line;
+
+      .cell-gift-emoji {
+        font-size: 1.15rem;
+        line-height: 1;
+      }
+
+      .cell-calc-result {
+        color: $ink-soft;
+      }
+    }
+
+    /* 2. Nouveau cadeau prêt à être déballé : le paquet sautille */
+    &.cell-ready-to-open {
+      background: $gold-soft;
+      border-color: $gold-ink;
+
+      .cell-gift-box {
+        font-size: 1.25rem;
+        line-height: 1;
+        animation: bounceGift 0.8s infinite alternate;
+      }
+
+      .cell-calc-result {
+        color: $gold-ink;
+        font-weight: 600;
+      }
+    }
+
+    /* 3. Case mystère */
+    &.cell-mystery {
+      background: $status-unknown;
+
+      .cell-mystery-icon {
+        font-size: 0.85rem;
+        opacity: 0.5;
+        line-height: 1;
+      }
+
+      .cell-calc-preview {
+        color: $ink-soft;
+      }
+    }
+  }
+}
+
+/* Galerie des décors */
+.bg-gallery-overlay .bg-gallery-container {
+  max-width: 520px;
+  max-height: 94vh;
+  padding: 16px;
+  gap: 12px;
+
+  .bg-gallery-grid-scroll {
+    flex: 1;
+    overflow-y: auto;
+    padding-right: 4px;
+    margin: 4px 0;
+    max-height: 60vh;
+  }
+
+  .bg-gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+
+    @media (max-width: 440px) {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .bg-gallery-card {
+    @include card;
+    border-width: 2px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transition: border-color $transition-base;
+
+    &.active-choice {
+      border-color: $accent;
+    }
+
+    .bg-preview-wrap {
+      position: relative;
+      width: 100%;
+      height: 120px;
+      overflow: hidden;
+      background: $ground;
+
+      .bg-preview-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .bg-lock-overlay {
+        position: absolute;
+        inset: 0;
+        background: $scrim;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        .lock-big-icon {
+          font-size: 2rem;
+        }
+      }
+
+      .bg-pts-badge {
+        @include gold-pill;
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        padding: 3px 10px;
+        font-variant-numeric: tabular-nums;
+      }
+    }
+
+    .bg-card-info {
+      padding: 12px 10px;
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      justify-content: space-between;
+      gap: 10px;
+
+      .bg-card-name {
+        font-size: $fs-body;
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        text-align: center;
+      }
+
+      .bg-card-active-badge {
+        background: $accent-soft;
+        color: $accent-ink;
+        font-size: $fs-caption;
+        font-weight: 600;
+        padding: 8px 10px;
+        border-radius: $radius-control;
+        text-align: center;
+      }
+
+      .btn-select-bg {
+        min-height: 40px;
+        padding: 8px 10px;
+        font-size: $fs-small;
+        width: 100%;
+      }
+
+      .bg-card-locked-box {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+
+        .bg-lock-progress-bar {
+          height: 6px;
+          background: $line;
+          border-radius: $radius-pill;
+          overflow: hidden;
+
+          .bg-lock-progress-fill {
+            height: 100%;
+            background: $accent;
+            border-radius: $radius-pill;
+          }
+        }
+
+        .bg-lock-hint {
+          font-size: $fs-dense;
+          color: $ink-soft;
+          text-align: center;
+        }
+      }
+    }
+  }
+}
+
+/* Déballage d'un cadeau */
+.gift-celebration-overlay {
+  animation: fadeIn 0.2s ease;
+
+  .gift-celebration-card {
+    text-align: center;
+    padding: 24px 20px;
+    align-items: center;
+    gap: 14px;
+
+    .celebration-burst {
+      font-size: 2.2rem;
+      letter-spacing: 6px;
+    }
+
+    .reward-huge-emoji {
+      font-size: 5rem;
+      line-height: 1;
+
+      &.pop-in-emoji {
+        animation: popHuge 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      }
+    }
+
+    .reward-item-title {
+      font-size: $fs-display;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .reward-item-msg {
+      font-size: $fs-body;
+      color: $ink-soft;
+      margin-top: -4px;
+    }
+
+    .btn-collect-gift {
+      width: 100%;
+    }
+  }
+}
+
+/* --- Roue Magique & Défilement Horizontal --- */
+.wheel-modal-overlay {
+  animation: fadeIn 0.25s ease;
+
+  .wheel-modal-card {
+    max-width: 480px;
+    padding: 20px;
+    gap: 16px;
+  }
+
+  .wheel-stage-container {
+    position: relative;
+    width: 100%;
+    margin: 6px 0;
+    padding: 28px 0 16px 0;
+    background: $ground;
+    border-radius: $radius-card;
+    overflow: hidden;
+
+    .wheel-pointer-arrow {
+      position: absolute;
+      top: 2px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 1.6rem;
+      line-height: 1;
+      color: $accent;
+      z-index: 10;
+      animation: bounceArrow 0.8s infinite alternate;
+    }
+
+    .wheel-viewport {
+      width: 100%;
+      overflow: hidden;
+      position: relative;
+
+      /* Fondu des bords : les cartes entrent et sortent en douceur */
+      &::before, &::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 45px;
+        z-index: 6;
+        pointer-events: none;
+      }
+
+      &::before {
+        left: 0;
+        background: linear-gradient(to right, $ground, rgba($ground, 0));
+      }
+
+      &::after {
+        right: 0;
+        background: linear-gradient(to left, $ground, rgba($ground, 0));
+      }
+
+      .wheel-track {
+        display: flex;
+        gap: 8px;
+        padding: 6px 12px;
+        will-change: transform;
+      }
+    }
+
+    .wheel-slot-card {
+      @include card;
+      width: 120px;
+      min-width: 120px;
+      height: 135px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 8px;
+
+      .slot-emoji {
+        font-size: 2.6rem;
+        line-height: 1;
+      }
+
+      .slot-formula {
+        font-size: $fs-small;
+        font-weight: 600;
+        line-height: 1;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .slot-bonus {
+        @include gold-pill;
+        padding: 2px 8px;
+      }
+    }
+  }
+}
+
+/* Carte gagnée à la Roue Magique */
+.win-card-overlay {
+  animation: fadeIn 0.2s ease;
+
+  .win-card-modal {
+    max-width: 380px;
+    text-align: center;
+    padding: 24px 20px;
+    align-items: center;
+    gap: 14px;
+
+    .win-card-ribbon {
+      @include gold-pill;
+      font-size: $fs-body;
+      padding: 6px 20px;
+      letter-spacing: 1px;
+    }
+
+    .win-item-card {
+      background: $ground;
+      border-radius: $radius-card;
+      padding: 20px 28px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+
+      .win-card-emoji {
+        font-size: 4.5rem;
+        line-height: 1;
+        animation: popHuge 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      }
+
+      .win-card-formula {
+        font-size: $fs-display;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+      }
+    }
+
+    .btn-collect-win {
+      width: 100%;
+    }
+  }
+}

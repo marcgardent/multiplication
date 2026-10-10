@@ -2,7 +2,7 @@
 
 help:
 	@echo "Commandes disponibles :"
-	@echo "  make audio    - Générer les fichiers audio TTS Français via uv (edge-tts)"
+	@echo "  make audio    - Générer les voix avec Piper (questions, réponses, félicitations) depuis scripts/generate_audio.py"
 	@echo "  make install  - Installer les dépendances npm"
 	@echo "  make dev      - Lancer le serveur Vite de développement"
 	@echo "  make build    - Compiler l'application TypeScript + SCSS + PWA"

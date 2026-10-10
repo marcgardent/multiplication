@@ -24,6 +24,30 @@ export interface MatrixStore {
   subscribe(callback: () => void): () => void;
 }
 
+const DAY_MS = 24 * 3600 * 1000;
+// Après une erreur, le calcul revient 10 minutes plus tard
+const ERROR_RETRY_MS = 10 * 60 * 1000;
+// Jours d'attente après avoir atteint chaque palier : 1 = 1 j, 2 = 3 j, 3 = 7 j, 4 = 21 j
+const BOX_INTERVAL_DAYS = [1, 1, 3, 7, 21];
+
+// Un palier ne se gagne qu'à l'échéance : les réussites répétées d'une même séance entraînent sans faire monter
+export function canPromote(item: MultiplicationItem, now = Date.now()): boolean {
+  return item.nextReviewAt === null || now >= item.nextReviewAt;
+}
+
+// Le cadeau d'un calcul se débloque à la réussite du lendemain et reste acquis ensuite
+export function isGiftUnlocked(item: MultiplicationItem): boolean {
+  return item.bestBoxLevel >= 2;
+}
+
+// Les échéances en jours tombent à minuit : une séance peut avoir lieu à n'importe quelle heure du jour prévu
+function startOfDayAfter(now: number, days: number): number {
+  const date = new Date(now);
+  date.setHours(0, 0, 0, 0);
+  date.setDate(date.getDate() + days);
+  return date.getTime();
+}
+
 export function createMatrixStore(storage: StorageService, initialProfileId = "default-1"): MatrixStore {
   let currentProfileId = initialProfileId;
   const getStorageKey = () => `matrix_items_${currentProfileId}`;
@@ -58,6 +82,7 @@ export function createMatrixStore(storage: StorageService, initialProfileId = "d
           result: a * b,
           status: "unknown",
           boxLevel: 0,
+          bestBoxLevel: 0,
           seenCount: 0,
           errorCount: 0,
           successStreak: 0,
@@ -99,16 +124,14 @@ export function createMatrixStore(storage: StorageService, initialProfileId = "d
         if (typeof item.easeFactor !== "number") {
           item.easeFactor = 2.5;
         }
+        if (typeof item.bestBoxLevel !== "number") {
+          item.bestBoxLevel = item.boxLevel || 0;
+        }
         if (typeof item.intervalDays !== "number") {
-          const baseDays = [10 / 1440, 1, 3, 7, 21][Math.min(4, Math.max(0, item.boxLevel || 0))];
-          item.intervalDays = baseDays;
+          item.intervalDays = BOX_INTERVAL_DAYS[Math.min(4, Math.max(0, item.boxLevel || 0))];
         }
         if (item.nextReviewAt === undefined) {
-          if (item.lastReviewedAt) {
-            item.nextReviewAt = item.lastReviewedAt + Math.round(item.intervalDays * 24 * 3600 * 1000);
-          } else {
-            item.nextReviewAt = null;
-          }
+          item.nextReviewAt = item.lastReviewedAt ? item.lastReviewedAt + Math.round(item.intervalDays * DAY_MS) : null;
         }
         itemsMap.set(item.id, item);
       });
@@ -172,6 +195,7 @@ export function createMatrixStore(storage: StorageService, initialProfileId = "d
       if (!item) return;
 
       const now = Date.now();
+      const isDueForPromotion = canPromote(item, now);
       item.seenCount += 1;
       item.lastReviewedAt = now;
 
@@ -195,9 +219,9 @@ export function createMatrixStore(storage: StorageService, initialProfileId = "d
         if (item.status === "unknown") {
           item.status = "discovery";
         }
+        // Échu tout de suite : la première réussite au quiz qui suit l'écoute compte pour le premier palier
         if (item.nextReviewAt === null) {
-          item.intervalDays = 1;
-          item.nextReviewAt = now + 24 * 3600 * 1000;
+          item.nextReviewAt = now;
         }
         points += 5;
       } else {
@@ -213,25 +237,8 @@ export function createMatrixStore(storage: StorageService, initialProfileId = "d
 
         if (isCorrect) {
           item.successStreak += 1;
-          item.boxLevel = Math.min(4, item.boxLevel + 1);
 
-          // Ajustement selon la vitesse de réponse
-          let speedFactor = 1.0;
-          if (responseTimeMs > 0 && responseTimeMs < 2200) {
-            speedFactor = 1.2;
-            item.easeFactor = Math.min(3.0, Number((item.easeFactor + 0.1).toFixed(2)));
-          } else if (responseTimeMs > 3800) {
-            speedFactor = 0.8;
-            item.easeFactor = Math.max(1.3, Number((item.easeFactor - 0.1).toFixed(2)));
-          }
-
-          // Paliers de référence : 0 = 10min, 1 = 1j, 2 = 3j, 3 = 7j, 4 = 21j
-          const baseDays = [10 / 1440, 1, 3, 7, 21][item.boxLevel];
-          const calculatedDays = baseDays * (item.easeFactor / 2.5) * speedFactor;
-          item.intervalDays = Math.max(0.007, Number(Math.min(21, calculatedDays).toFixed(2)));
-          item.nextReviewAt = now + Math.round(item.intervalDays * 24 * 3600 * 1000);
-
-          // Attribution des points
+          // Toute bonne réponse rapporte des points, même à l'entraînement
           points += 10;
 
           // Bonus rapidité sous 2500ms
@@ -239,15 +246,34 @@ export function createMatrixStore(storage: StorageService, initialProfileId = "d
             points += 5;
           }
 
-          if (item.boxLevel >= 3 && item.successStreak >= 3 && (responseTimeMs === 0 || responseTimeMs < 3800)) {
-            if (item.status !== "mastered") {
-              points += 50; // Super bonus maîtrise
+          if (isDueForPromotion) {
+            // Ajustement selon la vitesse de réponse
+            const isSlow = responseTimeMs > 3800;
+            let speedFactor = 1.0;
+            if (responseTimeMs > 0 && responseTimeMs < 2200) {
+              speedFactor = 1.2;
+              item.easeFactor = Math.min(3.0, Number((item.easeFactor + 0.1).toFixed(2)));
+            } else if (isSlow) {
+              speedFactor = 0.8;
+              item.easeFactor = Math.max(1.3, Number((item.easeFactor - 0.1).toFixed(2)));
             }
-            item.status = "mastered";
-            item.intervalDays = 21;
-            item.nextReviewAt = now + 21 * 24 * 3600 * 1000;
-          } else if (item.status === "unknown") {
-            item.status = "discovery";
+
+            // La maîtrise demande une réponse fluide : une réussite lente rejoue le palier des 7 jours
+            item.boxLevel = item.boxLevel === 3 && isSlow ? 3 : Math.min(4, item.boxLevel + 1);
+            item.bestBoxLevel = Math.max(item.bestBoxLevel, item.boxLevel);
+
+            if (item.boxLevel === 4) {
+              if (item.status !== "mastered") {
+                points += 50; // Super bonus maîtrise
+              }
+              item.status = "mastered";
+              item.intervalDays = 21;
+            } else {
+              item.status = "discovery";
+              const calculatedDays = BOX_INTERVAL_DAYS[item.boxLevel] * (item.easeFactor / 2.5) * speedFactor;
+              item.intervalDays = Math.min(21, Math.max(1, Math.round(calculatedDays)));
+            }
+            item.nextReviewAt = startOfDayAfter(now, item.intervalDays);
           }
         } else {
           item.errorCount += 1;
@@ -255,8 +281,8 @@ export function createMatrixStore(storage: StorageService, initialProfileId = "d
           item.boxLevel = 0;
           item.status = "review";
           item.easeFactor = Math.max(1.3, Number((item.easeFactor - 0.2).toFixed(2)));
-          item.intervalDays = Number((10 / 1440).toFixed(4));
-          item.nextReviewAt = now + 10 * 60 * 1000;
+          item.intervalDays = Number((ERROR_RETRY_MS / DAY_MS).toFixed(4));
+          item.nextReviewAt = now + ERROR_RETRY_MS;
         }
       }
 

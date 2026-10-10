@@ -1,0 +1,146 @@
+@use "variables" as *;
+@use "mixins" as *;
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  scrollbar-width: thin;
+  scrollbar-color: $line transparent;
+}
+
+/* Scroll discret */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: $line;
+  border-radius: 6px;
+
+  &:hover {
+    background: $status-unknown-line;
+  }
+}
+
+body {
+  font-family: $font;
+  font-size: $fs-body;
+  line-height: 1.35;
+  background-color: $ground;
+  color: $ink;
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+}
+
+button, input {
+  font-family: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid $accent;
+  outline-offset: 2px;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  max-width: 540px;
+  margin: 0 auto;
+  width: 100%;
+  position: relative;
+}
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.main-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  padding: 16px;
+}
+
+/* --- Boutons globaux : un principal, un secondaire, un destructif --- */
+
+.btn-confirm-launch, .btn-action, .btn-action-primary {
+  @include btn-primary;
+}
+
+/* Action alternative à côté du bouton principal (Toutes, Terminer, Retour) */
+.btn-choice-helper, .btn-back-home, .btn-help-inline, .btn-finish-action, .btn-play-audio {
+  @include btn-secondary;
+}
+
+.btn-cancel, .btn-quit-danger {
+  @include btn-danger;
+}
+
+.btn-modal-close, .btn-close, .btn-repeat-audio, .icon-btn {
+  @include icon-btn;
+}
+
+/* Fenêtres de félicitation : les boutons attendent la fin de l'animation en gardant leur place */
+button.is-waiting {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+button.is-revealed {
+  animation: pop 0.3s ease;
+}
+
+/* Barre supérieure de fermeture pour cartes et modales */
+.card-close-bar {
+  width: 100%;
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: -10px;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes pop {
+  0% { transform: scale(0.8); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes popHuge {
+  0% { transform: scale(0.2) rotate(-15deg); opacity: 0; }
+  70% { transform: scale(1.2) rotate(5deg); }
+  100% { transform: scale(1) rotate(0); opacity: 1; }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-6px); }
+  75% { transform: translateX(6px); }
+}
+
+@keyframes bounceGift {
+  0% { transform: translateY(0) scale(1); }
+  100% { transform: translateY(-3px) scale(1.15); }
+}
+
+@keyframes bounceArrow {
+  0% { transform: translateX(-50%) translateY(0); }
+  100% { transform: translateX(-50%) translateY(6px); }
+}

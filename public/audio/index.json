@@ -1,4 +1,10 @@
 {
+  "voice": {
+    "name": "fr_FR-siwis-medium",
+    "lengthScale": 1.0,
+    "volume": 0.6,
+    "tailSilenceMs": 300
+  },
   "questions": {
     "1x1": {
       "file": "/audio/q_1_1.mp3",
@@ -811,6 +817,56 @@
       "file": "/audio/ans_100.mp3",
       "text": "100",
       "val": 100
+    }
+  },
+  "cheers": {
+    "bravo": {
+      "file": "/audio/cheer_bravo.mp3",
+      "text": "Bravo !"
+    },
+    "felicitations": {
+      "file": "/audio/cheer_felicitations.mp3",
+      "text": "Félicitations !"
+    },
+    "genial": {
+      "file": "/audio/cheer_genial.mp3",
+      "text": "Génial !"
+    },
+    "magnifique": {
+      "file": "/audio/cheer_magnifique.mp3",
+      "text": "Magnifique !"
+    },
+    "super": {
+      "file": "/audio/cheer_super.mp3",
+      "text": "Super !"
+    },
+    "excellent": {
+      "file": "/audio/cheer_excellent.mp3",
+      "text": "Excellent !"
+    },
+    "formidable": {
+      "file": "/audio/cheer_formidable.mp3",
+      "text": "Formidable !"
+    },
+    "fantastique": {
+      "file": "/audio/cheer_fantastique.mp3",
+      "text": "Fantastique !"
+    },
+    "incroyable": {
+      "file": "/audio/cheer_incroyable.mp3",
+      "text": "Incroyable !"
+    },
+    "merveilleux": {
+      "file": "/audio/cheer_merveilleux.mp3",
+      "text": "Merveilleux !"
+    },
+    "youpi": {
+      "file": "/audio/cheer_youpi.mp3",
+      "text": "Youpi !"
+    },
+    "hourra": {
+      "file": "/audio/cheer_hourra.mp3",
+      "text": "Hourra !"
     }
   }
 }

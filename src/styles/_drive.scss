@@ -1,0 +1,171 @@
+@use "variables" as *;
+@use "mixins" as *;
+
+/* Modale Synchronisation Google Drive App Data */
+.drive-modal-card {
+  max-width: 520px;
+
+  .drive-modal-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+
+    .drive-cloud-icon {
+      font-size: 1.5rem;
+      line-height: 1;
+    }
+  }
+
+  .drive-modal-body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-top: 4px;
+
+    .drive-info-banner p {
+      color: $ink-soft;
+      font-size: $fs-small;
+      line-height: 1.45;
+    }
+
+    .drive-section-card {
+      background: $ground;
+      border-radius: $radius-card;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+
+      .section-title-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+
+        h4 {
+          font-size: 0.9375rem;
+          font-weight: 600;
+        }
+
+        .drive-status-badge {
+          @include pill;
+          background: $surface;
+          border: 1px solid $line;
+
+          &::before {
+            content: "";
+            width: 10px;
+            height: 10px;
+            border-radius: $radius-pill;
+          }
+
+          &.badge-online::before { background: $status-mastered; }
+          &.badge-offline::before { background: $status-unknown-line; }
+        }
+      }
+
+      .section-hint {
+        font-size: $fs-caption;
+        color: $ink-soft;
+        line-height: 1.4;
+      }
+
+      .client-id-input-group {
+        display: flex;
+        gap: 8px;
+
+        .drive-text-input {
+          flex: 1;
+          min-width: 0;
+          background: $surface;
+          border: 2px solid $line;
+          border-radius: $radius-control;
+          color: $ink;
+          padding: 10px 12px;
+          font-size: $fs-small;
+          user-select: text;
+
+          &:focus {
+            outline: none;
+            border-color: $accent;
+          }
+        }
+
+        .btn-save-key {
+          @include btn-secondary;
+          min-height: 44px;
+          padding: 8px 14px;
+          font-size: $fs-small;
+          white-space: nowrap;
+        }
+      }
+
+      .drive-sync-meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        font-size: $fs-caption;
+
+        .meta-label {
+          color: $ink-soft;
+        }
+
+        .meta-val {
+          font-weight: 600;
+          font-variant-numeric: tabular-nums;
+        }
+      }
+
+      .drive-actions-group, .local-actions-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .local-actions-group {
+        flex-direction: row;
+      }
+
+      /* Une seule action pleine par état : se connecter, puis sauvegarder */
+      .btn-drive-action {
+        @include btn-secondary;
+        width: 100%;
+
+        &.btn-drive-login, &.btn-drive-upload {
+          @include btn-primary;
+        }
+
+        &.btn-drive-logout {
+          min-height: 40px;
+          padding: 8px;
+          font-size: $fs-small;
+          color: $ink-soft;
+        }
+
+        &.btn-local-export, &.btn-local-import {
+          flex: 1;
+          width: auto;
+        }
+      }
+
+      .drive-feedback-log {
+        padding: 10px 14px;
+        border-radius: $radius-control;
+        font-size: $fs-small;
+        line-height: 1.4;
+
+        &.log-success {
+          background: $status-mastered-soft;
+          color: $status-mastered;
+        }
+
+        &.log-error {
+          background: $surface;
+          border: 1px solid $danger;
+          color: $danger;
+        }
+      }
+    }
+  }
+}

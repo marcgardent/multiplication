@@ -1,7 +1,7 @@
-import { MatrixStore } from "../core/matrixStore";
+import { MatrixStore, isGiftUnlocked } from "../core/matrixStore";
 import { AudioService } from "../services/audioService";
 import { UserProfile } from "../types";
-import { animateCounter } from "./luckyWheel";
+import { runCelebration } from "./celebration";
 
 // Pool de 100 récompenses amusantes et variées (animaux, objets, trésors, sports, nourritures)
 export const REWARD_EMOJIS = [
@@ -25,7 +25,7 @@ export function getRewardForIndex(a: number, b: number): string {
 export interface RewardsFlowOptions {
   profile: UserProfile;
   discoveredCount: number;
-  learnedCount: number;
+  consolidatedCount: number;
   pointsGained?: number;
   oldPoints?: number;
   matrixStore: MatrixStore;
@@ -34,7 +34,7 @@ export interface RewardsFlowOptions {
 }
 
 export function showRewardsFlow(options: RewardsFlowOptions): void {
-  const { profile, discoveredCount, learnedCount, pointsGained = 0, oldPoints, matrixStore, audioService, onDone } = options;
+  const { profile, discoveredCount, consolidatedCount, pointsGained = 0, oldPoints, matrixStore, audioService, onDone } = options;
 
   const currentPoints = matrixStore.getPoints();
   const startPoints = oldPoints !== undefined && oldPoints < currentPoints
@@ -43,8 +43,8 @@ export function showRewardsFlow(options: RewardsFlowOptions): void {
 
   const allItems = matrixStore.getAll();
   const openedGifts = new Set(matrixStore.getOpenedGifts());
-  // Seules les opérations maîtrisées débloquent des cadeaux prêts à être ouverts
-  const pendingGifts = allItems.filter((i) => i.status === "mastered" && !openedGifts.has(i.id));
+  // Un cadeau se débloque à la réussite du lendemain
+  const pendingGifts = allItems.filter((i) => isGiftUnlocked(i) && !openedGifts.has(i.id));
   const hasGiftsToDiscover = pendingGifts.length > 0;
 
   // 1. ÉCRAN 1 : SPLASHSCREEN DE FÉLICITATIONS
@@ -71,8 +71,8 @@ export function showRewardsFlow(options: RewardsFlowOptions): void {
           <span class="stat-lbl">Découvert</span>
         </div>
         <div class="congrats-stat-box box-master">
-          <span class="stat-big-num">+${learnedCount}</span>
-          <span class="stat-lbl">Appris</span>
+          <span class="stat-big-num">+${consolidatedCount}</span>
+          <span class="stat-lbl">Consolidé</span>
         </div>
       </div>
 
@@ -111,22 +111,18 @@ export function showRewardsFlow(options: RewardsFlowOptions): void {
     onDone();
   });
 
-  // Animation des points gagnés après 3 secondes d'attente et ralentie
-  if (pointsGained > 0 && currentPoints > startPoints) {
-    setTimeout(() => {
-      const ptsCounterEl = splashEl.querySelector("#congrats-pts-counter") as HTMLElement | null;
-      if (ptsCounterEl) {
-        animateCounter(
-          ptsCounterEl,
-          startPoints,
-          currentPoints,
-          2500,
-          () => audioService.playCoinSound(),
-          () => audioService.playWheelTick()
-        );
-      }
-    }, 3000);
-  }
+  // Les boutons n'apparaissent qu'une fois les points décomptés
+  const hasPointsToCount = pointsGained > 0 && currentPoints > startPoints;
+  runCelebration({
+    root: splashEl,
+    audioService,
+    leadInMs: hasPointsToCount ? 3000 : 0,
+    points: {
+      element: splashEl.querySelector("#congrats-pts-counter") as HTMLElement | null,
+      from: startPoints,
+      to: currentPoints
+    }
+  });
 
   if (hasGiftsToDiscover) {
     splashEl.querySelector("#btn-show-rewards-grid")?.addEventListener("click", () => {
@@ -154,14 +150,13 @@ export function openRewardsBoardModal(
     const allItems = matrixStore.getAll();
     const openedGifts = new Set(matrixStore.getOpenedGifts());
 
-    // UNIQUEMENT les opérations maîtrisées débloquent les cadeaux !
-    const unlockedCount = allItems.filter((i) => i.status === "mastered").length;
+    const unlockedCount = allItems.filter(isGiftUnlocked).length;
 
     let gridCellsHtml = "";
     for (let a = 1; a <= 10; a++) {
       for (let b = 1; b <= 10; b++) {
         const item = matrixStore.getByFactors(a, b);
-        const isAcquired = item && item.status === "mastered";
+        const isAcquired = item !== undefined && isGiftUnlocked(item);
         const isOpened = isAcquired && openedGifts.has(item.id);
         const rewardEmoji = getRewardForIndex(a, b);
 
@@ -183,7 +178,7 @@ export function openRewardsBoardModal(
             <span class="cell-calc-result">${a * b}</span>
           `;
         } else {
-          // Case mystère non encore maîtrisée
+          // Case mystère : cadeau pas encore gagné
           cellClass += " cell-mystery";
           contentHtml = `
             <span class="cell-mystery-icon">❓</span>
@@ -204,12 +199,12 @@ export function openRewardsBoardModal(
         <div class="rewards-board-header">
           <div class="rewards-title-wrap">
             <h3>🎁 Tableau des Récompenses</h3>
-            <span class="rewards-count-badge">${unlockedCount} sur 100 maîtrisés</span>
+            <span class="rewards-count-badge">${unlockedCount} sur 100 débloqués</span>
           </div>
           <button type="button" class="btn-modal-close" id="btn-close-rewards-board" aria-label="Fermer">✕</button>
         </div>
 
-        <p class="rewards-hint">Touche les paquets cadeaux 🎁 qui clignotent pour ouvrir tes tables maîtrisées !</p>
+        <p class="rewards-hint">Touche les paquets cadeaux 🎁 pour les ouvrir ! Tu en gagnes un quand tu réussis un calcul le lendemain.</p>
 
         <div class="rewards-grid-wrapper">
           <div class="rewards-grid-100">
@@ -297,32 +292,23 @@ export function openRewardsBoardModal(
 
     document.body.appendChild(giftSplash);
 
-    audioService.playCheer();
-
-    giftSplash.querySelector("#btn-close-gift-splash")?.addEventListener("click", () => {
+    const closeGiftSplash = () => {
+      audioService.stop();
       giftSplash.remove();
       if (onClose) onClose();
-    });
+    };
+    giftSplash.querySelector("#btn-close-gift-splash")?.addEventListener("click", closeGiftSplash);
+    giftSplash.querySelector("#btn-collect-gift")?.addEventListener("click", closeGiftSplash);
 
-    if (isFirstTime) {
-      setTimeout(() => {
-        const valEl = giftSplash.querySelector("#gift-points-val") as HTMLElement | null;
-        if (valEl) {
-          animateCounter(
-            valEl,
-            oldPoints,
-            newPoints,
-            2500,
-            () => audioService.playCoinSound(),
-            () => audioService.playWheelTick()
-          );
-        }
-      }, 3000);
-    }
-
-    giftSplash.querySelector("#btn-collect-gift")?.addEventListener("click", () => {
-      giftSplash.remove();
-      if (onClose) onClose();
+    // L'opération est dite, puis la félicitation, puis le décompte ; les boutons viennent à la fin
+    runCelebration({
+      root: giftSplash,
+      audioService,
+      operation: { a, b, result: a * b },
+      cheer: true,
+      points: isFirstTime
+        ? { element: giftSplash.querySelector("#gift-points-val") as HTMLElement | null, from: oldPoints, to: newPoints }
+        : undefined
     });
   }
 

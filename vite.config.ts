@@ -13,8 +13,8 @@ export default defineConfig({
         name: "Multiplications Faciles",
         short_name: "Multiplication",
         description: "Apprentissage des tables de multiplication avec répétition espacée et TTS vocal hors-ligne",
-        theme_color: "#4f46e5",
-        background_color: "#0f172a",
+        theme_color: "#ffffff",
+        background_color: "#f4f5f8",
         display: "standalone",
         orientation: "portrait",
         start_url: base,
@@ -35,7 +35,7 @@ export default defineConfig({
         ]
       },
       workbox: {
-        globPatterns: ["**/*.{js,css,html,svg,png,ico,mp3,json}"],
+        globPatterns: ["**/*.{js,css,html,svg,png,ico,mp3,json,woff2}"],
         maximumFileSizeToCacheInBytes: 15 * 1024 * 1024
       }
     })

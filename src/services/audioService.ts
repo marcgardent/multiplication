@@ -1,6 +1,7 @@
 export interface AudioManifest {
   questions: Record<string, { file: string; text: string; a: number; b: number }>;
   answers: Record<string, { file: string; text: string; val: number }>;
+  cheers?: Record<string, { file: string; text: string }>;
 }
 
 export interface AudioService {
@@ -10,6 +11,7 @@ export interface AudioService {
   playFeedback(type: "correct" | "wrong" | "finish"): Promise<void>;
   playCheer(): Promise<void>;
   playWheelTick(): void;
+  playPointTick(): void;
   playCoinSound(): void;
   stop(): void;
   isMuted(): boolean;
@@ -20,6 +22,8 @@ export function createAudioService(): AudioService {
   let isMutedState = false;
   let currentAudio: HTMLAudioElement | null = null;
   const audioCache = new Map<string, HTMLAudioElement>();
+  // Félicitations déclarées dans scripts/generate_audio.py, lues depuis le manifeste
+  let cheerFiles: string[] = [];
 
   // Web Audio API synthétiseur léger pour les sons d effets bips de succès ou erreur
   let audioCtx: AudioContext | null = null;
@@ -122,6 +126,7 @@ export function createAudioService(): AudioService {
         const resp = await fetch(resolveAudioUrl("/audio/index.json"));
         if (resp.ok) {
           const manifest = (await resp.json()) as AudioManifest;
+          cheerFiles = Object.values(manifest.cheers ?? {}).map((cheer) => cheer.file);
           Object.values(manifest.answers).forEach((ans) => {
             const resolved = resolveAudioUrl(ans.file);
             const a = new Audio(resolved);
@@ -158,9 +163,8 @@ export function createAudioService(): AudioService {
     },
 
     playCheer(): Promise<void> {
-      const cheers = ["bravo", "felicitations", "genial", "super", "magnifique"];
-      const chosen = cheers[Math.floor(Math.random() * cheers.length)];
-      return playAudioFile(`/audio/cheer_${chosen}.mp3`);
+      if (cheerFiles.length === 0) return Promise.resolve();
+      return playAudioFile(cheerFiles[Math.floor(Math.random() * cheerFiles.length)]);
     },
 
     playWheelTick(): void {
@@ -181,6 +185,11 @@ export function createAudioService(): AudioService {
       } catch (e) {
         // Ignorer
       }
+    },
+
+    // Décompte des points : plus aigu et plus doux que le cliquetis de la roue
+    playPointTick(): void {
+      playTone(1567.98, "triangle", 0.03, 0); // G6
     },
 
     playCoinSound(): void {

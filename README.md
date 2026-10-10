@@ -9,8 +9,9 @@ https://marcgardent.github.io/multiplication/
 ## 🚀 Fonctionnalités Clés
 
 1. **Génération Audio TTS Français en Local (`uv` + `Makefile`)** :
-   - Voix neuronale française haute fidélité (`edge-tts`).
-   - 142 fichiers audios générés : 100 questions distinctes (`"2 fois 7"`, `"7 fois 2"`) et 42 réponses uniques (`"14"`, etc.).
+   - Voix neuronale française Piper (`fr_FR-siwis-medium`), synthétisée sur la machine : aucun service en ligne, le modèle est téléchargé une fois dans `scripts/.voices/`.
+   - 154 fichiers audios générés : 100 questions distinctes (`"2 fois 7"`, `"7 fois 2"`), 42 réponses uniques (`"14"`, etc.) et 12 félicitations.
+   - Les félicitations sont la liste `CHEERS` de `scripts/generate_audio.py` : modifier la liste puis lancer `make audio`.
    - Tous les fichiers sont pré-cachés par le Service Worker Workbox pour un fonctionnement complet en mode avion.
 
 2. **Matrice 10×10 avec Suivi Séparé & Statuts d'Apprentissage** :
@@ -43,7 +44,7 @@ https://marcgardent.github.io/multiplication/
 
 | Commande | Action |
 |---|---|
-| `make audio` | Génère les fichiers audios TTS français dans `public/audio/` via `uv` |
+| `make audio` | Génère les voix (questions, réponses, félicitations) dans `public/audio/` via `uv` ; seuls les fichiers absents ou dont la phrase a changé sont refaits |
 | `make install` | Installe les dépendances npm |
 | `make dev` | Démarre le serveur de développement Vite |
 | `make build` | Compile TypeScript + SCSS + PWA pour la production (`dist/`) |

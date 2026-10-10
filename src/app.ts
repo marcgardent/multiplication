@@ -1,7 +1,7 @@
-import { createStorageService } from "./services/storageService";
+import { createStorageService, STORAGE_NAMESPACE } from "./services/storageService";
 import { createAudioService } from "./services/audioService";
 import { createProfileService, ANIMAL_AVATARS, ProfileService } from "./services/profileService";
-import { createMatrixStore, MatrixStore } from "./core/matrixStore";
+import { createMatrixStore, isGiftUnlocked, MatrixStore } from "./core/matrixStore";
 import { createRepetitionEngine } from "./core/repetitionEngine";
 import { createMatrixView } from "./components/matrixView";
 import { startSessionModal } from "./components/sessionModal";
@@ -18,7 +18,7 @@ export interface AppInstance {
 }
 
 export function createApp(): AppInstance {
-  const storage = createStorageService("mult_clean_v2");
+  const storage = createStorageService(STORAGE_NAMESPACE);
   const audio = createAudioService();
   const profileService: ProfileService = createProfileService(storage);
 
@@ -33,9 +33,6 @@ export function createApp(): AppInstance {
 
   const sessionConfig: SessionConfig = {
     durationMinutes: storage.get<number>("config_duration", 3),
-    maxActivePool: 8,
-    newItemsBatch: 2,
-    reviewThreshold: 5,
     pauseBetweenAudioMs: 1800
   };
 
@@ -96,17 +93,7 @@ export function createApp(): AppInstance {
           }
         </div>
         <div class="header-actions">
-          ${
-            activeProfile
-              ? `
-                <button type="button" class="icon-btn btn-wheel-header" id="btn-header-wheel" aria-label="Roue Magique" title="Roue Magique">
-                  <span>🎡</span>
-                  ${matrixStore.getDailyWheelSpinsLeft() > 0 ? `<span class="wheel-spins-pill">${matrixStore.getDailyWheelSpinsLeft()}</span>` : ""}
-                </button>
-              `
-              : ""
-          }
-          <button type="button" class="icon-btn btn-cloud-header" id="btn-header-cloud" aria-label="Sauvegarde Google Drive" title="Sauvegarde Google Drive">☁️</button>
+          <button type="button" class="icon-btn" id="btn-header-cloud" aria-label="Sauvegarde Google Drive" title="Sauvegarde Google Drive">☁️</button>
           <button type="button" class="icon-btn" id="btn-audio-mute" aria-label="Couper ou activer le son">🔊</button>
           <button type="button" class="icon-btn" id="btn-pwa-install" aria-label="Installer l'application" style="display: none;">📲</button>
         </div>
@@ -234,39 +221,11 @@ export function createApp(): AppInstance {
     homeEl.className = "home-screen-kids";
 
     const spinsLeft = matrixStore.getDailyWheelSpinsLeft();
-    const unlockedCount = matrixStore.getAll().filter((i) => i.status === "mastered").length;
+    const unlockedCount = matrixStore.getAll().filter(isGiftUnlocked).length;
     const currentPoints = matrixStore.getPoints();
     const unlockedBgsCount = BACKGROUNDS.filter((b) => currentPoints >= b.pointsRequired).length;
 
     homeEl.innerHTML = `
-      <!-- Bandeau Gamification : Roue, Récompenses et Décors -->
-      <div class="kids-rewards-banner">
-        <button type="button" class="kids-reward-card-btn btn-action-wheel" id="btn-home-wheel">
-          <div class="card-icon-spin ${spinsLeft > 0 ? "has-spins" : ""}">🎡</div>
-          <div class="card-text">
-            <span class="card-heading">Roue Magique</span>
-            <span class="card-detail">${spinsLeft > 0 ? `${spinsLeft} dispo` : "Demain"}</span>
-          </div>
-          ${spinsLeft > 0 ? `<span class="pill-spin-counter">${spinsLeft}</span>` : ""}
-        </button>
-
-        <button type="button" class="kids-reward-card-btn btn-action-gifts" id="btn-home-gifts">
-          <div class="card-icon-gift">🎁</div>
-          <div class="card-text">
-            <span class="card-heading">Mes Cadeaux</span>
-            <span class="card-detail">${unlockedCount} sur 100</span>
-          </div>
-        </button>
-
-        <button type="button" class="kids-reward-card-btn btn-action-bgs" id="btn-home-bgs">
-          <div class="card-icon-bg">🖼️</div>
-          <div class="card-text">
-            <span class="card-heading">Décors</span>
-            <span class="card-detail">${unlockedBgsCount} sur 10</span>
-          </div>
-        </button>
-      </div>
-
       <div class="kids-menu-container">
         <!-- Bouton 1 : Révision guidée -->
         <button type="button" class="kids-main-btn btn-guided" id="btn-launch-guided">
@@ -292,6 +251,33 @@ export function createApp(): AppInstance {
           <div class="btn-text-block">
             <span class="btn-title">Carnet de suivi</span>
             <span class="btn-subtitle">Scores, temps et progression</span>
+          </div>
+        </button>
+      </div>
+
+      <!-- Bandeau Gamification : Roue, Récompenses et Décors -->
+      <div class="kids-rewards-banner">
+        <button type="button" class="kids-reward-card-btn btn-action-wheel" id="btn-home-wheel">
+          <div class="card-icon-spin ${spinsLeft > 0 ? "has-spins" : ""}">🎡</div>
+          <div class="card-text">
+            <span class="card-heading">Roue Magique</span>
+            <span class="card-detail ${spinsLeft > 0 ? "is-available" : ""}">${spinsLeft > 0 ? `${spinsLeft} dispo` : "Demain"}</span>
+          </div>
+        </button>
+
+        <button type="button" class="kids-reward-card-btn btn-action-gifts" id="btn-home-gifts">
+          <div class="card-icon-gift">🎁</div>
+          <div class="card-text">
+            <span class="card-heading">Mes Cadeaux</span>
+            <span class="card-detail">${unlockedCount} sur 100</span>
+          </div>
+        </button>
+
+        <button type="button" class="kids-reward-card-btn btn-action-bgs" id="btn-home-bgs">
+          <div class="card-icon-bg">🖼️</div>
+          <div class="card-text">
+            <span class="card-heading">Décors</span>
+            <span class="card-detail">${unlockedBgsCount} sur 10</span>
           </div>
         </button>
       </div>
@@ -334,6 +320,40 @@ export function createApp(): AppInstance {
     });
 
     container.appendChild(homeEl);
+  }
+
+  // Photographie de la progression avant une séance, pour le bilan de fin
+  function snapshotProgress() {
+    return {
+      points: matrixStore.getPoints(),
+      items: new Map(matrixStore.getAll().map((i) => [i.id, { seenCount: i.seenCount, boxLevel: i.boxLevel }]))
+    };
+  }
+
+  // Bilan commun à la révision guidée et à la révision des tables
+  function showSessionBilan(before: ReturnType<typeof snapshotProgress>, practiceTimeMs: number, wasCancelled: boolean) {
+    matrixStore.addPracticeTimeMs(practiceTimeMs);
+
+    const after = matrixStore.getAll();
+    const discoveredCount = after.filter((i) => i.seenCount > 0 && before.items.get(i.id)?.seenCount === 0).length;
+    const consolidatedCount = after.filter((i) => i.boxLevel > (before.items.get(i.id)?.boxLevel ?? 0)).length;
+    const pointsGained = Math.max(0, matrixStore.getPoints() - before.points);
+    const hasSomethingToShow = pointsGained > 0 || discoveredCount > 0 || consolidatedCount > 0 || practiceTimeMs >= 3000;
+
+    if (activeProfile && (!wasCancelled || hasSomethingToShow)) {
+      showRewardsFlow({
+        profile: activeProfile,
+        discoveredCount,
+        consolidatedCount,
+        pointsGained,
+        oldPoints: before.points,
+        matrixStore,
+        audioService: audio,
+        onDone: () => renderApp()
+      });
+    } else {
+      renderApp();
+    }
   }
 
   // Modale Choix Durée (Révision guidée)
@@ -381,61 +401,14 @@ export function createApp(): AppInstance {
 
     modal.querySelector("#btn-start-guided-now")?.addEventListener("click", () => {
       modal.remove();
-      const beforeCounts = matrixStore.getCountsByStatus();
-      const beforePoints = matrixStore.getPoints();
+      const before = snapshotProgress();
 
       startSessionModal(
         repetitionEngine,
         audio,
         sessionConfig,
-        (res) => {
-          matrixStore.addPracticeTimeMs(res.actualPracticeTimeMs);
-          const afterCounts = matrixStore.getCountsByStatus();
-          const afterPoints = matrixStore.getPoints();
-          const newDiscovered = Math.max(0, afterCounts.discovery - beforeCounts.discovery);
-          const newLearned = Math.max(0, afterCounts.mastered - beforeCounts.mastered);
-          const pointsGained = Math.max(0, afterPoints - beforePoints);
-
-          if (activeProfile) {
-            showRewardsFlow({
-              profile: activeProfile,
-              discoveredCount: newDiscovered,
-              learnedCount: newLearned,
-              pointsGained,
-              oldPoints: beforePoints,
-              matrixStore,
-              audioService: audio,
-              onDone: () => renderApp()
-            });
-          } else {
-            renderApp();
-          }
-        },
-        (cancelledTimeMs) => {
-          if (cancelledTimeMs > 0) {
-            matrixStore.addPracticeTimeMs(cancelledTimeMs);
-          }
-          const afterCounts = matrixStore.getCountsByStatus();
-          const afterPoints = matrixStore.getPoints();
-          const newDiscovered = Math.max(0, afterCounts.discovery - beforeCounts.discovery);
-          const newLearned = Math.max(0, afterCounts.mastered - beforeCounts.mastered);
-          const pointsGained = Math.max(0, afterPoints - beforePoints);
-
-          if (activeProfile && (pointsGained > 0 || newDiscovered > 0 || newLearned > 0 || cancelledTimeMs >= 3000)) {
-            showRewardsFlow({
-              profile: activeProfile,
-              discoveredCount: newDiscovered,
-              learnedCount: newLearned,
-              pointsGained,
-              oldPoints: beforePoints,
-              matrixStore,
-              audioService: audio,
-              onDone: () => renderApp()
-            });
-          } else {
-            renderApp();
-          }
-        }
+        (res) => showSessionBilan(before, res.actualPracticeTimeMs, false),
+        (cancelledTimeMs) => showSessionBilan(before, cancelledTimeMs, true)
       );
     });
 
@@ -517,61 +490,14 @@ export function createApp(): AppInstance {
     modal.querySelector("#btn-start-tables-now")?.addEventListener("click", () => {
       if (selectedRevisionTables.size === 0) return;
       modal.remove();
-      const beforeCounts = matrixStore.getCountsByStatus();
-      const beforePoints = matrixStore.getPoints();
+      const before = snapshotProgress();
 
       startEvaluationModal(
         Array.from(selectedRevisionTables).sort((a, b) => a - b),
         matrixStore,
         audio,
-        (result) => {
-          matrixStore.addPracticeTimeMs(result.actualPracticeTimeMs);
-          const afterCounts = matrixStore.getCountsByStatus();
-          const afterPoints = matrixStore.getPoints();
-          const newDiscovered = Math.max(0, afterCounts.discovery - beforeCounts.discovery);
-          const newLearned = Math.max(0, afterCounts.mastered - beforeCounts.mastered);
-          const pointsGained = Math.max(0, afterPoints - beforePoints);
-
-          if (activeProfile) {
-            showRewardsFlow({
-              profile: activeProfile,
-              discoveredCount: newDiscovered,
-              learnedCount: newLearned,
-              pointsGained,
-              oldPoints: beforePoints,
-              matrixStore,
-              audioService: audio,
-              onDone: () => renderApp()
-            });
-          } else {
-            renderApp();
-          }
-        },
-        (cancelledTimeMs) => {
-          if (cancelledTimeMs > 0) {
-            matrixStore.addPracticeTimeMs(cancelledTimeMs);
-          }
-          const afterCounts = matrixStore.getCountsByStatus();
-          const afterPoints = matrixStore.getPoints();
-          const newDiscovered = Math.max(0, afterCounts.discovery - beforeCounts.discovery);
-          const newLearned = Math.max(0, afterCounts.mastered - beforeCounts.mastered);
-          const pointsGained = Math.max(0, afterPoints - beforePoints);
-
-          if (activeProfile && (pointsGained > 0 || newDiscovered > 0 || newLearned > 0 || cancelledTimeMs >= 3000)) {
-            showRewardsFlow({
-              profile: activeProfile,
-              discoveredCount: newDiscovered,
-              learnedCount: newLearned,
-              pointsGained,
-              oldPoints: beforePoints,
-              matrixStore,
-              audioService: audio,
-              onDone: () => renderApp()
-            });
-          } else {
-            renderApp();
-          }
-        }
+        (result) => showSessionBilan(before, result.actualPracticeTimeMs, false),
+        (cancelledTimeMs) => showSessionBilan(before, cancelledTimeMs, true)
       );
     });
 
@@ -604,7 +530,7 @@ export function createApp(): AppInstance {
     bar.className = "carnet-top-bar";
     bar.innerHTML = `
       <button type="button" class="btn-back-home" id="btn-carnet-back">
-        ⬅️ Accueil
+        Accueil
       </button>
       <h2>Carnet de suivi — ${activeProfile.avatar} ${activeProfile.name}</h2>
     `;
@@ -644,11 +570,6 @@ export function createApp(): AppInstance {
     // Clic sur le compteur de points dans le header -> Ouvre le tableau des récompenses
     shell.querySelector("#btn-header-rewards")?.addEventListener("click", () => {
       openRewardsBoardModal(matrixStore, audio, () => renderApp());
-    });
-
-    // Clic sur l'icône Roue dans le header -> Ouvre la roue magique
-    shell.querySelector("#btn-header-wheel")?.addEventListener("click", () => {
-      openLuckyWheelModal(matrixStore, audio, () => renderApp());
     });
 
     // Mute
