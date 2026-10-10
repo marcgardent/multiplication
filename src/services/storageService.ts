@@ -8,6 +8,19 @@ export interface StorageService {
 // Espace de stockage commun à toute l'application ; changer la version repart de données vierges
 export const STORAGE_NAMESPACE = "mult_clean_v3";
 
+// Écoute de toutes les écritures : la sauvegarde automatique s'en sert pour savoir qu'il y a du nouveau à envoyer
+type WriteListener = (fullKey: string) => void;
+const writeListeners = new Set<WriteListener>();
+
+export function onStorageWrite(listener: WriteListener): () => void {
+  writeListeners.add(listener);
+  return () => writeListeners.delete(listener);
+}
+
+function notifyWrite(fullKey: string): void {
+  writeListeners.forEach((listener) => listener(fullKey));
+}
+
 export function createStorageService(namespace = "multiplication_app_v1"): StorageService {
   const getFullKey = (key: string) => `${namespace}:${key}`;
 
@@ -26,6 +39,7 @@ export function createStorageService(namespace = "multiplication_app_v1"): Stora
     set<T>(key: string, value: T): void {
       try {
         localStorage.setItem(getFullKey(key), JSON.stringify(value));
+        notifyWrite(getFullKey(key));
       } catch (err) {
         console.warn(`[StorageService] Erreur écriture ${key}`, err);
       }
@@ -34,6 +48,7 @@ export function createStorageService(namespace = "multiplication_app_v1"): Stora
     remove(key: string): void {
       try {
         localStorage.removeItem(getFullKey(key));
+        notifyWrite(getFullKey(key));
       } catch (err) {
         console.warn(`[StorageService] Erreur suppression ${key}`, err);
       }
@@ -49,6 +64,7 @@ export function createStorageService(namespace = "multiplication_app_v1"): Stora
           }
         }
         keysToRemove.forEach((k) => localStorage.removeItem(k));
+        notifyWrite(`${namespace}:`);
       } catch (err) {
         console.warn(`[StorageService] Erreur nettoyage`, err);
       }

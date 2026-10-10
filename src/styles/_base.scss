@@ -76,6 +76,27 @@ button, input {
   padding: 16px;
 }
 
+/* Liens vers les pages du site, en bas de l'écran des joueurs */
+.app-site-links {
+  @include card;
+  align-self: center;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 16px;
+  margin-top: 16px;
+  padding: 8px 14px;
+  font-size: $fs-caption;
+
+  a {
+    color: $accent-ink;
+  }
+
+  + .app-version {
+    margin-top: 8px;
+  }
+}
+
 /* Version installée, en bas des écrans d'accueil */
 .app-version {
   @include pill;

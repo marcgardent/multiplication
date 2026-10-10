@@ -1,44 +1,38 @@
-import { StorageService, STORAGE_NAMESPACE } from "./storageService";
+import { STORAGE_NAMESPACE } from "./storageService";
+import { SyncMeta } from "./cloudMerge";
+
+// Identifiant OAuth de l'application dans Google Cloud. Il est public par nature : il désigne l'application,
+// il ne donne aucun accès. Les origines autorisées à s'en servir se règlent dans la console Google Cloud.
+export const GOOGLE_CLIENT_ID = "22937077279-8h7e530vvfuj8olqi055firjg5jk93cq.apps.googleusercontent.com";
 
 export interface AppDataBackup {
   version: number;
   appName: string;
   exportedAt: number;
   data: Record<string, any>;
+  // Ce qu'il faut pour fusionner deux appareils ; absent d'un fichier exporté à la main ou d'avant la fusion
+  sync?: SyncMeta;
 }
 
-export interface GoogleDriveFileInfo {
+// Sauvegarde présente dans le Drive ; l'empreinte change dès que son contenu change, d'où qu'il vienne
+export interface RemoteBackupInfo {
   id: string;
-  name: string;
-  mimeType?: string;
-  modifiedTime?: string;
+  md5: string;
+  modifiedTime: string;
 }
+
+// Jeton refusé par Google : expiré ou autorisation retirée
+export class DriveAuthError extends Error {}
 
 const BACKUP_FILE_NAME = "multiplication_backup.json";
-const DRIVE_APP_DATA_SCOPE = "https://www.googleapis.com/auth/drive.appdata";
+export const DRIVE_APP_DATA_SCOPE = "https://www.googleapis.com/auth/drive.appdata";
 const GIS_SCRIPT_URL = "https://accounts.google.com/gsi/client";
+const BACKUP_FIELDS = "id,modifiedTime,md5Checksum";
 
 declare global {
   interface Window {
     google?: any;
   }
-}
-
-export function getSavedClientId(storage: StorageService): string {
-  const envId = (import.meta as any).env?.VITE_GOOGLE_CLIENT_ID;
-  return storage.get<string>("google_client_id", envId || "");
-}
-
-export function saveClientId(storage: StorageService, clientId: string): void {
-  storage.set<string>("google_client_id", clientId.trim());
-}
-
-export function getLastSyncTime(storage: StorageService): number {
-  return storage.get<number>("last_drive_sync_time", 0);
-}
-
-export function setLastSyncTime(storage: StorageService, timestamp: number): void {
-  storage.set<number>("last_drive_sync_time", timestamp);
 }
 
 export function exportAllAppData(namespace = STORAGE_NAMESPACE): AppDataBackup {
@@ -122,145 +116,66 @@ export function loadGsiScript(): Promise<void> {
     script.async = true;
     script.defer = true;
     script.onload = () => resolve();
-    script.onerror = () => reject(new Error("Erreur chargement script Google Identity"));
+    script.onerror = () => {
+      // Sans ce retrait, une nouvelle tentative attendrait indéfiniment un script déjà en échec
+      script.remove();
+      reject(new Error("Erreur chargement script Google Identity"));
+    };
     document.head.appendChild(script);
   });
 }
 
-export function requestGoogleAccessToken(clientId: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    if (!window.google?.accounts?.oauth2) {
-      reject(new Error("Module Google Identity non initialise"));
-      return;
-    }
-
-    try {
-      const tokenClient = window.google.accounts.oauth2.initTokenClient({
-        client_id: clientId,
-        scope: DRIVE_APP_DATA_SCOPE,
-        callback: (resp: any) => {
-          if (resp.error) {
-            reject(new Error(resp.error_description || resp.error));
-            return;
-          }
-          if (!resp.access_token) {
-            reject(new Error("Jeton d acces non recu"));
-            return;
-          }
-          resolve(resp.access_token);
-        }
-      });
-      tokenClient.requestAccessToken();
-    } catch (err: any) {
-      reject(new Error(err?.message || "Erreur ouverture fenetre Google"));
-    }
-  });
+async function driveFetch(accessToken: string, url: string, init: RequestInit, action: string): Promise<Response> {
+  const res = await fetch(url, { ...init, headers: { ...init.headers, Authorization: `Bearer ${accessToken}` } });
+  if (res.status === 401) throw new DriveAuthError("Connexion Google expirée");
+  if (!res.ok) throw new Error(`${action} : erreur ${res.status} de Google Drive`);
+  return res;
 }
 
-export async function findDriveBackupFile(accessToken: string): Promise<GoogleDriveFileInfo | null> {
+function toBackupInfo(file: { id: string; md5Checksum?: string; modifiedTime?: string }): RemoteBackupInfo {
+  return { id: file.id, md5: file.md5Checksum ?? "", modifiedTime: file.modifiedTime ?? "" };
+}
+
+export async function findDriveBackup(accessToken: string): Promise<RemoteBackupInfo | null> {
   const query = encodeURIComponent(`name = '${BACKUP_FILE_NAME}' and trashed = false`);
-  const url = `https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=${query}`;
-
-  const res = await fetch(url, {
-    method: "GET",
-    headers: {
-      Authorization: `Bearer ${accessToken}`
-    }
-  });
-
-  if (!res.ok) {
-    const errText = await res.text();
-    throw new Error(`Erreur recherche Google Drive : ${res.status} ${errText}`);
-  }
-
-  const json = await res.json();
-  const files: GoogleDriveFileInfo[] = json.files || [];
-  if (files.length === 0) {
-    return null;
-  }
-  return files[0];
+  const url = `https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=${query}&fields=files(${BACKUP_FIELDS})`;
+  const res = await driveFetch(accessToken, url, { method: "GET" }, "Recherche de la sauvegarde");
+  const files = ((await res.json()).files ?? []) as { id: string }[];
+  return files.length > 0 ? toBackupInfo(files[0]) : null;
 }
 
-export async function uploadDriveBackup(accessToken: string, backup: AppDataBackup): Promise<GoogleDriveFileInfo> {
-  const existingFile = await findDriveBackupFile(accessToken);
-  const dataContent = JSON.stringify(backup, null, 2);
-
-  if (existingFile) {
-    const updateUrl = `https://www.googleapis.com/upload/drive/v3/files/${existingFile.id}?uploadType=media`;
-    const res = await fetch(updateUrl, {
-      method: "PATCH",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json"
-      },
-      body: dataContent
-    });
-
-    if (!res.ok) {
-      const errText = await res.text();
-      throw new Error(`Erreur mise a jour Google Drive : ${res.status} ${errText}`);
-    }
-
-    const updated = await res.json();
-    return updated;
-  } else {
-    const boundary = "drive_app_data_boundary_multiplication";
-    const delimiter = `\r\n--${boundary}\r\n`;
-    const closeDelimiter = `\r\n--${boundary}--`;
-
-    const metadata = {
-      name: BACKUP_FILE_NAME,
-      parents: ["appDataFolder"]
-    };
-
-    const multipartRequestBody =
-      delimiter +
-      "Content-Type: application/json; charset=UTF-8\r\n\r\n" +
-      JSON.stringify(metadata) +
-      delimiter +
-      "Content-Type: application/json\r\n\r\n" +
-      dataContent +
-      closeDelimiter;
-
-    const createUrl = "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart";
-    const res = await fetch(createUrl, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": `multipart/related; boundary=${boundary}`
-      },
-      body: multipartRequestBody
-    });
-
-    if (!res.ok) {
-      const errText = await res.text();
-      throw new Error(`Erreur creation Google Drive : ${res.status} ${errText}`);
-    }
-
-    const created = await res.json();
-    return created;
+// Écrit la sauvegarde : remplace le fichier existant, ou le crée dans le dossier caché de l'application
+export async function uploadDriveBackup(accessToken: string, content: string, existingId: string | null): Promise<RemoteBackupInfo> {
+  if (existingId) {
+    const url = `https://www.googleapis.com/upload/drive/v3/files/${existingId}?uploadType=media&fields=${BACKUP_FIELDS}`;
+    const res = await driveFetch(
+      accessToken,
+      url,
+      { method: "PATCH", headers: { "Content-Type": "application/json" }, body: content },
+      "Envoi de la sauvegarde"
+    );
+    return toBackupInfo(await res.json());
   }
+
+  const boundary = "drive_app_data_boundary_multiplication";
+  const body =
+    `\r\n--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n` +
+    JSON.stringify({ name: BACKUP_FILE_NAME, parents: ["appDataFolder"] }) +
+    `\r\n--${boundary}\r\nContent-Type: application/json\r\n\r\n` +
+    content +
+    `\r\n--${boundary}--`;
+  const url = `https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=${BACKUP_FIELDS}`;
+  const res = await driveFetch(
+    accessToken,
+    url,
+    { method: "POST", headers: { "Content-Type": `multipart/related; boundary=${boundary}` }, body },
+    "Création de la sauvegarde"
+  );
+  return toBackupInfo(await res.json());
 }
 
-export async function downloadDriveBackup(accessToken: string): Promise<AppDataBackup> {
-  const existingFile = await findDriveBackupFile(accessToken);
-  if (!existingFile) {
-    throw new Error("Aucun fichier de sauvegarde trouve dans Google Drive");
-  }
-
-  const downloadUrl = `https://www.googleapis.com/drive/v3/files/${existingFile.id}?alt=media`;
-  const res = await fetch(downloadUrl, {
-    method: "GET",
-    headers: {
-      Authorization: `Bearer ${accessToken}`
-    }
-  });
-
-  if (!res.ok) {
-    const errText = await res.text();
-    throw new Error(`Erreur telechargement Google Drive : ${res.status} ${errText}`);
-  }
-
-  const backupData = await res.json();
-  return backupData as AppDataBackup;
+export async function downloadDriveBackup(accessToken: string, fileId: string): Promise<AppDataBackup> {
+  const url = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
+  const res = await driveFetch(accessToken, url, { method: "GET" }, "Téléchargement de la sauvegarde");
+  return (await res.json()) as AppDataBackup;
 }

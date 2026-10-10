@@ -1,0 +1,268 @@
+/*
+  Pages autonomes du site (présentation, conditions, confidentialité).
+  Même direction artistique que l'application : couleurs de _variables.scss, emojis sur fond neutre.
+*/
+@use "variables" as *;
+@use "mixins" as *;
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: $font;
+  font-size: $fs-body;
+  line-height: 1.55;
+  background: $ground;
+  color: $ink;
+}
+
+a {
+  color: $accent-ink;
+}
+
+:focus-visible {
+  outline: 2px solid $accent;
+  outline-offset: 2px;
+}
+
+.site-wrap {
+  width: 100%;
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+.site-header {
+  background: $surface;
+  border-bottom: 1px solid $line;
+
+  .site-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 64px;
+  }
+
+  .site-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: $fs-title;
+    font-weight: 600;
+    color: $ink;
+    text-decoration: none;
+
+    img {
+      width: 36px;
+      height: 36px;
+    }
+  }
+}
+
+.btn-open-app {
+  @include btn-primary;
+}
+
+.btn-open-app-small {
+  @include btn-secondary;
+  min-height: 40px;
+  padding: 8px 14px;
+  font-size: $fs-small;
+}
+
+/* --- Présentation --- */
+
+.site-hero {
+  padding: 40px 0 28px;
+  text-align: center;
+
+  h1 {
+    font-size: clamp(1.75rem, 6vw, 2.5rem);
+    font-weight: 600;
+    line-height: 1.2;
+  }
+
+  .site-hero-lead {
+    max-width: 620px;
+    margin: 12px auto 20px;
+    font-size: 1.0625rem;
+    color: $ink-soft;
+  }
+
+  .site-hero-facts {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 18px;
+    list-style: none;
+
+    li {
+      @include pill;
+      background: $surface;
+      border: 1px solid $line;
+      color: $ink-soft;
+    }
+  }
+}
+
+.site-section {
+  padding: 20px 0;
+
+  h2 {
+    margin-bottom: 14px;
+    font-size: $fs-display;
+    font-weight: 600;
+  }
+
+  > .site-wrap > p {
+    max-width: 720px;
+    margin-bottom: 12px;
+    color: $ink-soft;
+  }
+}
+
+.site-features {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+  list-style: none;
+
+  li {
+    @include card;
+    @include lifted;
+    display: flex;
+    gap: 14px;
+    padding: 16px;
+  }
+
+  .site-feature-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 48px;
+    height: 48px;
+    border-radius: $radius-control;
+    background: $ground;
+    font-size: 1.75rem;
+    line-height: 1;
+  }
+
+  h3 {
+    font-size: 1.0625rem;
+    font-weight: 600;
+  }
+
+  p {
+    margin-top: 2px;
+    font-size: $fs-small;
+    color: $ink-soft;
+    line-height: 1.45;
+  }
+}
+
+.site-steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  list-style: none;
+
+  li {
+    @include card;
+    padding: 14px;
+    font-size: $fs-small;
+    color: $ink-soft;
+    line-height: 1.45;
+  }
+
+  strong {
+    display: block;
+    margin-bottom: 2px;
+    font-size: $fs-body;
+    font-weight: 600;
+    color: $ink;
+  }
+}
+
+.site-note {
+  @include card;
+  max-width: 720px;
+  padding: 16px;
+
+  p + p {
+    margin-top: 10px;
+  }
+}
+
+/* --- Conditions et confidentialité --- */
+
+.site-document {
+  @include card;
+  max-width: 760px;
+  margin: 24px auto;
+  padding: 24px 20px;
+
+  h1 {
+    font-size: clamp(1.5rem, 5vw, 2rem);
+    font-weight: 600;
+    line-height: 1.25;
+  }
+
+  .site-document-date {
+    margin-top: 4px;
+    font-size: $fs-small;
+    color: $ink-soft;
+  }
+
+  h2 {
+    margin: 26px 0 8px;
+    font-size: $fs-title;
+    font-weight: 600;
+  }
+
+  p, ul {
+    margin-bottom: 10px;
+  }
+
+  ul {
+    padding-left: 22px;
+  }
+
+  li {
+    margin-bottom: 4px;
+  }
+
+  code {
+    padding: 1px 5px;
+    border-radius: 6px;
+    background: $ground;
+    font-size: 0.9em;
+  }
+}
+
+.site-footer {
+  margin-top: 16px;
+  padding: 20px 0 28px;
+  border-top: 1px solid $line;
+  font-size: $fs-small;
+  color: $ink-soft;
+
+  .site-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px 20px;
+  }
+
+  nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 18px;
+  }
+}

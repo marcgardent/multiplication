@@ -1,4 +1,4 @@
-import { createStorageService, STORAGE_NAMESPACE } from "./services/storageService";
+import { createStorageService, onStorageWrite, STORAGE_NAMESPACE } from "./services/storageService";
 import { createAudioService } from "./services/audioService";
 import { createProfileService, ANIMAL_AVATARS, ProfileService } from "./services/profileService";
 import { createMatrixStore, isGiftUnlocked, MatrixStore } from "./core/matrixStore";
@@ -10,7 +10,10 @@ import { showRewardsFlow, openRewardsBoardModal } from "./components/rewardsBoar
 import { openLuckyWheelModal } from "./components/luckyWheel";
 import { initAppBackground, applyAppBackground, BACKGROUNDS, countUnlockedBackgrounds, keepUnlockedBackgrounds } from "./core/backgrounds";
 import { openBackgroundGalleryModal } from "./components/backgroundGalleryModal";
-import { openGoogleDriveModal } from "./components/googleDriveModal";
+import { describeCloudSync, openGoogleDriveModal } from "./components/googleDriveModal";
+import { createCloudSync, sha256Hex } from "./services/cloudSyncService";
+import { createGoogleAuth } from "./services/googleAuthService";
+import { downloadDriveBackup, exportAllAppData, findDriveBackup, importAllAppData, uploadDriveBackup } from "./services/googleDriveService";
 import { renderSnapshotLoader } from "./components/snapshotLoaderScreen";
 import { importProfileData } from "./core/profileData";
 import { isTestProfile } from "./testing/snapshots";
@@ -28,6 +31,34 @@ export function createApp(): AppInstance {
   const storage = createStorageService(STORAGE_NAMESPACE);
   const audio = createAudioService();
   const wakeLock = createWakeLockService();
+
+  // Sauvegarde automatique dans le Google Drive du parent : chaque écriture de l'application y part toute seule.
+  // Ses réglages vivent dans un espace à part, pour ne pas se retrouver eux-mêmes dans la sauvegarde.
+  const googleAuth = createGoogleAuth(() => document.querySelector(".session-modal-overlay") !== null);
+  const cloudSync = createCloudSync({
+    settings: createStorageService("mult_cloud"),
+    auth: googleAuth,
+    drive: { find: findDriveBackup, upload: uploadDriveBackup, download: downloadDriveBackup },
+    exportBackup: () => exportAllAppData(),
+    importBackup: (backup) => {
+      importAllAppData(backup);
+    },
+    hash: sha256Hex,
+    isOnline: () => navigator.onLine,
+    // Une fusion avec un autre appareil attend la fin de la séance ; la fenêtre de sauvegarde, elle, ne gêne pas
+    isBusy: () => document.querySelector(".session-modal-overlay:not(.drive-modal-overlay)") !== null,
+    onMerged: () => refreshAfterMerge()
+  });
+  onStorageWrite((fullKey) => {
+    if (fullKey.startsWith(`${STORAGE_NAMESPACE}:`)) cloudSync.notifyLocalChange(fullKey);
+  });
+  window.addEventListener("online", () => cloudSync.refresh());
+  document.addEventListener("visibilitychange", () => {
+    // En partant : envoyer ce qui attend. En revenant : voir ce que les autres appareils ont envoyé
+    if (document.visibilityState === "hidden") cloudSync.flush();
+    else cloudSync.refresh();
+  });
+  cloudSync.subscribe(() => showCloudStatus());
   const profileService: ProfileService = createProfileService(storage);
 
   // Les décors déjà débloqués avec d'anciens seuils restent acquis
@@ -107,7 +138,7 @@ export function createApp(): AppInstance {
           }
         </div>
         <div class="header-actions">
-          <button type="button" class="icon-btn" id="btn-header-cloud" aria-label="Sauvegarde Google Drive" title="Sauvegarde Google Drive">☁️</button>
+          <button type="button" class="icon-btn" id="btn-header-cloud" aria-label="Sauvegarde">☁️</button>
           <button type="button" class="icon-btn" id="btn-audio-mute" aria-label="Couper ou activer le son">🔊</button>
           <button type="button" class="icon-btn" id="btn-pwa-install" aria-label="Installer l'application" style="display: none;">📲</button>
         </div>
@@ -525,19 +556,32 @@ export function createApp(): AppInstance {
 
   function openDriveModal(): void {
     openGoogleDriveModal({
-      storage,
-      onDataRestored: () => {
-        activeProfile = profileService.getActiveProfile();
-        if (activeProfile) {
-          matrixStore.setProfile(activeProfile.id);
-          repetitionEngine = createRepetitionEngine(matrixStore, sessionConfig);
-          initAppBackground(activeProfile.id);
-        } else {
-          applyAppBackground(BACKGROUNDS[0].filename);
-        }
-        renderApp();
-      }
+      cloudSync,
+      auth: googleAuth,
+      // Joueurs, progression et décor viennent d'être remplacés : on repart des données restaurées
+      onDataRestored: () => window.location.reload()
     });
+  }
+
+  // Les données viennent d'être fusionnées avec celles d'un autre appareil : tout est relu, sans recharger la page
+  function refreshAfterMerge() {
+    profileService.reload();
+    profileService.getProfiles().forEach((p) => keepUnlockedBackgrounds(p.id));
+    matrixStore.reload();
+    repetitionEngine = createRepetitionEngine(matrixStore, sessionConfig);
+    sessionConfig.durationMinutes = storage.get<number>("config_duration", sessionConfig.durationMinutes);
+    if (activeProfile) initAppBackground(activeProfile.id);
+    renderApp();
+  }
+
+  // Pastille du bouton ☁️ : sauvegarde à jour, en attente, ou qui demande l'intervention du parent
+  function showCloudStatus() {
+    const button = document.getElementById("btn-header-cloud");
+    if (!button) return;
+    const state = cloudSync.getState();
+    button.dataset.sync = state.status;
+    button.setAttribute("aria-label", `Sauvegarde : ${describeCloudSync(state)}`);
+    button.title = `Sauvegarde : ${describeCloudSync(state)}`;
   }
 
   // Écran du joueur de test : le snapshot choisi remplace toute sa progression
@@ -549,6 +593,8 @@ export function createApp(): AppInstance {
       onLoad: (data, snapshot) => {
         importProfileData(storage, profile.id, data);
         storage.set(LAST_SNAPSHOT_KEY, snapshot.title);
+        // Un scénario remplace la progression : il remplace aussi la sauvegarde du Drive, sans fusion
+        cloudSync.startNewLineage();
         matrixStore.reload();
         repetitionEngine = createRepetitionEngine(matrixStore, sessionConfig);
         initAppBackground(profile.id);
@@ -591,6 +637,20 @@ export function createApp(): AppInstance {
     matrixView.mount(carnetContainer);
   }
 
+  // Bas de l'écran des joueurs : les pages du site, hors de l'application
+  function renderSiteLinks(container: HTMLElement) {
+    const site = import.meta.env.BASE_URL;
+    const linksEl = document.createElement("nav");
+    linksEl.className = "app-site-links";
+    linksEl.setAttribute("aria-label", "Informations");
+    linksEl.innerHTML = `
+      <a href="${site}?presentation" target="_blank" rel="noopener">Présentation</a>
+      <a href="${site}conditions.html" target="_blank" rel="noopener">Conditions d'utilisation</a>
+      <a href="${site}confidentialite.html" target="_blank" rel="noopener">Confidentialité</a>
+    `;
+    container.appendChild(linksEl);
+  }
+
   // Bas des deux écrans d'accueil : la version installée
   function renderVersion(container: HTMLElement) {
     const versionEl = document.createElement("p");
@@ -605,6 +665,7 @@ export function createApp(): AppInstance {
 
     const shell = renderShell();
     rootElement.appendChild(shell);
+    showCloudStatus();
 
     // Écouteur pour changer d'utilisateur via le badge
     shell.querySelector("#btn-switch-user")?.addEventListener("click", () => {
@@ -646,6 +707,7 @@ export function createApp(): AppInstance {
     // Si aucun joueur n'est connecté -> Afficher l'écran de Login avec (+)
     if (!activeProfile) {
       renderLoginScreen(content);
+      renderSiteLinks(content);
       renderVersion(content);
       return;
     }
@@ -673,6 +735,7 @@ export function createApp(): AppInstance {
       rootElement = target as HTMLElement;
       audio.init();
       renderApp();
+      cloudSync.start();
     }
   };
 }

@@ -61,6 +61,7 @@
 
           &.badge-online::before { background: $status-mastered; }
           &.badge-offline::before { background: $status-unknown-line; }
+          &.badge-attention::before { background: $status-review; }
         }
       }
 
@@ -68,36 +69,6 @@
         font-size: $fs-caption;
         color: $ink-soft;
         line-height: 1.4;
-      }
-
-      .client-id-input-group {
-        display: flex;
-        gap: 8px;
-
-        .drive-text-input {
-          flex: 1;
-          min-width: 0;
-          background: $surface;
-          border: 2px solid $line;
-          border-radius: $radius-control;
-          color: $ink;
-          padding: 10px 12px;
-          font-size: $fs-small;
-          user-select: text;
-
-          &:focus {
-            outline: none;
-            border-color: $accent;
-          }
-        }
-
-        .btn-save-key {
-          @include btn-secondary;
-          min-height: 44px;
-          padding: 8px 14px;
-          font-size: $fs-small;
-          white-space: nowrap;
-        }
       }
 
       .drive-sync-meta {
