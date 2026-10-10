@@ -49,6 +49,13 @@ CHEERS = {
     "hourra": "Hourra !",
 }
 
+# Phrases dites par les modes d'écoute (brossage de dents).
+# Clé = nom du fichier (phrase_<clé>.mp3), valeur = phrase prononcée.
+PHRASES = {
+    "brossage_debut": "Début du brossage des dents.",
+    "brossage_fin": "Fin du brossage des dents.",
+}
+
 VOICE_SETTINGS = {
     "name": VOICE,
     "lengthScale": LENGTH_SCALE,
@@ -67,7 +74,7 @@ def load_baked_texts() -> dict[str, str]:
         return {}
     return {
         entry["file"].rsplit("/", 1)[-1]: entry["text"]
-        for section in ("questions", "answers", "cheers")
+        for section in ("questions", "answers", "cheers", "phrases")
         for entry in previous.get(section, {}).values()
     }
 
@@ -110,7 +117,8 @@ def main():
         "voice": VOICE_SETTINGS,
         "questions": {},
         "answers": {},
-        "cheers": {}
+        "cheers": {},
+        "phrases": {}
     }
     baked_texts = load_baked_texts()
 
@@ -154,13 +162,22 @@ def main():
         }
         tasks.append((text, OUTPUT_DIR / filename))
 
+    # 4. Génération des phrases des modes d'écoute
+    for key, text in PHRASES.items():
+        filename = f"phrase_{key}.mp3"
+        manifest["phrases"][key] = {
+            "file": f"/audio/{filename}",
+            "text": text
+        }
+        tasks.append((text, OUTPUT_DIR / filename))
+
     # On ne régénère que les fichiers absents ou dont la phrase a changé
     total_files = len(tasks)
     tasks = [
         (text, path) for text, path in tasks
         if not path.exists() or path.stat().st_size == 0 or baked_texts.get(path.name) != text
     ]
-    print(f"{total_files} fichiers audio (100 questions + {len(unique_results)} réponses + {len(CHEERS)} félicitations), {len(tasks)} à générer")
+    print(f"{total_files} fichiers audio (100 questions + {len(unique_results)} réponses + {len(CHEERS)} félicitations + {len(PHRASES)} phrases), {len(tasks)} à générer")
 
     if tasks:
         try:
@@ -176,6 +193,12 @@ def main():
     # Une félicitation retirée de la liste perd son fichier
     for stale in OUTPUT_DIR.glob("cheer_*.mp3"):
         if stale.stem.removeprefix("cheer_") not in CHEERS:
+            stale.unlink()
+            print(f"Supprimé : {stale.name}")
+
+    # Même règle pour une phrase retirée
+    for stale in OUTPUT_DIR.glob("phrase_*.mp3"):
+        if stale.stem.removeprefix("phrase_") not in PHRASES:
             stale.unlink()
             print(f"Supprimé : {stale.name}")
 

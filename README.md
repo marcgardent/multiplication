@@ -10,8 +10,8 @@ https://marcgardent.github.io/multiplication/
 
 1. **Génération Audio TTS Français en Local (`uv` + `Makefile`)** :
    - Voix neuronale française Piper (`fr_FR-siwis-medium`), synthétisée sur la machine : aucun service en ligne, le modèle est téléchargé une fois dans `scripts/.voices/`.
-   - 154 fichiers audios générés : 100 questions distinctes (`"2 fois 7"`, `"7 fois 2"`), 42 réponses uniques (`"14"`, etc.) et 12 félicitations.
-   - Les félicitations sont la liste `CHEERS` de `scripts/generate_audio.py` : modifier la liste puis lancer `make audio`.
+   - 156 fichiers audios générés : 100 questions distinctes (`"2 fois 7"`, `"7 fois 2"`), 42 réponses uniques (`"14"`, etc.), 12 félicitations et les 2 annonces du brossage de dents.
+   - Les félicitations sont la liste `CHEERS` de `scripts/generate_audio.py`, les annonces la liste `PHRASES` : modifier la liste puis lancer `make audio`.
    - Tous les fichiers sont pré-cachés par le Service Worker Workbox pour un fonctionnement complet en mode avion.
 
 2. **Matrice 10×10 avec Suivi Séparé & Statuts d'Apprentissage** :
@@ -33,7 +33,12 @@ https://marcgardent.github.io/multiplication/
    - 🎯 **Mode 2 : Quiz Sans Enjeu** : Entraînement bienveillant, possibilité de recommencer à l'infini ou de dévoiler la réponse vocale.
    - ⚡ **Mode 3 : Time-Attack** : Chronomètre haute précision (ms), mesure des réflexes et alimentation automatique des révisions.
 
-5. **PWA Mobile-First pour Android** :
+5. **2 Modes d'Écoute Sans Joueur** (écran « Qui va s'entraîner ? ») :
+   - 📻 **Radio des tables** : question, temps de réflexion, réponse, dans un ordre aléatoire et sans fin. Elle continue écran éteint.
+   - 🪥 **Brossage de dents** : « Début du brossage des dents », 3 minutes de calculs avec décompte à l'écran, puis une félicitation et « Fin du brossage des dents ». L'écran reste allumé.
+   - On choisit ses tables avant de lancer ; chaque mode retient sa dernière sélection. Aucun point, aucune progression : ces modes n'appartiennent à aucun joueur.
+
+6. **PWA Mobile-First pour Android** :
    - Pavé tactile virtuel ergonomique évitant les sursauts d'affichage du clavier virtuel Android.
    - Bouton in-app d'installation PWA (`beforeinstallprompt`).
    - Mode plein écran autonome (`display: standalone`).
@@ -52,11 +57,23 @@ https://marcgardent.github.io/multiplication/
 | `make test` | Lance les tests des règles de progression : un test par flèche du graphe des boîtes |
 | `make scenarios` | Fait jouer des élèves simulés sur plusieurs semaines et régénère `public/snapshots/` |
 
+## 📱 Veille du téléphone
+
+Un téléphone met en veille une page que personne ne touche, ce qui coupait les séances d'écoute. Deux réponses, selon le besoin :
+
+- **Garder l'écran allumé** (révision guidée, révision des tables, brossage de dents) : [`src/services/wakeLockService.ts`](src/services/wakeLockService.ts) demande un verrou d'écran (Screen Wake Lock) pendant l'activité et le rend à la fin. Le système le retire quand l'application passe en arrière-plan ; il est repris à son retour. Un téléphone en économie d'énergie peut le refuser : l'activité continue, l'écran suit alors la veille normale.
+- **Continuer écran éteint** (radio, et brossage si le verrou est refusé) : [`src/radio/`](src/radio/) décode les voix une fois, puis assemble questions, silences et réponses en **un seul son continu** de plusieurs minutes, joué par un unique lecteur audio. Le téléphone le traite comme une musique : rien ne dépend d'une minuterie, que la veille ralentit ou arrête. La radio enchaîne des morceaux d'environ 2 min 30, le suivant étant prêt avant la fin du précédent. Pause, lecture et arrêt sont proposés sur l'écran verrouillé (Media Session).
+
+## 🔄 Mises à jour et version
+
+- La version affichée en bas des écrans d'accueil est celle de `package.json` : la changer avec `npm version <x.y.z> --no-git-tag-version` avant de publier.
+- Une application installée reste en mémoire des jours et ne recharge jamais sa page : le navigateur ne cherchait donc pas de nouvelle version. [`src/services/updateService.ts`](src/services/updateService.ts) la cherche à chaque retour au premier plan et toutes les 30 minutes. Une fois téléchargée, elle s'installe par un rechargement dès qu'aucune fenêtre n'est ouverte : jamais au milieu d'une séance, de la radio ou du brossage.
+
 ## 🧪 Tests et scénarios
 
 Les règles (boîtes, jours de révision, cadeau, points) sont décrites dans [`docs/progression-et-recompenses.md`](docs/progression-et-recompenses.md). Ce document fait référence : on le modifie avant le code.
 
-- **`make test`** vérifie chaque transition du graphe avec une horloge simulée.
+- **`make test`** vérifie chaque transition du graphe avec une horloge simulée, ainsi que l'assemblage des programmes d'écoute (3 minutes exactes de brossage, aucun calcul coupé) et le verrou d'écran.
 - **`make scenarios`** joue les scénarios du dossier `scenarios/` : des élèves simulés (régulière, en difficulté, rapide, absente) enchaînent de vraies séances à travers le store et le moteur, jour après jour. Chaque scénario vérifie ses invariants (aucun cadeau avant le 21e jour, jamais plus d'une boîte par jour, aucun cadeau repris) et enregistre l'état du joueur aux moments clés dans `public/snapshots/`. La sortie est identique d'un lancement à l'autre : un diff dans `public/snapshots/` signale un changement de comportement.
 - **Dans l'application**, créer un joueur nommé `@test-ci` : un bouton « Scénarios de test » apparaît sur son accueil et charge n'importe lequel de ces états dans son profil, recalé sur la date du jour. On teste ainsi « le jour du cadeau » ou « un décor sur le point d'être débloqué » sans attendre.
 

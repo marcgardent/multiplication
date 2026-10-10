@@ -76,6 +76,16 @@ button, input {
   padding: 16px;
 }
 
+/* Version installée, en bas des écrans d'accueil */
+.app-version {
+  @include pill;
+  align-self: center;
+  margin-top: 16px;
+  background: $surface;
+  border: 1px solid $line;
+  color: $ink-soft;
+}
+
 /* --- Boutons globaux : un principal, un secondaire, un destructif --- */
 
 .btn-confirm-launch, .btn-action, .btn-action-primary {

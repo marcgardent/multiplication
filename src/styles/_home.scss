@@ -7,6 +7,11 @@
   flex-direction: column;
   flex: 1;
   align-items: center;
+  gap: 16px;
+
+  .kids-menu-container {
+    width: 100%;
+  }
 
   .login-container {
     @include card;
@@ -86,111 +91,112 @@
   }
 }
 
+/* Grands boutons d'entrée : accueil du joueur et modes d'écoute de l'écran des joueurs */
+.kids-menu-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.kids-main-btn {
+  @include card;
+  @include lifted;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 16px;
+  text-align: left;
+  cursor: pointer;
+  transition: background $transition-base, transform $transition-base;
+
+  &:hover {
+    background: $ground;
+  }
+
+  &:active {
+    transform: scale(0.98);
+  }
+
+  .btn-bubble {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 48px;
+    height: 48px;
+    border-radius: $radius-control;
+    background: $ground;
+    font-size: 1.75rem;
+    line-height: 1;
+  }
+
+  .btn-text-block {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .btn-title {
+    font-size: 1.0625rem;
+    font-weight: 600;
+  }
+
+  .btn-subtitle {
+    font-size: $fs-small;
+    color: $ink-soft;
+    line-height: 1.3;
+  }
+
+  /* Flèche d'entrée, dessinée en CSS */
+  &::after {
+    content: "";
+    flex-shrink: 0;
+    width: 9px;
+    height: 9px;
+    margin-right: 4px;
+    border-top: 2px solid $ink-soft;
+    border-right: 2px solid $ink-soft;
+    transform: rotate(45deg);
+  }
+
+  /* L'action du jour : le seul bouton plein de l'écran */
+  &.btn-guided {
+    background: $accent;
+    border-color: $accent;
+    color: $surface;
+    padding: 18px 16px;
+
+    &:hover {
+      background: $accent-hover;
+      border-color: $accent-hover;
+    }
+
+    .btn-bubble {
+      background: $surface;
+    }
+
+    .btn-title {
+      font-size: $fs-title;
+    }
+
+    .btn-subtitle {
+      color: $accent-soft;
+    }
+
+    &::after {
+      border-color: $surface;
+    }
+  }
+}
+
 /* Accueil : 3 entrées, puis les récompenses */
 .home-screen-kids {
   display: flex;
   flex-direction: column;
   gap: 16px;
-
-  .kids-menu-container {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  .kids-main-btn {
-    @include card;
-    @include lifted;
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    width: 100%;
-    padding: 16px;
-    text-align: left;
-    cursor: pointer;
-    transition: background $transition-base, transform $transition-base;
-
-    &:hover {
-      background: $ground;
-    }
-
-    &:active {
-      transform: scale(0.98);
-    }
-
-    .btn-bubble {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      width: 48px;
-      height: 48px;
-      border-radius: $radius-control;
-      background: $ground;
-      font-size: 1.75rem;
-      line-height: 1;
-    }
-
-    .btn-text-block {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-      flex: 1;
-      min-width: 0;
-    }
-
-    .btn-title {
-      font-size: 1.0625rem;
-      font-weight: 600;
-    }
-
-    .btn-subtitle {
-      font-size: $fs-small;
-      color: $ink-soft;
-      line-height: 1.3;
-    }
-
-    /* Flèche d'entrée, dessinée en CSS */
-    &::after {
-      content: "";
-      flex-shrink: 0;
-      width: 9px;
-      height: 9px;
-      margin-right: 4px;
-      border-top: 2px solid $ink-soft;
-      border-right: 2px solid $ink-soft;
-      transform: rotate(45deg);
-    }
-
-    /* L'action du jour : le seul bouton plein de l'écran */
-    &.btn-guided {
-      background: $accent;
-      border-color: $accent;
-      color: $surface;
-      padding: 18px 16px;
-
-      &:hover {
-        background: $accent-hover;
-        border-color: $accent-hover;
-      }
-
-      .btn-bubble {
-        background: $surface;
-      }
-
-      .btn-title {
-        font-size: $fs-title;
-      }
-
-      .btn-subtitle {
-        color: $accent-soft;
-      }
-
-      &::after {
-        border-color: $surface;
-      }
-    }
-  }
 
   .kids-rewards-banner {
     @include card;
