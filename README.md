@@ -2,7 +2,12 @@
 
 Application web progressive (PWA) d'apprentissage des tables de multiplication, spécialement conçue pour être installée et utilisée **100% hors-ligne sur Android**.
 
-https://marcgardent.github.io/multiplication/
+| Page | Adresse |
+|---|---|
+| Présentation | https://marcgardent.github.io/multiplication/ |
+| Application | https://marcgardent.github.io/multiplication/app/ |
+| Conditions générales d'utilisation | https://marcgardent.github.io/multiplication/conditions.html |
+| Politique de confidentialité | https://marcgardent.github.io/multiplication/confidentialite.html |
 
 ---
 
@@ -57,6 +62,30 @@ https://marcgardent.github.io/multiplication/
 | `make test` | Lance les tests des règles de progression : un test par flèche du graphe des boîtes |
 | `make scenarios` | Fait jouer des élèves simulés sur plusieurs semaines et régénère `public/snapshots/` |
 
+## 🌐 Site et application
+
+Le site compte quatre pages, construites ensemble par Vite :
+
+- [`index.html`](index.html), [`conditions.html`](conditions.html) et [`confidentialite.html`](confidentialite.html) sont des pages autonomes, en HTML simple : présentation, conditions d'utilisation, politique de confidentialité. Leur style est dans [`src/styles/site.scss`](src/styles/site.scss). Ce sont les adresses à déclarer dans l'écran de consentement Google.
+- [`app/index.html`](app/index.html) est l'application installable. Son manifeste limite l'application à `app/` : les trois autres pages s'ouvrent hors de l'application.
+- Une application installée quand elle vivait encore à la racine s'ouvre sur la présentation, qui la renvoie aussitôt vers `app/`.
+
+**Toute modification de ce que l'application enregistre ou envoie doit être reportée dans `confidentialite.html`.**
+
+### Sauvegarde Google Drive
+
+L'identifiant OAuth est dans [`src/services/googleDriveService.ts`](src/services/googleDriveService.ts) : l'utilisateur n'a rien à saisir. Cet identifiant est public par nature. Dans la console Google Cloud, il faut autoriser les origines JavaScript `https://marcgardent.github.io` et, pour le développement, `http://localhost:5173`. La seule autorisation demandée est `drive.appdata`, le dossier caché de l'application.
+
+Une fois activée par le parent, la sauvegarde est automatique ([`src/services/cloudSyncService.ts`](src/services/cloudSyncService.ts)) :
+
+- chaque écriture dans le stockage de l'application déclenche un envoi ; les écritures rapprochées sont regroupées (8 secondes après la dernière, 30 secondes au plus) ;
+- une écriture qui ne change rien n'envoie rien ;
+- hors ligne, l'envoi attend le retour du réseau ;
+- quand un autre appareil a écrit entre-temps, les deux sauvegardes sont **fusionnées automatiquement** : points additionnés, joueurs réunis, état de chaque calcul pris sur l'appareil qui l'a travaillé en dernier. Les règles sont dans [`docs/sauvegarde-et-fusion.md`](docs/sauvegarde-et-fusion.md) et le code dans [`src/services/cloudMerge.ts`](src/services/cloudMerge.ts). Il n'y a pas de verrou : la fusion donne le même résultat quels que soient l'ordre et les répétitions ;
+- le Drive est aussi consulté au lancement et à chaque retour au premier plan, pour faire apparaître les progrès faits sur un autre appareil. Une fusion n'est jamais appliquée pendant une séance ;
+- le parent n'est sollicité (pastille orange) que si la sauvegarde a été remplacée volontairement depuis un autre appareil : import d'un fichier ou « Garder cet appareil » ;
+- Google ne donne à une application web qu'un jeton d'une heure, à travers une fenêtre ouverte pendant un geste. Il est redemandé au premier toucher sur un écran calme : la fenêtre Google s'ouvre et se referme seule ([`src/services/googleAuthService.ts`](src/services/googleAuthService.ts)). Une sauvegarde sans aucune fenêtre demanderait un serveur.
+
 ## 📱 Veille du téléphone
 
 Un téléphone met en veille une page que personne ne touche, ce qui coupait les séances d'écoute. Deux réponses, selon le besoin :
@@ -73,7 +102,7 @@ Un téléphone met en veille une page que personne ne touche, ce qui coupait les
 
 Les règles (boîtes, jours de révision, cadeau, points) sont décrites dans [`docs/progression-et-recompenses.md`](docs/progression-et-recompenses.md). Ce document fait référence : on le modifie avant le code.
 
-- **`make test`** vérifie chaque transition du graphe avec une horloge simulée, ainsi que l'assemblage des programmes d'écoute (3 minutes exactes de brossage, aucun calcul coupé) et le verrou d'écran.
+- **`make test`** vérifie chaque transition du graphe avec une horloge simulée, ainsi que l'assemblage des programmes d'écoute (3 minutes exactes de brossage, aucun calcul coupé), le verrou d'écran, la sauvegarde automatique face à un faux Google (regroupement, hors ligne, jeton expiré) et la fusion : chaque règle, son indépendance à l'ordre sur 200 cas tirés au hasard, et deux appareils sur un faux Drive partagé.
 - **`make scenarios`** joue les scénarios du dossier `scenarios/` : des élèves simulés (régulière, en difficulté, rapide, absente) enchaînent de vraies séances à travers le store et le moteur, jour après jour. Chaque scénario vérifie ses invariants (aucun cadeau avant le 21e jour, jamais plus d'une boîte par jour, aucun cadeau repris) et enregistre l'état du joueur aux moments clés dans `public/snapshots/`. La sortie est identique d'un lancement à l'autre : un diff dans `public/snapshots/` signale un changement de comportement.
 - **Dans l'application**, créer un joueur nommé `@test-ci` : un bouton « Scénarios de test » apparaît sur son accueil et charge n'importe lequel de ces états dans son profil, recalé sur la date du jour. On teste ainsi « le jour du cadeau » ou « un décor sur le point d'être débloqué » sans attendre.
 

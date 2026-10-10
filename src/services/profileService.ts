@@ -14,6 +14,8 @@ export interface ProfileService {
   selectProfile(profileId: string): UserProfile | null;
   logout(): void;
   deleteProfile(profileId: string): void;
+  // Relit les joueurs depuis le stockage, après une fusion avec la sauvegarde d'un autre appareil
+  reload(): void;
   subscribe(callback: (active: UserProfile | null) => void): () => void;
 }
 
@@ -89,6 +91,12 @@ export function createProfileService(storage: StorageService): ProfileService {
         activeId = null;
         storage.remove(ACTIVE_PROFILE_ID_KEY);
       }
+      notify();
+    },
+
+    reload(): void {
+      profiles = loadProfiles();
+      activeId = storage.get<string | null>(ACTIVE_PROFILE_ID_KEY, null);
       notify();
     },
 

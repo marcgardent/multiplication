@@ -106,6 +106,31 @@
         background: $ground;
       }
     }
+
+    /* Pastille de la sauvegarde automatique : verte à jour, bleue en attente, orange si le parent doit intervenir */
+    #btn-header-cloud {
+      position: relative;
+
+      &[data-sync="synced"]::after, &[data-sync="pending"]::after, &[data-sync="attention"]::after {
+        content: "";
+        position: absolute;
+        top: 7px;
+        right: 5px;
+        width: 10px;
+        height: 10px;
+        border: 2px solid $surface;
+        border-radius: $radius-pill;
+        background: $status-mastered;
+      }
+
+      &[data-sync="pending"]::after {
+        background: $status-discovery;
+      }
+
+      &[data-sync="attention"]::after {
+        background: $status-review;
+      }
+    }
   }
 }
 

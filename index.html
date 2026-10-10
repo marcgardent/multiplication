@@ -2,15 +2,178 @@
 <html lang="fr">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <title>Multiplication PWA</title>
-    <meta name="description" content="Apprentissage des multiplications avec répétition espacée et TTS vocal hors-ligne" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Multiplications Faciles : apprendre ses tables quelques minutes par jour</title>
+    <meta name="description" content="Application gratuite pour apprendre les tables de multiplication : révisions espacées, voix française, radio des tables, récompenses. Sans compte, sans publicité, hors ligne." />
     <meta name="theme-color" content="#ffffff" />
     <link rel="icon" type="image/svg+xml" href="/icons/icon-192.svg" />
-    <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
+    <script>
+      // L'application installée avant son déplacement dans app/ s'ouvre encore sur cette page : on la renvoie chez elle.
+      // Le lien « Présentation » de l'application ajoute ?presentation pour pouvoir lire cette page quand même.
+      if (
+        (window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true) &&
+        !window.location.search.includes("presentation")
+      ) {
+        window.location.replace("app/");
+      }
+    </script>
   </head>
   <body>
-    <div id="app"></div>
-    <script type="module" src="/src/main.ts"></script>
+    <header class="site-header">
+      <div class="site-wrap">
+        <a class="site-brand" href="./">
+          <img src="/icons/icon-192.svg" alt="" />
+          Multiplications Faciles
+        </a>
+        <a class="btn-open-app-small" href="app/">Ouvrir l'application</a>
+      </div>
+    </header>
+
+    <main>
+      <section class="site-hero">
+        <div class="site-wrap">
+          <h1>Les tables de multiplication, quelques minutes par jour</h1>
+          <p class="site-hero-lead">
+            Multiplications Faciles fait écouter, répéter puis retrouver chaque calcul, et le fait revenir juste avant qu'il ne soit oublié.
+            L'enfant joue seul, le parent suit ses progrès.
+          </p>
+          <a class="btn-open-app" href="app/">Ouvrir l'application</a>
+          <ul class="site-hero-facts">
+            <li>Gratuite</li>
+            <li>Sans compte</li>
+            <li>Sans publicité</li>
+            <li>Fonctionne hors ligne</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="site-section">
+        <div class="site-wrap">
+          <h2>Ce que fait l'application</h2>
+          <ul class="site-features">
+            <li>
+              <span class="site-feature-icon">🚀</span>
+              <div>
+                <h3>Révision guidée</h3>
+                <p>3, 6, 9 ou 15 minutes : on écoute les calculs du jour, on y répond sans pression, puis on tente le défi chrono. L'application choisit les calculs.</p>
+              </div>
+            </li>
+            <li>
+              <span class="site-feature-icon">🧠</span>
+              <div>
+                <h3>Révisions au bon moment</h3>
+                <p>Un calcul réussi revient 1 jour, 3 jours, 7 jours puis 21 jours plus tard. Un calcul raté est retravaillé aussitôt et repart du début.</p>
+              </div>
+            </li>
+            <li>
+              <span class="site-feature-icon">🎯</span>
+              <div>
+                <h3>Révision des tables</h3>
+                <p>L'enfant choisit les tables à travailler, par exemple celles de la leçon de la semaine, et répond à tous leurs calculs.</p>
+              </div>
+            </li>
+            <li>
+              <span class="site-feature-icon">📻</span>
+              <div>
+                <h3>Radio des tables</h3>
+                <p>Les multiplications en continu, question puis réponse, même écran éteint. Pour la voiture ou le coucher.</p>
+              </div>
+            </li>
+            <li>
+              <span class="site-feature-icon">🪥</span>
+              <div>
+                <h3>Brossage de dents</h3>
+                <p>3 minutes de tables avec un décompte : la voix annonce le début et la fin du brossage.</p>
+              </div>
+            </li>
+            <li>
+              <span class="site-feature-icon">🎁</span>
+              <div>
+                <h3>Récompenses</h3>
+                <p>Des points à chaque bonne réponse, 100 cadeaux à gagner, 14 décors à débloquer et une roue magique chaque jour.</p>
+              </div>
+            </li>
+            <li>
+              <span class="site-feature-icon">📊</span>
+              <div>
+                <h3>Carnet de suivi</h3>
+                <p>Pour les parents : la grille des 100 calculs, les erreurs, les temps de réponse et le temps d'entraînement.</p>
+              </div>
+            </li>
+            <li>
+              <span class="site-feature-icon">🦁</span>
+              <div>
+                <h3>Plusieurs joueurs</h3>
+                <p>Chaque enfant choisit son prénom et son animal, et garde sa propre progression sur le même appareil.</p>
+              </div>
+            </li>
+            <li>
+              <span class="site-feature-icon">✈️</span>
+              <div>
+                <h3>Hors ligne</h3>
+                <p>La voix française est incluse. Une fois installée sur le téléphone, l'application fonctionne sans Internet.</p>
+              </div>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="site-section">
+        <div class="site-wrap">
+          <h2>Comment un calcul est appris</h2>
+          <ol class="site-steps">
+            <li><strong>Jour 0</strong>L'enfant écoute le calcul puis le réussit une première fois.</li>
+            <li><strong>Jour 1</strong>Première révision, le lendemain.</li>
+            <li><strong>Jour 3</strong>Deuxième révision.</li>
+            <li><strong>Jour 7</strong>Troisième révision.</li>
+            <li><strong>Jour 21 🎁</strong>Dernière révision : le calcul est maîtrisé et son cadeau est gagné pour de bon.</li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="site-section">
+        <div class="site-wrap">
+          <h2>Vos données restent chez vous</h2>
+          <div class="site-note">
+            <p>
+              Les prénoms et la progression sont enregistrés sur l'appareil, dans le navigateur. Rien n'est envoyé à un serveur :
+              il n'y a ni compte à créer, ni publicité, ni mesure d'audience.
+            </p>
+            <p>
+              <strong>Sauvegarde Google Drive, facultative.</strong> Un parent peut l'activer une fois : la progression est ensuite enregistrée automatiquement
+              dans son propre Google Drive, et fusionnée entre ses appareils. L'application demande une seule autorisation : lire et écrire son propre dossier caché.
+              Elle ne voit aucun autre fichier du Drive, ni le nom ni l'adresse du compte.
+            </p>
+            <p>Le détail est dans la <a href="confidentialite.html">politique de confidentialité</a>.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="site-section">
+        <div class="site-wrap">
+          <h2>L'installer sur un téléphone</h2>
+          <div class="site-note">
+            <p>
+              Ouvrez l'application dans Chrome sur Android, puis choisissez « Installer l'application » ou « Ajouter à l'écran d'accueil » dans le menu.
+              Elle apparaît ensuite comme une application ordinaire et fonctionne sans connexion.
+            </p>
+            <p><a class="btn-open-app" href="app/">Ouvrir l'application</a></p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="site-wrap">
+        <nav aria-label="Informations">
+          <a href="conditions.html">Conditions d'utilisation</a>
+          <a href="confidentialite.html">Politique de confidentialité</a>
+          <a href="https://github.com/marcgardent/multiplication">Code source</a>
+        </nav>
+        <span data-app-version></span>
+      </div>
+    </footer>
+
+    <script type="module" src="/src/site/site.ts"></script>
   </body>
 </html>
