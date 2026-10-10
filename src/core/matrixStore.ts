@@ -1,5 +1,6 @@
 import { MultiplicationItem, ItemStatus, AttemptLog } from "../types";
 import { StorageService } from "../services/storageService";
+import { profileKey, toWheelDate, WheelDailyState } from "./profileData";
 
 export interface MatrixStore {
   getAll(): MultiplicationItem[];
@@ -20,6 +21,7 @@ export interface MatrixStore {
   getDailyWheelSpinsLeft(): number;
   useWheelSpin(): boolean;
   setProfile(profileId: string): void;
+  reload(): void;
   resetAll(): void;
   subscribe(callback: () => void): () => void;
 }
@@ -27,17 +29,22 @@ export interface MatrixStore {
 const DAY_MS = 24 * 3600 * 1000;
 // Après une erreur, le calcul revient 10 minutes plus tard
 const ERROR_RETRY_MS = 10 * 60 * 1000;
-// Jours d'attente après avoir atteint chaque palier : 1 = 1 j, 2 = 3 j, 3 = 7 j, 4 = 21 j
-const BOX_INTERVAL_DAYS = [1, 1, 3, 7, 21];
+// Règles décrites dans docs/progression-et-recompenses.md : tout changement ici se fait d'abord là-bas
+export const MAX_BOX = 5;
+// Jours d'attente une fois dans chaque boîte : révisions à J1, J3, J7 et J21, puis entretien tous les 21 jours
+const BOX_WAIT_DAYS = [0, 1, 2, 4, 14, 21];
+// Au-delà, la réponse n'est pas fluide : elle ne suffit pas pour entrer en Boîte 5
+export const SLOW_ANSWER_MS = 3800;
+export const GIFT_OPEN_POINTS = 25;
 
-// Un palier ne se gagne qu'à l'échéance : les réussites répétées d'une même séance entraînent sans faire monter
+// On ne monte d'une boîte qu'à l'échéance : les réussites répétées d'une même séance entraînent sans faire monter
 export function canPromote(item: MultiplicationItem, now = Date.now()): boolean {
   return item.nextReviewAt === null || now >= item.nextReviewAt;
 }
 
-// Le cadeau d'un calcul se débloque à la réussite du lendemain et reste acquis ensuite
+// Le cadeau d'un calcul se gagne à la première arrivée en Boîte 5 et n'est jamais repris
 export function isGiftUnlocked(item: MultiplicationItem): boolean {
-  return item.bestBoxLevel >= 2;
+  return item.giftEarned;
 }
 
 // Les échéances en jours tombent à minuit : une séance peut avoir lieu à n'importe quelle heure du jour prévu
@@ -50,12 +57,12 @@ function startOfDayAfter(now: number, days: number): number {
 
 export function createMatrixStore(storage: StorageService, initialProfileId = "default-1"): MatrixStore {
   let currentProfileId = initialProfileId;
-  const getStorageKey = () => `matrix_items_${currentProfileId}`;
-  const getHistoryKey = () => `attempt_history_${currentProfileId}`;
-  const getTimeKey = () => `practice_time_${currentProfileId}`;
-  const getGiftsKey = () => `opened_gifts_${currentProfileId}`;
-  const getPointsKey = () => `points_${currentProfileId}`;
-  const getWheelKey = () => `wheel_spins_${currentProfileId}`;
+  const getStorageKey = () => profileKey("matrix_items", currentProfileId);
+  const getHistoryKey = () => profileKey("attempt_history", currentProfileId);
+  const getTimeKey = () => profileKey("practice_time", currentProfileId);
+  const getGiftsKey = () => profileKey("opened_gifts", currentProfileId);
+  const getPointsKey = () => profileKey("points", currentProfileId);
+  const getWheelKey = () => profileKey("wheel_spins", currentProfileId);
 
   let itemsMap: Map<string, MultiplicationItem> = new Map();
   let history: AttemptLog[] = [];
@@ -82,7 +89,7 @@ export function createMatrixStore(storage: StorageService, initialProfileId = "d
           result: a * b,
           status: "unknown",
           boxLevel: 0,
-          bestBoxLevel: 0,
+          giftEarned: false,
           seenCount: 0,
           errorCount: 0,
           successStreak: 0,
@@ -90,22 +97,15 @@ export function createMatrixStore(storage: StorageService, initialProfileId = "d
           responseTimesMs: [],
           lastReviewedAt: null,
           nextReviewAt: null,
-          intervalDays: 1,
-          easeFactor: 2.5
+          intervalDays: 1
         });
       }
     }
     return map;
   }
 
-  interface WheelDailyState {
-    date: string;
-    usedSpins: number;
-  }
-
   function getTodayString(): string {
-    const d = new Date();
-    return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+    return toWheelDate(new Date());
   }
 
   function loadForCurrentProfile() {
@@ -121,14 +121,18 @@ export function createMatrixStore(storage: StorageService, initialProfileId = "d
         if (!Array.isArray(item.responseTimesMs)) {
           item.responseTimesMs = [];
         }
-        if (typeof item.easeFactor !== "number") {
-          item.easeFactor = 2.5;
+        if (typeof item.giftEarned !== "boolean") {
+          // Données d'avant la Boîte 5 : le cadeau se gagnait dès la Boîte 2, et un cadeau gagné reste acquis
+          const legacy = item as MultiplicationItem & { bestBoxLevel?: number };
+          item.giftEarned = (legacy.bestBoxLevel ?? 0) >= 2 || openedGifts.has(item.id);
+          delete legacy.bestBoxLevel;
         }
-        if (typeof item.bestBoxLevel !== "number") {
-          item.bestBoxLevel = item.boxLevel || 0;
+        // Avant la Boîte 5, la maîtrise s'obtenait en Boîte 4 : il reste à ces calculs la révision de J21
+        if (item.status === "mastered" && item.boxLevel < MAX_BOX) {
+          item.status = "discovery";
         }
         if (typeof item.intervalDays !== "number") {
-          item.intervalDays = BOX_INTERVAL_DAYS[Math.min(4, Math.max(0, item.boxLevel || 0))];
+          item.intervalDays = BOX_WAIT_DAYS[Math.min(MAX_BOX, Math.max(0, item.boxLevel || 0))] || 1;
         }
         if (item.nextReviewAt === undefined) {
           item.nextReviewAt = item.lastReviewedAt ? item.lastReviewedAt + Math.round(item.intervalDays * DAY_MS) : null;
@@ -219,7 +223,7 @@ export function createMatrixStore(storage: StorageService, initialProfileId = "d
         if (item.status === "unknown") {
           item.status = "discovery";
         }
-        // Échu tout de suite : la première réussite au quiz qui suit l'écoute compte pour le premier palier
+        // Échu tout de suite : la première réussite au quiz qui suit l'écoute fait entrer en Boîte 1
         if (item.nextReviewAt === null) {
           item.nextReviewAt = now;
         }
@@ -247,31 +251,23 @@ export function createMatrixStore(storage: StorageService, initialProfileId = "d
           }
 
           if (isDueForPromotion) {
-            // Ajustement selon la vitesse de réponse
-            const isSlow = responseTimeMs > 3800;
-            let speedFactor = 1.0;
-            if (responseTimeMs > 0 && responseTimeMs < 2200) {
-              speedFactor = 1.2;
-              item.easeFactor = Math.min(3.0, Number((item.easeFactor + 0.1).toFixed(2)));
-            } else if (isSlow) {
-              speedFactor = 0.8;
-              item.easeFactor = Math.max(1.3, Number((item.easeFactor - 0.1).toFixed(2)));
+            // L'entrée en Boîte 5 demande une réponse fluide : sinon le calcul revient le lendemain
+            const isHeldBack = item.boxLevel === MAX_BOX - 1 && responseTimeMs > SLOW_ANSWER_MS;
+            if (isHeldBack) {
+              item.intervalDays = 1;
+            } else {
+              item.boxLevel = Math.min(MAX_BOX, item.boxLevel + 1);
+              item.intervalDays = BOX_WAIT_DAYS[item.boxLevel];
             }
 
-            // La maîtrise demande une réponse fluide : une réussite lente rejoue le palier des 7 jours
-            item.boxLevel = item.boxLevel === 3 && isSlow ? 3 : Math.min(4, item.boxLevel + 1);
-            item.bestBoxLevel = Math.max(item.bestBoxLevel, item.boxLevel);
-
-            if (item.boxLevel === 4) {
+            if (item.boxLevel === MAX_BOX) {
               if (item.status !== "mastered") {
                 points += 50; // Super bonus maîtrise
               }
               item.status = "mastered";
-              item.intervalDays = 21;
+              item.giftEarned = true;
             } else {
               item.status = "discovery";
-              const calculatedDays = BOX_INTERVAL_DAYS[item.boxLevel] * (item.easeFactor / 2.5) * speedFactor;
-              item.intervalDays = Math.min(21, Math.max(1, Math.round(calculatedDays)));
             }
             item.nextReviewAt = startOfDayAfter(now, item.intervalDays);
           }
@@ -280,7 +276,6 @@ export function createMatrixStore(storage: StorageService, initialProfileId = "d
           item.successStreak = 0;
           item.boxLevel = 0;
           item.status = "review";
-          item.easeFactor = Math.max(1.3, Number((item.easeFactor - 0.2).toFixed(2)));
           item.intervalDays = Number((ERROR_RETRY_MS / DAY_MS).toFixed(4));
           item.nextReviewAt = now + ERROR_RETRY_MS;
         }
@@ -371,6 +366,11 @@ export function createMatrixStore(storage: StorageService, initialProfileId = "d
         loadForCurrentProfile();
         notify();
       }
+    },
+
+    reload(): void {
+      loadForCurrentProfile();
+      notify();
     },
 
     resetAll(): void {

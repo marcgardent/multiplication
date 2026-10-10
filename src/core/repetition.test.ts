@@ -1,31 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { StorageService } from "../services/storageService";
-import { SessionConfig } from "../types";
-import { createMatrixStore, isGiftUnlocked, MatrixStore } from "./matrixStore";
+import { createMemoryStorage, StorageService } from "../services/storageService";
+import { MultiplicationItem, SessionConfig } from "../types";
+import { createMatrixStore, GIFT_OPEN_POINTS, isGiftUnlocked, MatrixStore } from "./matrixStore";
+import { profileKey } from "./profileData";
 import { createRepetitionEngine } from "./repetitionEngine";
 
 // Réponse ni rapide ni lente : n'allonge ni ne raccourcit les intervalles
 const NEUTRAL_MS = 3000;
 const SLOW_MS = 5000;
-
-function createMemoryStorage(): StorageService {
-  const data = new Map<string, string>();
-  return {
-    get<T>(key: string, defaultValue: T): T {
-      const raw = data.get(key);
-      return raw === undefined ? defaultValue : (JSON.parse(raw) as T);
-    },
-    set<T>(key: string, value: T): void {
-      data.set(key, JSON.stringify(value));
-    },
-    remove(key: string): void {
-      data.delete(key);
-    },
-    clear(): void {
-      data.clear();
-    }
-  };
-}
 
 // Se place au jour J+day de la première séance, à l'heure donnée
 function goTo(day: number, hour = 10, minute = 0): void {
@@ -44,7 +26,32 @@ function sessionConfig(durationMinutes: number): SessionConfig {
   return { durationMinutes, pauseBetweenAudioMs: 0 };
 }
 
-describe("règle de progression", () => {
+// Jours de révision d'un calcul réussi pour la première fois à J0
+const REVIEW_DAYS = [1, 3, 7, 21];
+
+// Amène 2 × 3 dans la boîte voulue par des réussites aux jours prévus, et renvoie le jour de la prochaine échéance
+function reachBox(store: MatrixStore, box: number): number {
+  goTo(0);
+  listen(store, 2, 3);
+  if (box === 0) return 0;
+  answer(store, 2, 3);
+  for (let i = 0; i < box - 1; i++) {
+    goTo(REVIEW_DAYS[i]);
+    answer(store, 2, 3);
+  }
+  expect(store.getByFactors(2, 3)!.boxLevel).toBe(box);
+  return box === 5 ? 42 : REVIEW_DAYS[box - 1];
+}
+
+function item(store: MatrixStore): MultiplicationItem {
+  return store.getByFactors(2, 3)!;
+}
+
+function dayOf(timestamp: number | null): number {
+  return Math.round((timestamp! - new Date(2026, 0, 5).getTime()) / (24 * 3600 * 1000));
+}
+
+describe("graphe des boîtes (docs/progression-et-recompenses.md)", () => {
   let store: MatrixStore;
 
   beforeEach(() => {
@@ -57,7 +64,187 @@ describe("règle de progression", () => {
     vi.useRealTimers();
   });
 
-  it("ne fait monter qu'un palier quand un calcul est réussi plusieurs fois dans la même séance", () => {
+  describe("Boîte 0", () => {
+    it("écoute : reste en Boîte 0, échu tout de suite", () => {
+      listen(store, 2, 3);
+      expect(item(store).boxLevel).toBe(0);
+      expect(item(store).status).toBe("discovery");
+      expect(store.isItemDue(item(store))).toBe(true);
+    });
+
+    it("échec : reste en Boîte 0, à revoir dans 10 minutes", () => {
+      listen(store, 2, 3);
+      answer(store, 2, 3, false);
+      expect(item(store).boxLevel).toBe(0);
+      expect(item(store).status).toBe("review");
+      expect(item(store).nextReviewAt).toBe(Date.now() + 10 * 60 * 1000);
+    });
+
+    it("réussite moins de 10 min après un échec : reste en Boîte 0", () => {
+      listen(store, 2, 3);
+      answer(store, 2, 3, false);
+      goTo(0, 10, 5);
+      answer(store, 2, 3);
+      expect(item(store).boxLevel).toBe(0);
+      expect(item(store).status).toBe("review");
+    });
+
+    it("réussite : monte en Boîte 1, à revoir à J1", () => {
+      listen(store, 2, 3);
+      answer(store, 2, 3);
+      expect(item(store).boxLevel).toBe(1);
+      expect(dayOf(item(store).nextReviewAt)).toBe(1);
+    });
+
+    it("réussite 10 min après un échec : monte en Boîte 1", () => {
+      listen(store, 2, 3);
+      answer(store, 2, 3, false);
+      goTo(0, 10, 11);
+      answer(store, 2, 3);
+      expect(item(store).boxLevel).toBe(1);
+      expect(item(store).status).toBe("discovery");
+    });
+
+    it("réussite sans écoute préalable : monte en Boîte 1", () => {
+      store.recordAttempt(2, 3, "evaluation", true, NEUTRAL_MS);
+      expect(item(store).boxLevel).toBe(1);
+    });
+  });
+
+  // Boîtes 1 à 3 : même schéma, seule l'attente change
+  describe.each([
+    { box: 1, nextReviewDay: 3 },
+    { box: 2, nextReviewDay: 7 },
+    { box: 3, nextReviewDay: 21 }
+  ])("Boîte $box", ({ box, nextReviewDay }) => {
+    it(`réussite à l'échéance : monte en Boîte ${box + 1}, à revoir à J${nextReviewDay}`, () => {
+      goTo(reachBox(store, box));
+      answer(store, 2, 3);
+      expect(item(store).boxLevel).toBe(box + 1);
+      expect(item(store).status).toBe("discovery");
+      expect(dayOf(item(store).nextReviewAt)).toBe(nextReviewDay);
+    });
+
+    it("réussite à l'échéance, même lente ou très rapide : même boîte d'arrivée, même échéance", () => {
+      goTo(reachBox(store, box));
+      answer(store, 2, 3, true, SLOW_MS);
+      expect(item(store).boxLevel).toBe(box + 1);
+      expect(dayOf(item(store).nextReviewAt)).toBe(nextReviewDay);
+    });
+
+    it("réussite avant l'échéance : ni la boîte ni l'échéance ne changent", () => {
+      const dueDay = reachBox(store, box);
+      const before = item(store).nextReviewAt;
+      goTo(dueDay - 1, 23, 59);
+      answer(store, 2, 3);
+      expect(item(store).boxLevel).toBe(box);
+      expect(item(store).nextReviewAt).toBe(before);
+    });
+
+    it("échec : retour en Boîte 0, à revoir dans 10 minutes", () => {
+      goTo(reachBox(store, box));
+      answer(store, 2, 3, false);
+      expect(item(store).boxLevel).toBe(0);
+      expect(item(store).status).toBe("review");
+      expect(item(store).nextReviewAt).toBe(Date.now() + 10 * 60 * 1000);
+    });
+
+    it("échec avant l'échéance : retour en Boîte 0 aussi", () => {
+      goTo(reachBox(store, box) - 1, 23, 59);
+      answer(store, 2, 3, false);
+      expect(item(store).boxLevel).toBe(0);
+    });
+  });
+
+  describe("Boîte 4", () => {
+    it("réussite fluide à l'échéance (J21) : monte en Boîte 5, maîtrisé, cadeau gagné, +50", () => {
+      goTo(reachBox(store, 4));
+      const pointsBefore = store.getPoints();
+      answer(store, 2, 3);
+      expect(item(store).boxLevel).toBe(5);
+      expect(item(store).status).toBe("mastered");
+      expect(isGiftUnlocked(item(store))).toBe(true);
+      expect(store.getPoints() - pointsBefore).toBe(10 + 50);
+      expect(dayOf(item(store).nextReviewAt)).toBe(42);
+    });
+
+    it("réussite lente à l'échéance : reste en Boîte 4, revient le lendemain, sans cadeau", () => {
+      goTo(reachBox(store, 4));
+      answer(store, 2, 3, true, SLOW_MS);
+      expect(item(store).boxLevel).toBe(4);
+      expect(item(store).status).toBe("discovery");
+      expect(isGiftUnlocked(item(store))).toBe(false);
+      expect(dayOf(item(store).nextReviewAt)).toBe(22);
+
+      goTo(22);
+      answer(store, 2, 3);
+      expect(item(store).boxLevel).toBe(5);
+      expect(isGiftUnlocked(item(store))).toBe(true);
+    });
+
+    it("réussite avant l'échéance : ni la boîte ni l'échéance ne changent, pas de cadeau à J20", () => {
+      reachBox(store, 4);
+      const before = item(store).nextReviewAt;
+      goTo(20, 23, 59);
+      answer(store, 2, 3);
+      expect(item(store).boxLevel).toBe(4);
+      expect(item(store).nextReviewAt).toBe(before);
+      expect(isGiftUnlocked(item(store))).toBe(false);
+    });
+
+    it("échec : retour en Boîte 0", () => {
+      goTo(reachBox(store, 4));
+      answer(store, 2, 3, false);
+      expect(item(store).boxLevel).toBe(0);
+      expect(item(store).status).toBe("review");
+      expect(isGiftUnlocked(item(store))).toBe(false);
+    });
+  });
+
+  describe("Boîte 5", () => {
+    it("réussite à l'échéance (J42) : reste en Boîte 5, prochaine révision 21 jours plus tard", () => {
+      goTo(reachBox(store, 5));
+      answer(store, 2, 3, true, SLOW_MS);
+      expect(item(store).boxLevel).toBe(5);
+      expect(item(store).status).toBe("mastered");
+      expect(dayOf(item(store).nextReviewAt)).toBe(63);
+    });
+
+    it("réussite avant l'échéance : ni la boîte ni l'échéance ne changent", () => {
+      reachBox(store, 5);
+      const before = item(store).nextReviewAt;
+      goTo(30);
+      answer(store, 2, 3);
+      expect(item(store).boxLevel).toBe(5);
+      expect(item(store).nextReviewAt).toBe(before);
+    });
+
+    it("échec : retour en Boîte 0, le cadeau reste gagné", () => {
+      goTo(reachBox(store, 5));
+      answer(store, 2, 3, false);
+      expect(item(store).boxLevel).toBe(0);
+      expect(item(store).status).toBe("review");
+      expect(isGiftUnlocked(item(store))).toBe(true);
+    });
+  });
+});
+
+describe("calendrier et cadeau", () => {
+  let storage: StorageService;
+  let store: MatrixStore;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    goTo(0);
+    storage = createMemoryStorage();
+    store = createMatrixStore(storage, "test");
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("ne fait monter que d'une boîte quand un calcul est réussi plusieurs fois dans la même séance", () => {
     listen(store, 2, 3);
     goTo(0, 10, 1);
     answer(store, 2, 3);
@@ -66,30 +253,24 @@ describe("règle de progression", () => {
     goTo(0, 10, 3);
     answer(store, 2, 3);
 
-    const item = store.getByFactors(2, 3)!;
-    expect(item.boxLevel).toBe(1);
-    expect(item.status).toBe("discovery");
-    expect(item.successStreak).toBe(3);
+    expect(item(store).boxLevel).toBe(1);
+    expect(item(store).successStreak).toBe(3);
   });
 
-  it("mène à la maîtrise par des réussites à J0, J1, J4 et J11", () => {
+  it("donne le cadeau le 21e jour, et pas avant, par des réussites à J0, J1, J3, J7 et J21", () => {
     listen(store, 2, 3);
     answer(store, 2, 3);
-    expect(store.getByFactors(2, 3)!.boxLevel).toBe(1);
+    for (const day of [1, 3, 7]) {
+      goTo(day);
+      answer(store, 2, 3);
+      expect(isGiftUnlocked(item(store))).toBe(false);
+    }
+    expect(item(store).boxLevel).toBe(4);
 
-    goTo(1, 17);
+    goTo(21);
     answer(store, 2, 3);
-    expect(store.getByFactors(2, 3)!.boxLevel).toBe(2);
-
-    goTo(4, 8);
-    answer(store, 2, 3);
-    expect(store.getByFactors(2, 3)!.boxLevel).toBe(3);
-    expect(store.getByFactors(2, 3)!.status).toBe("discovery");
-
-    goTo(11);
-    answer(store, 2, 3);
-    expect(store.getByFactors(2, 3)!.boxLevel).toBe(4);
-    expect(store.getByFactors(2, 3)!.status).toBe("mastered");
+    expect(item(store).boxLevel).toBe(5);
+    expect(isGiftUnlocked(item(store))).toBe(true);
   });
 
   it("compte la séance du jour prévu quelle que soit l'heure", () => {
@@ -100,64 +281,67 @@ describe("règle de progression", () => {
     // Le lendemain matin, moins de 24 h plus tard
     goTo(1, 8);
     answer(store, 2, 3);
-    expect(store.getByFactors(2, 3)!.boxLevel).toBe(2);
+    expect(item(store).boxLevel).toBe(2);
   });
 
-  it("ignore une réussite arrivée avant l'échéance", () => {
-    listen(store, 2, 3);
-    answer(store, 2, 3);
-    goTo(1);
-    answer(store, 2, 3);
-
-    // Prochaine échéance à J4 : une réussite à J2 n'y change rien
-    goTo(2);
-    answer(store, 2, 3);
-    expect(store.getByFactors(2, 3)!.boxLevel).toBe(2);
-  });
-
-  it("attend 10 minutes après une erreur avant de laisser remonter", () => {
-    listen(store, 2, 3);
+  it("repart du début après un échec : le cadeau vient 21 jours après la nouvelle première réussite", () => {
+    goTo(reachBox(store, 3));
     answer(store, 2, 3, false);
-    expect(store.getByFactors(2, 3)!.status).toBe("review");
-
-    goTo(0, 10, 5);
+    goTo(7, 10, 11);
     answer(store, 2, 3);
-    expect(store.getByFactors(2, 3)!.boxLevel).toBe(0);
-    expect(store.getByFactors(2, 3)!.status).toBe("review");
+    expect(item(store).boxLevel).toBe(1);
 
-    goTo(0, 10, 11);
+    for (const day of [8, 10, 14]) {
+      goTo(day);
+      answer(store, 2, 3);
+    }
+    goTo(27);
     answer(store, 2, 3);
-    expect(store.getByFactors(2, 3)!.boxLevel).toBe(1);
-    expect(store.getByFactors(2, 3)!.status).toBe("discovery");
+    expect(isGiftUnlocked(item(store))).toBe(false);
+
+    goTo(28);
+    answer(store, 2, 3);
+    expect(isGiftUnlocked(item(store))).toBe(true);
   });
 
-  it("rejoue le palier des 7 jours quand la réponse est lente", () => {
-    listen(store, 2, 3);
-    answer(store, 2, 3);
-    goTo(1);
-    answer(store, 2, 3);
-    goTo(4);
-    answer(store, 2, 3);
+  it("ne reprend jamais un cadeau gagné, ouvert ou non, quoi qu'il arrive ensuite", () => {
+    goTo(reachBox(store, 5));
+    store.openGift("2x3");
+    store.addPoints(GIFT_OPEN_POINTS);
 
-    goTo(11);
-    answer(store, 2, 3, true, SLOW_MS);
-    expect(store.getByFactors(2, 3)!.boxLevel).toBe(3);
-    expect(store.getByFactors(2, 3)!.status).toBe("discovery");
-  });
-
-  it("débloque le cadeau à la réussite du lendemain et le garde après une erreur", () => {
-    listen(store, 2, 3);
-    answer(store, 2, 3);
-    expect(isGiftUnlocked(store.getByFactors(2, 3)!)).toBe(false);
-
-    goTo(1);
-    answer(store, 2, 3);
-    expect(isGiftUnlocked(store.getByFactors(2, 3)!)).toBe(true);
-
-    goTo(4);
     answer(store, 2, 3, false);
-    expect(store.getByFactors(2, 3)!.boxLevel).toBe(0);
-    expect(isGiftUnlocked(store.getByFactors(2, 3)!)).toBe(true);
+    goTo(43);
+    answer(store, 2, 3, false);
+    expect(item(store).boxLevel).toBe(0);
+    expect(isGiftUnlocked(item(store))).toBe(true);
+    expect(store.getOpenedGifts()).toContain("2x3");
+
+    // Toujours là après relecture du stockage
+    const reopened = createMatrixStore(storage, "test");
+    expect(isGiftUnlocked(reopened.getByFactors(2, 3)!)).toBe(true);
+    expect(reopened.getOpenedGifts()).toContain("2x3");
+  });
+
+  it("garde les cadeaux gagnés avec l'ancienne règle, ouverts ou non", () => {
+    // Données enregistrées avant la Boîte 5 : cadeau dès la Boîte 2, maîtrise en Boîte 4
+    const legacy = store.getAll().map((i) => {
+      const { giftEarned: _dropped, ...rest } = i;
+      return { ...rest, bestBoxLevel: 0, easeFactor: 2.5 };
+    });
+    Object.assign(legacy.find((i) => i.id === "2x3")!, { boxLevel: 0, bestBoxLevel: 2, status: "review" });
+    Object.assign(legacy.find((i) => i.id === "2x4")!, { boxLevel: 4, bestBoxLevel: 4, status: "mastered" });
+    Object.assign(legacy.find((i) => i.id === "2x5")!, { boxLevel: 1, bestBoxLevel: 1, status: "discovery" });
+    storage.set(profileKey("matrix_items", "ancien"), legacy);
+    storage.set(profileKey("opened_gifts", "ancien"), ["2x4"]);
+
+    const migrated = createMatrixStore(storage, "ancien");
+    expect(isGiftUnlocked(migrated.getByFactors(2, 3)!)).toBe(true);
+    expect(isGiftUnlocked(migrated.getByFactors(2, 4)!)).toBe(true);
+    expect(isGiftUnlocked(migrated.getByFactors(2, 5)!)).toBe(false);
+    expect(migrated.getOpenedGifts()).toEqual(["2x4"]);
+    // La maîtrise demande maintenant la révision de J21
+    expect(migrated.getByFactors(2, 4)!.status).toBe("discovery");
+    expect(migrated.getByFactors(2, 4)!.boxLevel).toBe(4);
   });
 });
 
@@ -229,6 +413,29 @@ describe("lot de séance", () => {
     expect(engine.getQueueStats().nextSessionNewCount).toBe(0);
   });
 
+  it("fait toujours passer la révision du 21e jour, même quand les révisions débordent du lot", () => {
+    // 2 × 3 arrive à sa révision de J21 en Boîte 4
+    listen(store, 2, 3);
+    answer(store, 2, 3);
+    for (const day of [1, 3, 7]) {
+      goTo(day);
+      answer(store, 2, 3);
+    }
+    // La veille, 8 autres calculs sont appris : ils sont tous à revoir à J21, plus que les 6 places du lot
+    goTo(20);
+    for (let b = 1; b <= 8; b++) {
+      listen(store, 1, b);
+      answer(store, 1, b);
+    }
+    goTo(21);
+
+    const engine = createRepetitionEngine(store, sessionConfig(3));
+    const lot = engine.startSession();
+
+    expect(lot.items).toHaveLength(6);
+    expect(lot.items[0].id).toBe("2x3");
+  });
+
   it("propose 8 nouveaux pour 15 minutes", () => {
     const engine = createRepetitionEngine(store, sessionConfig(15));
     expect(engine.startSession().newCount).toBe(8);
@@ -250,5 +457,6 @@ describe("lot de séance", () => {
     // Les 94 calculs hors lot sont restés intacts
     expect(store.getAll().filter((i) => i.seenCount === 0)).toHaveLength(94);
     expect(store.getCountsByStatus().mastered).toBe(0);
+    expect(store.getAll().every((i) => i.boxLevel <= 2)).toBe(true);
   });
 });

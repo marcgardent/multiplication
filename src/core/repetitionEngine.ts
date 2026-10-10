@@ -1,5 +1,5 @@
 import { MultiplicationItem, SessionConfig } from "../types";
-import { MatrixStore } from "./matrixStore";
+import { MatrixStore, MAX_BOX } from "./matrixStore";
 
 export interface SessionLot {
   items: MultiplicationItem[];
@@ -63,10 +63,15 @@ export function createRepetitionEngine(
     const now = Date.now();
 
     // Tri des révisions échues par urgence
-    // Priorité 1 : erreurs au statut review
-    // Priorité 2 : calculs dont l échéance est la plus dépassée
+    // Priorité 1 : calculs en Boîte 4, dont la révision du 21e jour donne le cadeau : elle ne doit jamais attendre
+    // Priorité 2 : erreurs au statut review
+    // Priorité 3 : boîtes les plus basses, puis échéance la plus dépassée
     const dueReviews = all.filter((i) => isItemDue(i, now));
     dueReviews.sort((a, b) => {
+      const aIsGiftReview = a.boxLevel === MAX_BOX - 1 ? 1 : 0;
+      const bIsGiftReview = b.boxLevel === MAX_BOX - 1 ? 1 : 0;
+      if (aIsGiftReview !== bIsGiftReview) return bIsGiftReview - aIsGiftReview;
+
       const aIsReview = a.status === "review" ? 1 : 0;
       const bIsReview = b.status === "review" ? 1 : 0;
       if (aIsReview !== bIsReview) return bIsReview - aIsReview;
@@ -189,7 +194,7 @@ export function createRepetitionEngine(
 
       // Pondération intelligente
       const weights = candidates.map((item) => {
-        let w = (5 - item.boxLevel) * 2;
+        let w = (MAX_BOX + 1 - item.boxLevel) * 2;
         if (item.status === "review") w *= 3;
         if (item.status === "discovery") w *= 2;
         if (isItemDue(item, now)) w *= 2;

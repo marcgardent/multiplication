@@ -6,8 +6,8 @@ export interface MultiplicationItem {
   b: number;
   result: number;
   status: ItemStatus;
-  boxLevel: number; // 0 à 4 pour répétition espacée Leitner
-  bestBoxLevel: number; // Plus haut palier jamais atteint : un cadeau gagné reste acquis
+  boxLevel: number; // Boîte 0 à 5, voir docs/progression-et-recompenses.md
+  giftEarned: boolean; // Cadeau gagné à la première arrivée en Boîte 5 : définitif, jamais repris
   seenCount: number;
   errorCount: number;
   successStreak: number;
@@ -16,7 +16,6 @@ export interface MultiplicationItem {
   lastReviewedAt: number | null;
   nextReviewAt: number | null;
   intervalDays: number;
-  easeFactor: number;
 }
 
 export interface AttemptLog {
