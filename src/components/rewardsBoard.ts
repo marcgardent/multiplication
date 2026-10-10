@@ -300,7 +300,7 @@ export function openRewardsBoardModal(
     giftSplash.querySelector("#btn-close-gift-splash")?.addEventListener("click", closeGiftSplash);
     giftSplash.querySelector("#btn-collect-gift")?.addEventListener("click", closeGiftSplash);
 
-    // L'opération est dite, puis la félicitation pendant le décompte ; les boutons viennent à la fin
+    // L'opération est dite, puis la félicitation, puis le décompte ; les boutons viennent à la fin
     runCelebration({
       root: giftSplash,
       audioService,

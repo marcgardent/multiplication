@@ -64,7 +64,7 @@ export function animateCounter(
 }
 
 // Séquence commune aux fenêtres de félicitation :
-// boutons masqués, opération dite, félicitation et décompte des points, puis boutons
+// boutons masqués, opération dite, félicitation, décompte des points, puis boutons
 export async function runCelebration(options: CelebrationOptions): Promise<void> {
   const { root, audioService, operation, cheer = false, points, leadInMs = 0 } = options;
   const openedAt = performance.now();
@@ -77,6 +77,7 @@ export async function runCelebration(options: CelebrationOptions): Promise<void>
   const reveal = () => {
     if (isRevealed) return;
     isRevealed = true;
+    badge?.classList.remove("is-counting");
     badge?.classList.add("is-counted");
     buttons.forEach((btn) => {
       btn.classList.remove("is-waiting");
@@ -92,15 +93,15 @@ export async function runCelebration(options: CelebrationOptions): Promise<void>
     await wait(leadInMs);
   }
 
-  if (root.isConnected) {
-    const speech = cheer ? audioService.playCheer() : Promise.resolve();
-    const counting = new Promise<void>((resolve) => {
-      if (!points || !points.element || points.to <= points.from) {
-        resolve();
-        return;
-      }
+  if (cheer && root.isConnected) await audioService.playCheer();
+
+  // Une chose à la fois : le décompte ne démarre qu'une fois la voix terminée
+  const pointsEl = points?.element;
+  if (root.isConnected && points && pointsEl && points.to > points.from) {
+    badge?.classList.add("is-counting");
+    await new Promise<void>((resolve) => {
       animateCounter(
-        points.element,
+        pointsEl,
         points.from,
         points.to,
         COUNT_DURATION_MS,
@@ -111,8 +112,10 @@ export async function runCelebration(options: CelebrationOptions): Promise<void>
         () => audioService.playPointTick()
       );
     });
-    const minimum = wait(Math.max(0, MIN_REVEAL_MS - (performance.now() - openedAt)));
-    await Promise.all([speech, counting, minimum]);
+  }
+
+  if (root.isConnected) {
+    await wait(Math.max(0, MIN_REVEAL_MS - (performance.now() - openedAt)));
   }
 
   clearTimeout(guard);

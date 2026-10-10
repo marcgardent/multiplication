@@ -227,7 +227,7 @@ export function openLuckyWheelModal(
     splashEl.querySelector("#btn-close-win")?.addEventListener("click", closeWinSplash);
     splashEl.querySelector("#btn-collect-win")?.addEventListener("click", closeWinSplash);
 
-    // L'opération est dite, puis la félicitation pendant le décompte ; les boutons viennent à la fin
+    // L'opération est dite, puis la félicitation, puis le décompte ; les boutons viennent à la fin
     runCelebration({
       root: splashEl,
       audioService,

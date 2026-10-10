@@ -36,14 +36,17 @@
       font-variant-numeric: tabular-nums;
     }
 
-    /* « +N » danse tant que les points ne sont pas décomptés, puis se pose */
+    /* « +N » danse pendant le décompte des points, puis se pose */
     .points-added-badge {
       @include pill;
       background: $gold-ink;
       color: $surface;
       font-size: $fs-body;
       font-weight: 600;
-      animation: badgeDance 0.9s ease-in-out infinite;
+
+      &.is-counting {
+        animation: badgeDance 0.9s ease-in-out infinite;
+      }
 
       &.is-counted {
         animation: badgeSettle 0.45s ease-out;
