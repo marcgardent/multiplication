@@ -2,6 +2,14 @@ export interface AudioManifest {
   questions: Record<string, { file: string; text: string; a: number; b: number }>;
   answers: Record<string, { file: string; text: string; val: number }>;
   cheers?: Record<string, { file: string; text: string }>;
+  phrases?: Record<string, { file: string; text: string }>;
+}
+
+export function resolveAudioUrl(path: string): string {
+  if (path.startsWith("/")) {
+    return `${import.meta.env.BASE_URL}${path.slice(1)}`;
+  }
+  return path;
 }
 
 export interface AudioService {
@@ -62,13 +70,6 @@ export function createAudioService(): AudioService {
     } catch (e) {
       console.warn("Erreur AudioContext tone", e);
     }
-  }
-
-  function resolveAudioUrl(path: string): string {
-    if (path.startsWith("/")) {
-      return `${import.meta.env.BASE_URL}${path.slice(1)}`;
-    }
-    return path;
   }
 
   function playAudioFile(url: string): Promise<void> {

@@ -14,6 +14,10 @@ import { openGoogleDriveModal } from "./components/googleDriveModal";
 import { renderSnapshotLoader } from "./components/snapshotLoaderScreen";
 import { importProfileData } from "./core/profileData";
 import { isTestProfile } from "./testing/snapshots";
+import { createWakeLockService } from "./services/wakeLockService";
+import { DEFAULT_TABLES, openTableSelectionModal } from "./components/tableSelectionModal";
+import { startListeningModal } from "./components/listeningModal";
+import { ListeningMode } from "./radio/listeningPlayer";
 import { SessionConfig, UserProfile } from "./types";
 
 export interface AppInstance {
@@ -23,6 +27,7 @@ export interface AppInstance {
 export function createApp(): AppInstance {
   const storage = createStorageService(STORAGE_NAMESPACE);
   const audio = createAudioService();
+  const wakeLock = createWakeLockService();
   const profileService: ProfileService = createProfileService(storage);
 
   // Les décors déjà débloqués avec d'anciens seuils restent acquis
@@ -46,7 +51,7 @@ export function createApp(): AppInstance {
 
   let currentTab: "home" | "carnet" | "snapshots" = "home";
   let rootElement: HTMLElement | null = null;
-  let selectedRevisionTables: Set<number> = new Set([2, 3]);
+  let selectedRevisionTables: number[] = DEFAULT_TABLES;
   // Titre du dernier snapshot chargé par le joueur de test, rappelé sur l'accueil
   const LAST_SNAPSHOT_KEY = "test_last_snapshot";
 
@@ -149,7 +154,34 @@ export function createApp(): AppInstance {
           </button>
         </div>
       </div>
+
+      <!-- Écoute sans joueur : ni points, ni progression -->
+      <div class="kids-menu-container">
+        <button type="button" class="kids-main-btn" id="btn-launch-radio">
+          <div class="btn-bubble">📻</div>
+          <div class="btn-text-block">
+            <span class="btn-title">Radio des tables</span>
+            <span class="btn-subtitle">Les multiplications en continu, même écran éteint</span>
+          </div>
+        </button>
+
+        <button type="button" class="kids-main-btn" id="btn-launch-brushing">
+          <div class="btn-bubble">🪥</div>
+          <div class="btn-text-block">
+            <span class="btn-title">Brossage de dents</span>
+            <span class="btn-subtitle">3 minutes de tables, l'écran reste allumé</span>
+          </div>
+        </button>
+      </div>
     `;
+
+    loginEl.querySelector("#btn-launch-radio")?.addEventListener("click", () => {
+      openListeningTablesModal("radio");
+    });
+
+    loginEl.querySelector("#btn-launch-brushing")?.addEventListener("click", () => {
+      openListeningTablesModal("brushing");
+    });
 
     // Clic sur un profil existant -> Connexion directe
     loginEl.querySelectorAll(".player-tile-btn:not(.btn-tile-add)").forEach((tile) => {
@@ -165,6 +197,19 @@ export function createApp(): AppInstance {
     });
 
     container.appendChild(loginEl);
+  }
+
+  // Choix des tables de la radio ou du brossage : chaque mode retient sa dernière sélection, hors de tout joueur
+  function openListeningTablesModal(mode: ListeningMode) {
+    const storageKey = `${mode}_tables`;
+    openTableSelectionModal({
+      selected: storage.get<number[]>(storageKey, DEFAULT_TABLES),
+      confirmLabel: mode === "radio" ? "Lancer la radio" : "Commencer le brossage",
+      onConfirm: (tables) => {
+        storage.set(storageKey, tables);
+        startListeningModal(mode, tables, wakeLock);
+      }
+    });
   }
 
   // Modale de création d'un joueur avec prénom et emoji animal
@@ -334,7 +379,7 @@ export function createApp(): AppInstance {
 
     // Bouton 2 : Révision tables
     homeEl.querySelector("#btn-launch-tables")?.addEventListener("click", () => {
-      openTableSelectionModal();
+      openRevisionTablesModal();
     });
 
     // Bouton 3 : Carnet de suivi
@@ -431,13 +476,20 @@ export function createApp(): AppInstance {
     modal.querySelector("#btn-start-guided-now")?.addEventListener("click", () => {
       modal.remove();
       const before = snapshotProgress();
+      const releaseScreen = wakeLock.keepAwake();
 
       startSessionModal(
         repetitionEngine,
         audio,
         sessionConfig,
-        (res) => showSessionBilan(before, res.actualPracticeTimeMs, false),
-        (cancelledTimeMs) => showSessionBilan(before, cancelledTimeMs, true)
+        (res) => {
+          releaseScreen();
+          showSessionBilan(before, res.actualPracticeTimeMs, false);
+        },
+        (cancelledTimeMs) => {
+          releaseScreen();
+          showSessionBilan(before, cancelledTimeMs, true);
+        }
       );
     });
 
@@ -445,92 +497,30 @@ export function createApp(): AppInstance {
   }
 
   // Modale Choix Tables (Révision tables)
-  function openTableSelectionModal() {
-    const modal = document.createElement("div");
-    modal.className = "session-modal-overlay";
+  function openRevisionTablesModal() {
+    openTableSelectionModal({
+      selected: selectedRevisionTables,
+      confirmLabel: "Valider et commencer",
+      onConfirm: (tables) => {
+        selectedRevisionTables = tables;
+        const before = snapshotProgress();
+        const releaseScreen = wakeLock.keepAwake();
 
-    function updateModalContent() {
-      const gridEl = modal.querySelector("#tables-modal-grid");
-      if (gridEl) {
-        gridEl.querySelectorAll(".btn-choice-table").forEach((btn) => {
-          const t = parseInt(btn.getAttribute("data-t") || "1", 10);
-          if (selectedRevisionTables.has(t)) {
-            btn.classList.add("selected");
-          } else {
-            btn.classList.remove("selected");
+        startEvaluationModal(
+          tables,
+          matrixStore,
+          audio,
+          (result) => {
+            releaseScreen();
+            showSessionBilan(before, result.actualPracticeTimeMs, false);
+          },
+          (cancelledTimeMs) => {
+            releaseScreen();
+            showSessionBilan(before, cancelledTimeMs, true);
           }
-        });
+        );
       }
-      const countEl = modal.querySelector("#count-selected-tables");
-      if (countEl) countEl.textContent = `${selectedRevisionTables.size * 10} calculs`;
-    }
-
-    modal.innerHTML = `
-      <div class="session-modal-container prompt-choice-modal">
-        <div class="prompt-header">
-          <h3>Choisis tes tables</h3>
-          <button type="button" class="btn-modal-close" id="btn-close-tables">✕</button>
-        </div>
-
-        <div class="choice-tables-grid" id="tables-modal-grid">
-          ${Array.from({ length: 10 }, (_, i) => i + 1)
-            .map(
-              (t) => `
-                <button type="button" class="btn-choice-table ${selectedRevisionTables.has(t) ? "selected" : ""}" data-t="${t}">
-                  Table de ${t}
-                </button>
-              `
-            )
-            .join("")}
-        </div>
-
-        <div class="choice-footer">
-          <button type="button" class="btn-choice-helper" id="btn-toggle-all">Toutes</button>
-          <button type="button" class="btn-confirm-launch" id="btn-start-tables-now">
-            Valider et commencer <span id="count-selected-tables">${selectedRevisionTables.size * 10} calculs</span>
-          </button>
-        </div>
-      </div>
-    `;
-
-    modal.querySelector("#btn-close-tables")?.addEventListener("click", () => modal.remove());
-
-    modal.querySelectorAll(".btn-choice-table").forEach((btn) => {
-      btn.addEventListener("click", (e) => {
-        const t = parseInt((e.currentTarget as HTMLElement).getAttribute("data-t") || "1", 10);
-        if (selectedRevisionTables.has(t)) {
-          if (selectedRevisionTables.size > 1) selectedRevisionTables.delete(t);
-        } else {
-          selectedRevisionTables.add(t);
-        }
-        updateModalContent();
-      });
     });
-
-    modal.querySelector("#btn-toggle-all")?.addEventListener("click", () => {
-      if (selectedRevisionTables.size === 10) {
-        selectedRevisionTables = new Set([2, 3]);
-      } else {
-        selectedRevisionTables = new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
-      }
-      updateModalContent();
-    });
-
-    modal.querySelector("#btn-start-tables-now")?.addEventListener("click", () => {
-      if (selectedRevisionTables.size === 0) return;
-      modal.remove();
-      const before = snapshotProgress();
-
-      startEvaluationModal(
-        Array.from(selectedRevisionTables).sort((a, b) => a - b),
-        matrixStore,
-        audio,
-        (result) => showSessionBilan(before, result.actualPracticeTimeMs, false),
-        (cancelledTimeMs) => showSessionBilan(before, cancelledTimeMs, true)
-      );
-    });
-
-    document.body.appendChild(modal);
   }
 
   function openDriveModal(): void {
@@ -601,6 +591,14 @@ export function createApp(): AppInstance {
     matrixView.mount(carnetContainer);
   }
 
+  // Bas des deux écrans d'accueil : la version installée
+  function renderVersion(container: HTMLElement) {
+    const versionEl = document.createElement("p");
+    versionEl.className = "app-version";
+    versionEl.textContent = `Version ${__APP_VERSION__}`;
+    container.appendChild(versionEl);
+  }
+
   function renderApp() {
     if (!rootElement) return;
     rootElement.innerHTML = "";
@@ -648,6 +646,7 @@ export function createApp(): AppInstance {
     // Si aucun joueur n'est connecté -> Afficher l'écran de Login avec (+)
     if (!activeProfile) {
       renderLoginScreen(content);
+      renderVersion(content);
       return;
     }
 
@@ -659,6 +658,7 @@ export function createApp(): AppInstance {
     // Si connecté -> Afficher l'accueil, le carnet ou les scénarios de test
     if (currentTab === "home") {
       renderKidsHome(content);
+      renderVersion(content);
     } else if (currentTab === "carnet") {
       renderCarnetView(content);
     } else {

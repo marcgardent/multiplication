@@ -136,6 +136,8 @@ stateDiagram-v2
 | Ouverture d'un cadeau | +25 |
 | Roue magique, 3 tours par jour | le résultat du calcul tiré, de 1 à 100 |
 
+La radio des tables et le brossage de dents se lancent sans joueur : ils ne donnent aucun point et ne déplacent aucun calcul d'une boîte à l'autre.
+
 Un décor est débloqué dès que le total de points atteint son seuil. Les points ne baissent jamais, donc un décor débloqué le reste.
 
 Les seuils sont réglés pour s'étaler sur tout le parcours d'une élève régulière qui joue **6 minutes par jour** (environ 650 points par jour) : un premier décor dès le lendemain, puis des attentes de plus en plus longues, le dernier vers le 100e jour, quand presque tous les cadeaux sont gagnés. Les jours ci-dessous viennent de la simulation (`make scenarios`), une séance par jour.

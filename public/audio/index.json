@@ -868,5 +868,15 @@
       "file": "/audio/cheer_hourra.mp3",
       "text": "Hourra !"
     }
+  },
+  "phrases": {
+    "brossage_debut": {
+      "file": "/audio/phrase_brossage_debut.mp3",
+      "text": "Début du brossage des dents."
+    },
+    "brossage_fin": {
+      "file": "/audio/phrase_brossage_fin.mp3",
+      "text": "Fin du brossage des dents."
+    }
   }
 }
