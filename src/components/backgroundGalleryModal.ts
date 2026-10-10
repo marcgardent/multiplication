@@ -1,4 +1,4 @@
-import { BACKGROUNDS, BackgroundItem, getActiveBackground, setActiveBackground } from "../core/backgrounds";
+import { BACKGROUNDS, BackgroundItem, countUnlockedBackgrounds, getActiveBackground, isBackgroundUnlocked, setActiveBackground } from "../core/backgrounds";
 import { MatrixStore } from "../core/matrixStore";
 import { UserProfile } from "../types";
 import { AudioService } from "../services/audioService";
@@ -21,11 +21,11 @@ export function openBackgroundGalleryModal(options: BackgroundGalleryOptions): v
 
   function renderGallery() {
     activeBg = getActiveBackground(profile.id);
-    const unlockedCount = BACKGROUNDS.filter((b) => currentPoints >= b.pointsRequired).length;
+    const unlockedCount = countUnlockedBackgrounds(profile.id, currentPoints);
 
     let cardsHtml = "";
     BACKGROUNDS.forEach((bg) => {
-      const isUnlocked = currentPoints >= bg.pointsRequired;
+      const isUnlocked = isBackgroundUnlocked(profile.id, bg, currentPoints);
       const isActive = bg.id === activeBg.id;
       const progressPct = Math.min(100, Math.round((currentPoints / bg.pointsRequired) * 100));
       const pointsLeft = Math.max(0, bg.pointsRequired - currentPoints);
@@ -72,7 +72,7 @@ export function openBackgroundGalleryModal(options: BackgroundGalleryOptions): v
         <div class="rewards-board-header">
           <div class="rewards-title-wrap">
             <h3>🖼️ Fonds d'Écran Magiques</h3>
-            <span class="rewards-count-badge">${unlockedCount} sur 10 débloqués</span>
+            <span class="rewards-count-badge">${unlockedCount} sur ${BACKGROUNDS.length} débloqués</span>
           </div>
           <button type="button" class="btn-modal-close" id="btn-close-bg-gallery" aria-label="Fermer">✕</button>
         </div>

@@ -1,4 +1,4 @@
-import { MatrixStore, isGiftUnlocked } from "../core/matrixStore";
+import { GIFT_OPEN_POINTS, MatrixStore, isGiftUnlocked } from "../core/matrixStore";
 import { AudioService } from "../services/audioService";
 import { UserProfile } from "../types";
 import { runCelebration } from "./celebration";
@@ -43,7 +43,7 @@ export function showRewardsFlow(options: RewardsFlowOptions): void {
 
   const allItems = matrixStore.getAll();
   const openedGifts = new Set(matrixStore.getOpenedGifts());
-  // Un cadeau se débloque à la réussite du lendemain
+  // Un cadeau se gagne à la révision du 21e jour
   const pendingGifts = allItems.filter((i) => isGiftUnlocked(i) && !openedGifts.has(i.id));
   const hasGiftsToDiscover = pendingGifts.length > 0;
 
@@ -204,7 +204,7 @@ export function openRewardsBoardModal(
           <button type="button" class="btn-modal-close" id="btn-close-rewards-board" aria-label="Fermer">✕</button>
         </div>
 
-        <p class="rewards-hint">Touche les paquets cadeaux 🎁 pour les ouvrir ! Tu en gagnes un quand tu réussis un calcul le lendemain.</p>
+        <p class="rewards-hint">Touche les paquets cadeaux 🎁 pour les ouvrir ! Tu en gagnes un quand tu réussis encore un calcul 21 jours après l'avoir appris.</p>
 
         <div class="rewards-grid-wrapper">
           <div class="rewards-grid-100">
@@ -262,7 +262,7 @@ export function openRewardsBoardModal(
     giftSplash.className = "session-modal-overlay gift-celebration-overlay";
 
     const oldPoints = matrixStore.getPoints();
-    const pointsGained = isFirstTime ? 25 : 0;
+    const pointsGained = isFirstTime ? GIFT_OPEN_POINTS : 0;
     const newPoints = isFirstTime ? matrixStore.addPoints(pointsGained) : oldPoints;
 
     giftSplash.innerHTML = `

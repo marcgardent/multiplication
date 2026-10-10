@@ -1,0 +1,95 @@
+@use "variables" as *;
+@use "mixins" as *;
+
+/* Écran du joueur de test : liste des états à charger */
+.snapshot-screen {
+  @include lifted;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  background: $ground;
+  border: 1px solid $line;
+  border-radius: $radius-card;
+}
+
+.snapshot-intro, .snapshot-status {
+  font-size: $fs-small;
+  color: $ink-soft;
+  line-height: 1.4;
+}
+
+.snapshot-status {
+  font-weight: 500;
+  color: $ink;
+}
+
+.snapshot-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.snapshot-card {
+  @include card;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+
+  h3 {
+    font-size: $fs-body;
+    font-weight: 600;
+  }
+
+  .snapshot-card-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .snapshot-day {
+    @include pill;
+    flex-shrink: 0;
+    background: $accent-soft;
+    color: $accent-ink;
+  }
+
+  .snapshot-learner {
+    font-size: $fs-caption;
+    color: $ink-soft;
+  }
+
+  .snapshot-description {
+    font-size: $fs-small;
+    line-height: 1.4;
+  }
+
+  .snapshot-summary {
+    padding: 8px 10px;
+    border-radius: $radius-control;
+    background: $ground;
+    font-size: $fs-caption;
+    color: $ink-soft;
+    line-height: 1.4;
+  }
+
+  .snapshot-checks {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin: 0;
+    padding-left: 18px;
+    font-size: $fs-small;
+    line-height: 1.4;
+    flex: 1;
+  }
+
+  .btn-load-snapshot {
+    @include btn-secondary;
+    align-self: flex-start;
+    min-height: 44px;
+    padding: 8px 18px;
+  }
+}

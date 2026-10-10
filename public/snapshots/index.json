@@ -1,0 +1,472 @@
+[
+  {
+    "id": "nouveau-joueur",
+    "title": "Nouveau joueur",
+    "day": "J0, avant tout",
+    "learner": "Personne n'a encore joué",
+    "description": "Profil vierge : les 100 calculs sont en Boîte 0.",
+    "checks": [
+      "La révision guidée fait écouter 4 calculs",
+      "0 cadeau, 1 décor sur 14"
+    ],
+    "order": 0,
+    "capturedAt": "2026-01-05T08:00:00.000Z",
+    "summary": {
+      "points": 0,
+      "giftsEarned": 0,
+      "giftsToOpen": 0,
+      "dueCount": 0,
+      "boxes": [
+        100,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "id": "j01-premiere-revision",
+    "title": "Première révision",
+    "day": "J1, matin",
+    "learner": "Élève régulière, 6 min par jour",
+    "description": "Les calculs réussis hier sont en Boîte 1 et échus aujourd'hui.",
+    "checks": [
+      "La séance les fait passer en Boîte 2",
+      "Ils ne sont pas réécoutés avant d'être interrogés",
+      "Toujours 0 cadeau à la fin"
+    ],
+    "order": 1,
+    "capturedAt": "2026-01-06T08:00:00.000Z",
+    "summary": {
+      "points": 610,
+      "giftsEarned": 0,
+      "giftsToOpen": 0,
+      "dueCount": 4,
+      "boxes": [
+        97,
+        3,
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "id": "decor-ete-imminent",
+    "title": "Décor Été à portée",
+    "day": "J1, en cours de séance",
+    "learner": "Élève régulière, 6 min par jour",
+    "description": "Il manque 15 points au plus pour débloquer Été, le premier décor à gagner.",
+    "checks": [
+      "Décors : Été est verrouillé, « Encore N points nécessaires »",
+      "Une ou deux bonnes réponses en Révision tables",
+      "Décors : Été est débloqué, 2 sur 14"
+    ],
+    "order": 2,
+    "capturedAt": "2026-01-06T08:04:36.960Z",
+    "summary": {
+      "points": 990,
+      "giftsEarned": 0,
+      "giftsToOpen": 0,
+      "dueCount": 1,
+      "boxes": [
+        93,
+        5,
+        2,
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "id": "decor-ete-debloque",
+    "title": "Décor Été tout juste débloqué",
+    "day": "J1, en cours de séance",
+    "learner": "Élève régulière, 6 min par jour",
+    "description": "Le seuil du décor Été vient d'être atteint, le décor n'est pas encore choisi.",
+    "checks": [
+      "Accueil : Décors 2 sur 14",
+      "Décors : Été propose « Choisir ce fond »",
+      "Le fond change et reste après rechargement"
+    ],
+    "order": 3,
+    "capturedAt": "2026-01-06T08:04:40.907Z",
+    "summary": {
+      "points": 1000,
+      "giftsEarned": 0,
+      "giftsToOpen": 0,
+      "dueCount": 1,
+      "boxes": [
+        93,
+        5,
+        2,
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "id": "j03-revision",
+    "title": "Révision du 3e jour",
+    "day": "J3, matin",
+    "learner": "Élève régulière, 6 min par jour",
+    "description": "Les calculs appris à J0 sont en Boîte 2 et échus aujourd'hui.",
+    "checks": [
+      "La séance les fait passer en Boîte 3, prochaine révision dans 4 jours",
+      "Toujours 0 cadeau"
+    ],
+    "order": 4,
+    "capturedAt": "2026-01-08T08:00:00.000Z",
+    "summary": {
+      "points": 1810,
+      "giftsEarned": 0,
+      "giftsToOpen": 0,
+      "dueCount": 7,
+      "boxes": [
+        90,
+        3,
+        7,
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "id": "j07-revision",
+    "title": "Révision du 7e jour",
+    "day": "J7, matin",
+    "learner": "Élève régulière, 6 min par jour",
+    "description": "Les calculs appris à J0 sont en Boîte 3 et échus aujourd'hui.",
+    "checks": [
+      "La séance les fait passer en Boîte 4, prochaine révision dans 14 jours",
+      "Toujours 0 cadeau"
+    ],
+    "order": 5,
+    "capturedAt": "2026-01-12T08:00:00.000Z",
+    "summary": {
+      "points": 4260,
+      "giftsEarned": 0,
+      "giftsToOpen": 0,
+      "dueCount": 9,
+      "boxes": [
+        80,
+        3,
+        7,
+        10,
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "id": "roue-epuisee",
+    "title": "Roue épuisée",
+    "day": "J10, soir",
+    "learner": "Élève régulière, 6 min par jour",
+    "description": "Les 3 tours de roue du jour sont utilisés.",
+    "checks": [
+      "Accueil : la carte Roue Magique affiche « Demain »",
+      "La roue ne se lance plus"
+    ],
+    "order": 6,
+    "capturedAt": "2026-01-15T08:06:10.593Z",
+    "summary": {
+      "points": 6759,
+      "giftsEarned": 0,
+      "giftsToOpen": 0,
+      "dueCount": 4,
+      "boxes": [
+        77,
+        2,
+        2,
+        10,
+        9,
+        0
+      ]
+    }
+  },
+  {
+    "id": "j20-avant-cadeau",
+    "title": "Veille du cadeau",
+    "day": "J20, soir",
+    "learner": "Élève régulière, 6 min par jour",
+    "description": "Vingt jours de séances, des calculs en Boîte 4, et toujours aucun cadeau.",
+    "checks": [
+      "Accueil : Mes Cadeaux 0 sur 100",
+      "Une Révision tables réussie aujourd'hui ne donne pas de cadeau"
+    ],
+    "order": 7,
+    "capturedAt": "2026-01-25T08:06:09.310Z",
+    "summary": {
+      "points": 12829,
+      "giftsEarned": 0,
+      "giftsToOpen": 0,
+      "dueCount": 3,
+      "boxes": [
+        59,
+        1,
+        5,
+        9,
+        26,
+        0
+      ]
+    }
+  },
+  {
+    "id": "j21-jour-du-cadeau",
+    "title": "Le jour du cadeau",
+    "day": "J21, matin",
+    "learner": "Élève régulière, 6 min par jour",
+    "description": "Les calculs appris à J0 sont en Boîte 4 et échus aujourd'hui : la séance du jour donne les premiers cadeaux.",
+    "checks": [
+      "Accueil avant la séance : 0 cadeau",
+      "Révision guidée : à la fin, « cadeaux à ouvrir »",
+      "Carnet : ces calculs sont maîtrisés, Boîte 5"
+    ],
+    "order": 8,
+    "capturedAt": "2026-01-26T08:00:00.000Z",
+    "summary": {
+      "points": 12829,
+      "giftsEarned": 0,
+      "giftsToOpen": 0,
+      "dueCount": 12,
+      "boxes": [
+        59,
+        1,
+        5,
+        9,
+        26,
+        0
+      ]
+    }
+  },
+  {
+    "id": "j21-cadeaux-a-ouvrir",
+    "title": "Cadeaux à ouvrir",
+    "day": "J21, soir",
+    "learner": "Élève régulière, 6 min par jour",
+    "description": "Les premiers cadeaux sont gagnés, aucun n'est ouvert.",
+    "checks": [
+      "Mes Cadeaux : des paquets à ouvrir",
+      "Ouvrir un paquet : +25 points",
+      "Le paquet ouvert le reste après rechargement"
+    ],
+    "order": 9,
+    "capturedAt": "2026-01-26T08:06:12.166Z",
+    "summary": {
+      "points": 13539,
+      "giftsEarned": 2,
+      "giftsToOpen": 2,
+      "dueCount": 4,
+      "boxes": [
+        58,
+        3,
+        2,
+        10,
+        25,
+        2
+      ]
+    }
+  },
+  {
+    "id": "cadeau-garde-apres-echec",
+    "title": "Cadeau gardé après un échec",
+    "day": "J22, matin",
+    "learner": "Élève régulière, 6 min par jour",
+    "description": "Un cadeau a été ouvert, puis son calcul a été raté : il est retombé en Boîte 0.",
+    "checks": [
+      "Carnet : le calcul est « à revoir », Boîte 0",
+      "Mes Cadeaux : son cadeau est toujours ouvert",
+      "Les autres cadeaux gagnés sont toujours à ouvrir"
+    ],
+    "order": 10,
+    "capturedAt": "2026-01-27T08:00:02.706Z",
+    "summary": {
+      "points": 13564,
+      "giftsEarned": 2,
+      "giftsToOpen": 1,
+      "dueCount": 14,
+      "boxes": [
+        59,
+        3,
+        2,
+        10,
+        25,
+        1
+      ]
+    }
+  },
+  {
+    "id": "j42-entretien",
+    "title": "Révision d'entretien",
+    "day": "J42, matin",
+    "learner": "Élève régulière, 6 min par jour",
+    "description": "Les calculs maîtrisés à J21 sont de nouveau échus, 21 jours plus tard.",
+    "checks": [
+      "La séance les interroge",
+      "Réussis, ils restent en Boîte 5 pour 21 jours",
+      "Ratés, ils retombent en Boîte 0 et gardent leur cadeau"
+    ],
+    "order": 11,
+    "capturedAt": "2026-02-16T08:00:00.000Z",
+    "summary": {
+      "points": 27444,
+      "giftsEarned": 35,
+      "giftsToOpen": 34,
+      "dueCount": 9,
+      "boxes": [
+        37,
+        2,
+        6,
+        7,
+        16,
+        32
+      ]
+    }
+  },
+  {
+    "id": "erreurs-a-reviser",
+    "title": "Erreurs à revoir",
+    "day": "Fin d'une séance difficile",
+    "learner": "Élève en difficulté, 3 min par jour",
+    "description": "Plusieurs calculs viennent d'être ratés : ils sont en Boîte 0 et reviennent dans 10 minutes.",
+    "checks": [
+      "Carnet : calculs « à revoir »",
+      "La révision guidée les fait réécouter",
+      "Une réussite tout de suite ne les fait pas monter, 10 minutes plus tard si"
+    ],
+    "order": 12,
+    "capturedAt": "2026-01-05T08:03:03.680Z",
+    "summary": {
+      "points": 145,
+      "giftsEarned": 0,
+      "giftsToOpen": 0,
+      "dueCount": 4,
+      "boxes": [
+        100,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "id": "revisions-saturees",
+    "title": "Révisions saturées",
+    "day": "Matin",
+    "learner": "Élève en difficulté, 3 min par jour",
+    "description": "Les révisions échues remplissent toute une séance de 3 minutes : aucun nouveau calcul n'entre.",
+    "checks": [
+      "Carnet : alerte de file de révisions pleine",
+      "Révision guidée de 3 minutes : rien de nouveau à écouter"
+    ],
+    "order": 13,
+    "capturedAt": "2026-01-07T08:00:00.000Z",
+    "summary": {
+      "points": 300,
+      "giftsEarned": 0,
+      "giftsToOpen": 0,
+      "dueCount": 6,
+      "boxes": [
+        99,
+        1,
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "id": "retour-apres-absence",
+    "title": "Retour après deux semaines d'absence",
+    "day": "J24, matin",
+    "learner": "Élève régulière jusqu'à J9, puis absente",
+    "description": "Dix jours de séances, puis plus rien pendant deux semaines : tout est en retard.",
+    "checks": [
+      "Carnet : beaucoup de calculs à réviser aujourd'hui",
+      "Chaque calcul réussi ne monte que d'une boîte",
+      "L'attente suivante repart d'aujourd'hui"
+    ],
+    "order": 14,
+    "capturedAt": "2026-01-29T08:00:00.000Z",
+    "summary": {
+      "points": 5990,
+      "giftsEarned": 0,
+      "giftsToOpen": 0,
+      "dueCount": 23,
+      "boxes": [
+        78,
+        2,
+        5,
+        11,
+        4,
+        0
+      ]
+    }
+  },
+  {
+    "id": "presque-fini",
+    "title": "Presque fini",
+    "day": "Matin",
+    "learner": "Élève rapide, 15 min par jour",
+    "description": "Au moins 95 calculs sont en Boîte 5.",
+    "checks": [
+      "Mes Cadeaux : presque tout est gagné",
+      "Décors : tous débloqués",
+      "Carnet : il reste quelques calculs en cours"
+    ],
+    "order": 15,
+    "capturedAt": "2026-02-16T08:00:00.000Z",
+    "summary": {
+      "points": 151795,
+      "giftsEarned": 98,
+      "giftsToOpen": 8,
+      "dueCount": 3,
+      "boxes": [
+        0,
+        0,
+        0,
+        0,
+        2,
+        98
+      ]
+    }
+  },
+  {
+    "id": "tout-maitrise",
+    "title": "Tout est maîtrisé",
+    "day": "Soir",
+    "learner": "Élève rapide, 15 min par jour",
+    "description": "Les 100 calculs sont en Boîte 5.",
+    "checks": [
+      "Mes Cadeaux : 100 sur 100",
+      "La révision guidée se lance quand même",
+      "Carnet : 100 maîtrisés"
+    ],
+    "order": 16,
+    "capturedAt": "2026-02-19T08:15:01.031Z",
+    "summary": {
+      "points": 167885,
+      "giftsEarned": 100,
+      "giftsToOpen": 10,
+      "dueCount": 0,
+      "boxes": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        100
+      ]
+    }
+  }
+]

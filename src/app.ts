@@ -8,9 +8,12 @@ import { startSessionModal } from "./components/sessionModal";
 import { startEvaluationModal } from "./components/evaluationModal";
 import { showRewardsFlow, openRewardsBoardModal } from "./components/rewardsBoard";
 import { openLuckyWheelModal } from "./components/luckyWheel";
-import { initAppBackground, applyAppBackground, BACKGROUNDS } from "./core/backgrounds";
+import { initAppBackground, applyAppBackground, BACKGROUNDS, countUnlockedBackgrounds, keepUnlockedBackgrounds } from "./core/backgrounds";
 import { openBackgroundGalleryModal } from "./components/backgroundGalleryModal";
 import { openGoogleDriveModal } from "./components/googleDriveModal";
+import { renderSnapshotLoader } from "./components/snapshotLoaderScreen";
+import { importProfileData } from "./core/profileData";
+import { isTestProfile } from "./testing/snapshots";
 import { SessionConfig, UserProfile } from "./types";
 
 export interface AppInstance {
@@ -21,6 +24,9 @@ export function createApp(): AppInstance {
   const storage = createStorageService(STORAGE_NAMESPACE);
   const audio = createAudioService();
   const profileService: ProfileService = createProfileService(storage);
+
+  // Les décors déjà débloqués avec d'anciens seuils restent acquis
+  profileService.getProfiles().forEach((p) => keepUnlockedBackgrounds(p.id));
 
   let activeProfile: UserProfile | null = profileService.getActiveProfile();
   let matrixStore: MatrixStore = createMatrixStore(storage, activeProfile ? activeProfile.id : "guest");
@@ -38,14 +44,17 @@ export function createApp(): AppInstance {
 
   let repetitionEngine = createRepetitionEngine(matrixStore, sessionConfig);
 
-  let currentTab: "home" | "carnet" = "home";
+  let currentTab: "home" | "carnet" | "snapshots" = "home";
   let rootElement: HTMLElement | null = null;
   let selectedRevisionTables: Set<number> = new Set([2, 3]);
+  // Titre du dernier snapshot chargé par le joueur de test, rappelé sur l'accueil
+  const LAST_SNAPSHOT_KEY = "test_last_snapshot";
 
   // Synchronisation si le profil actif change
   profileService.subscribe((newActive: UserProfile | null) => {
     activeProfile = newActive;
     if (newActive) {
+      keepUnlockedBackgrounds(newActive.id);
       matrixStore.setProfile(newActive.id);
       repetitionEngine = createRepetitionEngine(matrixStore, sessionConfig);
       initAppBackground(newActive.id);
@@ -223,7 +232,8 @@ export function createApp(): AppInstance {
     const spinsLeft = matrixStore.getDailyWheelSpinsLeft();
     const unlockedCount = matrixStore.getAll().filter(isGiftUnlocked).length;
     const currentPoints = matrixStore.getPoints();
-    const unlockedBgsCount = BACKGROUNDS.filter((b) => currentPoints >= b.pointsRequired).length;
+    const unlockedBgsCount = activeProfile ? countUnlockedBackgrounds(activeProfile.id, currentPoints) : 1;
+    const lastSnapshotTitle = storage.get<string>(LAST_SNAPSHOT_KEY, "");
 
     homeEl.innerHTML = `
       <div class="kids-menu-container">
@@ -253,6 +263,20 @@ export function createApp(): AppInstance {
             <span class="btn-subtitle">Scores, temps et progression</span>
           </div>
         </button>
+        ${
+          isTestProfile(activeProfile)
+            ? `
+              <!-- Joueur de test uniquement : charger un état enregistré -->
+              <button type="button" class="kids-main-btn" id="btn-open-snapshots">
+                <div class="btn-bubble">🧪</div>
+                <div class="btn-text-block">
+                  <span class="btn-title">Scénarios de test</span>
+                  <span class="btn-subtitle">${lastSnapshotTitle ? `Chargé : ${lastSnapshotTitle}` : "Charger un état enregistré"}</span>
+                </div>
+              </button>
+            `
+            : ""
+        }
       </div>
 
       <!-- Bandeau Gamification : Roue, Récompenses et Décors -->
@@ -277,7 +301,7 @@ export function createApp(): AppInstance {
           <div class="card-icon-bg">🖼️</div>
           <div class="card-text">
             <span class="card-heading">Décors</span>
-            <span class="card-detail">${unlockedBgsCount} sur 10</span>
+            <span class="card-detail">${unlockedBgsCount} sur ${BACKGROUNDS.length}</span>
           </div>
         </button>
       </div>
@@ -316,6 +340,11 @@ export function createApp(): AppInstance {
     // Bouton 3 : Carnet de suivi
     homeEl.querySelector("#btn-open-carnet")?.addEventListener("click", () => {
       currentTab = "carnet";
+      renderApp();
+    });
+
+    homeEl.querySelector("#btn-open-snapshots")?.addEventListener("click", () => {
+      currentTab = "snapshots";
       renderApp();
     });
 
@@ -521,6 +550,28 @@ export function createApp(): AppInstance {
     });
   }
 
+  // Écran du joueur de test : le snapshot choisi remplace toute sa progression
+  function renderSnapshotsView(container: HTMLElement) {
+    const profile = activeProfile;
+    if (!profile) return;
+
+    renderSnapshotLoader(container, {
+      onLoad: (data, snapshot) => {
+        importProfileData(storage, profile.id, data);
+        storage.set(LAST_SNAPSHOT_KEY, snapshot.title);
+        matrixStore.reload();
+        repetitionEngine = createRepetitionEngine(matrixStore, sessionConfig);
+        initAppBackground(profile.id);
+        currentTab = "home";
+        renderApp();
+      },
+      onBack: () => {
+        currentTab = "home";
+        renderApp();
+      }
+    });
+  }
+
   // --- 3. CARNET DE SUIVI ESPACE PARENT ---
   function renderCarnetView(container: HTMLElement) {
     container.innerHTML = "";
@@ -600,11 +651,18 @@ export function createApp(): AppInstance {
       return;
     }
 
-    // Si connecté -> Afficher l'accueil ou le carnet
+    // L'écran des scénarios n'existe que pour le joueur de test
+    if (currentTab === "snapshots" && !isTestProfile(activeProfile)) {
+      currentTab = "home";
+    }
+
+    // Si connecté -> Afficher l'accueil, le carnet ou les scénarios de test
     if (currentTab === "home") {
       renderKidsHome(content);
-    } else {
+    } else if (currentTab === "carnet") {
       renderCarnetView(content);
+    } else {
+      renderSnapshotsView(content);
     }
   }
 

@@ -20,7 +20,7 @@ https://marcgardent.github.io/multiplication/
      - ⚪ **Inconnu** : non encore abordé.
      - 🔵 **Découverte** : en cours d'écoute ou introduit récemment.
      - 🟠 **Révision** : erreur commise ou temps de réponse lent.
-     - 🟢 **Maîtrisé** : réussi consécutivement avec rapidité.
+     - 🟢 **Maîtrisé** : réussi aux révisions de J1, J3, J7 et J21 ; le cadeau du calcul est alors gagné pour de bon (voir [`docs/progression-et-recompenses.md`](docs/progression-et-recompenses.md)).
    - Fiche détaillée consultable au toucher pour chaque calcul.
 
 3. **Algorithme de Répétition Espacée avec Régulation de Surcharge (*Backpressure*)** :
@@ -49,3 +49,15 @@ https://marcgardent.github.io/multiplication/
 | `make dev` | Démarre le serveur de développement Vite |
 | `make build` | Compile TypeScript + SCSS + PWA pour la production (`dist/`) |
 | `make preview` | Prévisualise le build de production localement |
+| `make test` | Lance les tests des règles de progression : un test par flèche du graphe des boîtes |
+| `make scenarios` | Fait jouer des élèves simulés sur plusieurs semaines et régénère `public/snapshots/` |
+
+## 🧪 Tests et scénarios
+
+Les règles (boîtes, jours de révision, cadeau, points) sont décrites dans [`docs/progression-et-recompenses.md`](docs/progression-et-recompenses.md). Ce document fait référence : on le modifie avant le code.
+
+- **`make test`** vérifie chaque transition du graphe avec une horloge simulée.
+- **`make scenarios`** joue les scénarios du dossier `scenarios/` : des élèves simulés (régulière, en difficulté, rapide, absente) enchaînent de vraies séances à travers le store et le moteur, jour après jour. Chaque scénario vérifie ses invariants (aucun cadeau avant le 21e jour, jamais plus d'une boîte par jour, aucun cadeau repris) et enregistre l'état du joueur aux moments clés dans `public/snapshots/`. La sortie est identique d'un lancement à l'autre : un diff dans `public/snapshots/` signale un changement de comportement.
+- **Dans l'application**, créer un joueur nommé `@test-ci` : un bouton « Scénarios de test » apparaît sur son accueil et charge n'importe lequel de ces états dans son profil, recalé sur la date du jour. On teste ainsi « le jour du cadeau » ou « un décor sur le point d'être débloqué » sans attendre.
+
+Pour ajouter un état : une entrée dans `scenarios/catalog.ts`, un appel `capture(world, "id")` dans un scénario, puis `make scenarios`.

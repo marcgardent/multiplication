@@ -35,7 +35,9 @@ export default defineConfig({
         ]
       },
       workbox: {
-        globPatterns: ["**/*.{js,css,html,svg,png,ico,mp3,json,woff2}"],
+        globPatterns: ["**/*.{js,css,html,svg,png,ico,mp3,json,woff2,webp}"],
+        // Les snapshots de test se chargent à la demande : inutile de les mettre en cache hors-ligne
+        globIgnores: ["**/snapshots/**"],
         maximumFileSizeToCacheInBytes: 15 * 1024 * 1024
       }
     })

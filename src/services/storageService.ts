@@ -55,3 +55,23 @@ export function createStorageService(namespace = "multiplication_app_v1"): Stora
     }
   };
 }
+
+// Stockage en mémoire, pour les tests et les scénarios joués hors navigateur
+export function createMemoryStorage(): StorageService {
+  const data = new Map<string, string>();
+  return {
+    get<T>(key: string, defaultValue: T): T {
+      const raw = data.get(key);
+      return raw === undefined ? defaultValue : (JSON.parse(raw) as T);
+    },
+    set<T>(key: string, value: T): void {
+      data.set(key, JSON.stringify(value));
+    },
+    remove(key: string): void {
+      data.delete(key);
+    },
+    clear(): void {
+      data.clear();
+    }
+  };
+}

@@ -98,7 +98,7 @@ export function createMatrixView(
         </div>
         <div class="modal-body">
           <div class="status-badge ${st.class}">
-            ${st.icon} ${st.label} — Palier ${item.boxLevel} sur 4
+            ${st.icon} ${st.label} — Boîte ${item.boxLevel} sur 5
           </div>
           <div class="stats-grid">
             <div class="stat-item">
@@ -236,7 +236,7 @@ export function createMatrixView(
               <div class="guide-step-item">
                 <span class="step-num-badge">1</span>
                 <div class="step-desc">
-                  <strong>Paliers temporels réels</strong> : Chaque calcul dispose d un calendrier précis. Après une erreur, la révision a lieu 10 minutes plus tard, puis l intervalle s élargit à 1 jour, 3 jours, 7 jours et jusqu à 21 jours pour une maîtrise durable. Un calcul ne franchit un palier que le jour prévu : le réussir plusieurs fois dans la même séance l'entraîne, sans le faire monter plus vite.
+                  <strong>Révisions à jours fixes</strong> : Un calcul réussi pour la première fois se révise le lendemain, puis au 3e, au 7e et au 21e jour. Réussi ce 21e jour, il est maîtrisé et son cadeau est gagné pour de bon. Après une erreur, il revient 10 minutes plus tard et son calendrier repart du début. Un calcul ne change de boîte que le jour prévu : le réussir plusieurs fois dans la même séance l'entraîne, sans le faire monter plus vite.
                 </div>
               </div>
               <div class="guide-step-item">

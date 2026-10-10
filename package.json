@@ -5,12 +5,14 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "tsc && tsc -p scenarios && vite build",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "scenarios": "vitest run --config vitest.scenarios.config.ts"
   },
   "devDependencies": {
     "@fontsource-variable/lexend": "^5.3.0",
+    "@types/node": "^24.19.2",
     "sass-embedded": "^1.83.4",
     "typescript": "^5.7.3",
     "vite": "^6.0.7",
