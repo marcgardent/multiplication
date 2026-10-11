@@ -101,6 +101,10 @@ Un téléphone met en veille une page que personne ne touche, ce qui coupait les
 - **Garder l'écran allumé** (révision guidée, révision des tables, brossage de dents) : [`src/services/wakeLockService.ts`](src/services/wakeLockService.ts) demande un verrou d'écran (Screen Wake Lock) pendant l'activité et le rend à la fin. Le système le retire quand l'application passe en arrière-plan ; il est repris à son retour. Un téléphone en économie d'énergie peut le refuser : l'activité continue, l'écran suit alors la veille normale.
 - **Continuer écran éteint** (radio, et brossage si le verrou est refusé) : [`src/radio/`](src/radio/) décode les voix une fois, puis assemble questions, silences et réponses en **un seul son continu** de plusieurs minutes, joué par un unique lecteur audio. Le téléphone le traite comme une musique : rien ne dépend d'une minuterie, que la veille ralentit ou arrête. La radio enchaîne des morceaux d'environ 2 min 30, le suivant étant prêt avant la fin du précédent. Pause, lecture et arrêt sont proposés sur l'écran verrouillé (Media Session).
 
+## ◀️ Bouton retour du téléphone
+
+Dans l'application installée, le bouton retour du téléphone fermait l'application, en pleine séance. [`src/services/backGuardService.ts`](src/services/backGuardService.ts) le neutralise : il ne fait plus rien. On quitte l'application par le bouton ou le geste d'accueil du téléphone. Ouverte dans un onglet du navigateur, l'application laisse le bouton retour tranquille.
+
 ## 🔄 Mises à jour et version
 
 - La version affichée en bas des écrans d'accueil est celle de `package.json` : la changer avec `npm version <x.y.z> --no-git-tag-version` avant de publier.
