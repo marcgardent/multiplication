@@ -12,9 +12,12 @@ export interface KeypadOptions {
   onSubmit?: (value: string) => void;
   onHelp?: () => void;
   showHelpButton?: boolean;
+  // Nombre de chiffres acceptés : 3 par défaut, le plus grand résultat étant 100
+  maxLength?: number;
 }
 
 export function createKeypad(options: KeypadOptions = {}): KeypadComponent {
+  const maxLength = options.maxLength ?? 3;
   let currentValue = "";
   let isEnabled = true;
   let element: HTMLElement | null = null;
@@ -63,8 +66,7 @@ export function createKeypad(options: KeypadOptions = {}): KeypadComponent {
           btn.textContent = k;
           btn.addEventListener("click", () => {
             if (!isEnabled) return;
-            // Limiter la taille à 4 chiffres (max 100)
-            if (currentValue.length >= 3) return;
+            if (currentValue.length >= maxLength) return;
             currentValue += k;
             options.onInput?.(k, currentValue);
           });
@@ -83,7 +85,7 @@ export function createKeypad(options: KeypadOptions = {}): KeypadComponent {
   function handleKeyDown(e: KeyboardEvent) {
     if (!isEnabled) return;
     if (e.key >= "0" && e.key <= "9") {
-      if (currentValue.length >= 3) return;
+      if (currentValue.length >= maxLength) return;
       currentValue += e.key;
       options.onInput?.(e.key, currentValue);
     } else if (e.key === "Backspace") {

@@ -72,6 +72,14 @@ Le site compte quatre pages, construites ensemble par Vite :
 
 **Toute modification de ce que l'application enregistre ou envoie doit être reportée dans `confidentialite.html`.**
 
+### Espace parent
+
+Sur l'écran des joueurs, l'entrée « Espace parent » regroupe ce qui ne regarde pas les enfants : la sauvegarde et la suppression d'un joueur. Le bouton ☁️ de l'en-tête y mène aussi.
+
+- Il est protégé par un **code à 4 chiffres** choisi à la première entrée ([`src/components/parentGate.ts`](src/components/parentGate.ts)). Seule l'empreinte du code est enregistrée, sur l'appareil, hors de la sauvegarde. Trois codes faux bloquent le clavier 30 secondes.
+- Code oublié : un calcul hors de portée d'un enfant, comme 47 × 68, permet d'en choisir un nouveau.
+- Supprimer un joueur efface sa progression, ses points, ses cadeaux et ses décors, sur l'appareil puis dans la sauvegarde et sur les autres appareils. C'est définitif.
+
 ### Sauvegarde Google Drive
 
 L'identifiant OAuth est dans [`src/services/googleDriveService.ts`](src/services/googleDriveService.ts) : l'utilisateur n'a rien à saisir. Cet identifiant est public par nature. Dans la console Google Cloud, il faut autoriser les origines JavaScript `https://marcgardent.github.io` et, pour le développement, `http://localhost:5173`. La seule autorisation demandée est `drive.appdata`, le dossier caché de l'application.

@@ -19,6 +19,7 @@ Limite assumée : un appareil écrasé dans cette fenêtre d'environ une seconde
 | Donnée | Règle | Exemple |
 |---|---|---|
 | Liste des joueurs | réunion, par identifiant | Léa créée sur A, Tom sur B : Léa et Tom |
+| Joueur supprimé | supprimé partout, définitivement : la suppression l'emporte sur tout progrès fait ailleurs | Tom supprimé sur A pendant qu'il jouait sur B : Tom disparaît des deux |
 | Points, temps d'entraînement | somme des progrès de chaque appareil | 1000 au départ, +200 sur A, +300 sur B : 1500 |
 | État d'un calcul : boîte, échéance, statistiques | celui de l'appareil qui a travaillé ce calcul en dernier | échec lundi sur A, réussite mardi sur B : état de B |
 | Cadeau gagné | gagné sur un appareil, gagné partout ; jamais repris | |
@@ -27,6 +28,8 @@ Limite assumée : un appareil écrasé dans cette fenêtre d'environ une seconde
 | Roue du jour | le jour le plus récent ; le même jour, le plus grand nombre de tours utilisés | |
 | Réglages : durée de séance, tables de la radio et du brossage, décor choisi | le plus récemment modifié | |
 | Joueur connecté, dernier scénario de test | propre à chaque appareil, jamais fusionné | |
+
+Un joueur se supprime dans l'espace parent, après confirmation. L'application garde la liste des joueurs supprimés : c'est elle qui empêche un autre appareil de le faire revenir à la fusion suivante.
 
 Conséquences acceptées :
 

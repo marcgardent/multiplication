@@ -45,6 +45,8 @@ export interface CloudSyncDeps {
   drive: CloudDrive;
   exportBackup(): AppDataBackup;
   importBackup(backup: AppDataBackup): void;
+  // Retire de l'appareil des données qui n'existent plus : celles d'un joueur supprimé depuis un autre appareil
+  removeKeys?(fullKeys: string[]): void;
   hash(text: string): Promise<string>;
   isOnline(): boolean;
   // Une séance est en cours : une fusion modifierait les données sous les pieds de l'enfant, elle attend
@@ -265,6 +267,8 @@ export function createCloudSync(deps: CloudSyncDeps): CloudSync {
     if (hasNewsForDevice) {
       settings.set("merging", true);
       deps.importBackup({ version: 2, appName: "multiplication-pwa", exportedAt: Date.now(), data: merged.data });
+      const removed = Object.keys(local.data).filter((key) => !(key in merged.data));
+      if (removed.length > 0) deps.removeKeys?.(removed);
     }
     settings.set("counters", merged.sync.counters);
     settings.set("times", merged.sync.times);
@@ -445,7 +449,10 @@ export function createCloudSync(deps: CloudSyncDeps): CloudSync {
       const remote = await drive.find(token);
       if (!remote) throw new Error("Aucune sauvegarde dans votre Google Drive");
       const backup = await drive.download(token, remote.id);
+      // Remplacement complet : ce que la sauvegarde n'a pas disparaît de l'appareil, sauf ce qui lui est propre
+      const removed = Object.keys(deps.exportBackup().data).filter((key) => !(key in backup.data) && familyOf(key) !== "device");
       deps.importBackup(backup);
+      if (removed.length > 0) deps.removeKeys?.(removed);
 
       // L'appareil rejoint la lignée du Drive et repart de sa répartition des compteurs
       settings.set("lineage", backup.sync?.lineage || newId());

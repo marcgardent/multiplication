@@ -64,6 +64,37 @@ describe("Règles de fusion", () => {
     expect(read<UserProfile[]>(merged, "user_profiles_v2")).toEqual([lea, tom]);
   });
 
+  it("joueur supprimé : supprimé partout, même s'il a progressé ailleurs", () => {
+    const lea = profile("p-1", "Léa", 100);
+    const tom = profile("p-2", "Tom", 200);
+    // A a supprimé Tom ; B, hors ligne, a continué à jouer avec lui
+    const onA = doc({ user_profiles_v2: [lea], deleted_profiles: ["p-2"], "points_p-1": 50 }, { counters: { "points_p-1": { A: 50 } } });
+    const onB = doc(
+      { user_profiles_v2: [lea, tom], "points_p-1": 50, "points_p-2": 900, "matrix_items_p-2": [item(7, 8, { lastReviewedAt: 5 })], "active_bg_p-2": "bg-03" },
+      { counters: { "points_p-1": { A: 50 }, "points_p-2": { B: 900 } }, times: { "active_bg_p-2": 10 } }
+    );
+
+    [mergeDocs(onA, onB), mergeDocs(onB, onA)].forEach((merged) => {
+      expect(read<UserProfile[]>(merged, "user_profiles_v2")).toEqual([lea]);
+      expect(Object.keys(merged.data).filter((key) => key.includes("p-2"))).toEqual([]);
+      expect(Object.keys(merged.sync.counters)).toEqual([`${NS}points_p-1`]);
+      expect(merged.sync.times).toEqual({});
+      expect(read(merged, "deleted_profiles")).toEqual(["p-2"]);
+      expect(read(merged, "points_p-1")).toBe(50);
+    });
+  });
+
+  it("joueur supprimé : un autre joueur dont l'identifiant finit pareil n'est pas touché", () => {
+    const merged = mergeDocs(
+      doc({ deleted_profiles: ["p-2"] }),
+      doc({ "points_p-12": 70, "points_xp-2": 30 }, { counters: { "points_p-12": { B: 70 }, "points_xp-2": { B: 30 } } })
+    );
+
+    expect(read(merged, "points_p-12")).toBe(70);
+    // Les identifiants réels ont tous la forme p-<date>-<aléa> : deux joueurs ne peuvent pas finir par le même
+    expect(read(merged, "points_xp-2")).toBe(30);
+  });
+
   it("points : somme des progrès de chaque appareil", () => {
     // 1000 au départ, tous apportés par A. Depuis : +200 sur A, +300 sur B
     const onA = doc({ "points_p-1": 1200 }, { counters: { "points_p-1": { A: 1200 } } });
@@ -225,6 +256,9 @@ function randomDevice(device: string, random: () => number): SyncDoc {
       "matrix_items_p-1": items,
       "attempt_history_p-1": Array.from({ length: pick(5) }, (_, i) => attempt(`${device}-${i}`, 1000 + pick(5))),
       "opened_gifts_p-1": ["2x3", "7x8", "9x9"].filter(() => random() < 0.5),
+      [`opened_gifts_p-${device}`]: ["2x3"],
+      // Il arrive qu'un appareil ait supprimé le joueur créé sur un autre
+      deleted_profiles: ["p-A", "p-B", "p-C"].filter((id) => id !== `p-${device}` && random() < 0.15),
       "wheel_spins_p-1": { date: `2026-10-${9 + pick(3)}`, usedSpins: pick(4) },
       config_duration: [3, 6, 9, 15][pick(4)],
       active_profile_id_v2: `p-${device}`
