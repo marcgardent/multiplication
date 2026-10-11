@@ -171,7 +171,7 @@
   }
 
   /* Lignes de liste : méthode et sauvegarde */
-  .btn-parent-guide-toggle, .btn-parent-drive-toggle {
+  .btn-parent-guide-toggle {
     display: flex;
     align-items: center;
     gap: 12px;
@@ -187,16 +187,16 @@
     color: $ink;
     cursor: pointer;
 
-    .guide-toggle-icon, .drive-toggle-icon {
+    .guide-toggle-icon {
       font-size: 1.25rem;
       line-height: 1;
     }
 
-    .guide-toggle-title, .drive-toggle-title {
+    .guide-toggle-title {
       flex: 1;
     }
 
-    .guide-toggle-arrow, .drive-toggle-arrow {
+    .guide-toggle-arrow {
       font-size: $fs-small;
       color: $ink-soft;
     }

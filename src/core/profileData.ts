@@ -60,6 +60,11 @@ export function exportProfileData(storage: StorageService, profileId: string): P
   return data;
 }
 
+// Efface toutes les données du joueur
+export function deleteProfileData(storage: StorageService, profileId: string): void {
+  PROFILE_DATA_KEYS.forEach((name) => storage.remove(profileKey(name, profileId)));
+}
+
 // Remplace toutes les données du joueur : une clé absente du jeu de données est effacée
 export function importProfileData(storage: StorageService, profileId: string, data: ProfileData): void {
   for (const name of PROFILE_DATA_KEYS) {

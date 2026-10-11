@@ -33,15 +33,27 @@ const FAMILY_BY_PREFIX: [string, KeyFamily][] = [
   ["kept_bgs_", "set"],
   ["wheel_spins_", "wheel"]
 ];
+// Joueurs supprimés : la liste ne fait que grandir, c'est ce qui empêche un autre appareil de les faire revenir
+export const DELETED_PROFILES_KEY = "deleted_profiles";
 const FAMILY_BY_NAME: Record<string, KeyFamily> = {
   user_profiles_v2: "profiles",
+  [DELETED_PROFILES_KEY]: "set",
   active_profile_id_v2: "device",
   test_last_snapshot: "device"
 };
 
 // La clé complète porte l'espace de stockage devant : « mult_clean_v3:points_<joueur> »
+function nameOf(fullKey: string): string {
+  return fullKey.slice(fullKey.indexOf(":") + 1);
+}
+
+// Toutes les données d'un joueur finissent par son identifiant
+export function belongsToProfile(fullKey: string, profileId: string): boolean {
+  return nameOf(fullKey).endsWith(`_${profileId}`);
+}
+
 export function familyOf(fullKey: string): KeyFamily {
-  const name = fullKey.slice(fullKey.indexOf(":") + 1);
+  const name = nameOf(fullKey);
   if (FAMILY_BY_NAME[name]) return FAMILY_BY_NAME[name];
   return FAMILY_BY_PREFIX.find(([prefix]) => name.startsWith(prefix))?.[1] ?? "setting";
 }
@@ -179,6 +191,21 @@ export function mergeDocs(local: SyncDoc, remote: SyncDoc): SyncDoc {
     } else {
       data[key] = !inLocal || !inRemote ? (inLocal ? a : b) : mergeWheel(a as WheelDailyState, b as WheelDailyState);
     }
+  }
+
+  // Un joueur supprimé quelque part l'est partout : la suppression l'emporte sur tout progrès fait ailleurs
+  const tombstonesKey = keys.find((key) => nameOf(key) === DELETED_PROFILES_KEY);
+  const deleted = tombstonesKey ? asArray<string>(data[tombstonesKey]) : [];
+  if (deleted.length > 0) {
+    Object.keys(data).forEach((key) => {
+      if (familyOf(key) === "profiles") {
+        data[key] = asArray<UserProfile>(data[key]).filter((profile) => !deleted.includes(profile.id));
+      } else if (deleted.some((profileId) => belongsToProfile(key, profileId))) {
+        delete data[key];
+        delete counters[key];
+        delete times[key];
+      }
+    });
   }
 
   return { data, sync: { lineage: local.sync.lineage || remote.sync.lineage, counters, times } };

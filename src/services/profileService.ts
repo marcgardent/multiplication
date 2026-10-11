@@ -1,5 +1,7 @@
 import { UserProfile } from "../types";
 import { StorageService } from "../services/storageService";
+import { deleteProfileData } from "../core/profileData";
+import { DELETED_PROFILES_KEY } from "./cloudMerge";
 
 export const ANIMAL_AVATARS = [
   "🦁", "🐼", "🦊", "🐯", "🐨", "🐰", 
@@ -84,9 +86,13 @@ export function createProfileService(storage: StorageService): ProfileService {
       notify();
     },
 
+    // Définitif : le joueur, sa progression, ses points et ses cadeaux disparaissent, ici puis sur les autres appareils
     deleteProfile(profileId: string): void {
       profiles = profiles.filter((p) => p.id !== profileId);
       storage.set(PROFILES_KEY, profiles);
+      deleteProfileData(storage, profileId);
+      const deleted = storage.get<string[]>(DELETED_PROFILES_KEY, []);
+      if (!deleted.includes(profileId)) storage.set(DELETED_PROFILES_KEY, [...deleted, profileId]);
       if (activeId === profileId) {
         activeId = null;
         storage.remove(ACTIVE_PROFILE_ID_KEY);

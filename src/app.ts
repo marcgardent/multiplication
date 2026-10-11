@@ -13,6 +13,9 @@ import { openBackgroundGalleryModal } from "./components/backgroundGalleryModal"
 import { describeCloudSync, openGoogleDriveModal } from "./components/googleDriveModal";
 import { createCloudSync, sha256Hex } from "./services/cloudSyncService";
 import { createGoogleAuth } from "./services/googleAuthService";
+import { createParentCodeService } from "./services/parentCodeService";
+import { openParentGate } from "./components/parentGate";
+import { renderParentArea } from "./components/parentArea";
 import { downloadDriveBackup, exportAllAppData, findDriveBackup, importAllAppData, uploadDriveBackup } from "./services/googleDriveService";
 import { renderSnapshotLoader } from "./components/snapshotLoaderScreen";
 import { importProfileData } from "./core/profileData";
@@ -43,6 +46,7 @@ export function createApp(): AppInstance {
     importBackup: (backup) => {
       importAllAppData(backup);
     },
+    removeKeys: (fullKeys) => fullKeys.forEach((fullKey) => localStorage.removeItem(fullKey)),
     hash: sha256Hex,
     isOnline: () => navigator.onLine,
     // Une fusion avec un autre appareil attend la fin de la séance ; la fenêtre de sauvegarde, elle, ne gêne pas
@@ -59,6 +63,10 @@ export function createApp(): AppInstance {
     else cloudSync.refresh();
   });
   cloudSync.subscribe(() => showCloudStatus());
+
+  // Espace parent : sauvegarde et suppression de joueurs, derrière un code que l'appareil garde pour lui
+  const parentCode = createParentCodeService(createStorageService("mult_parent"), sha256Hex);
+  let isParentAreaOpen = false;
   const profileService: ProfileService = createProfileService(storage);
 
   // Les décors déjà débloqués avec d'anciens seuils restent acquis
@@ -204,7 +212,22 @@ export function createApp(): AppInstance {
           </div>
         </button>
       </div>
+
+      <!-- Réservé aux adultes : protégé par un code -->
+      <div class="kids-menu-container">
+        <button type="button" class="kids-main-btn" id="btn-open-parent">
+          <div class="btn-bubble">🔒</div>
+          <div class="btn-text-block">
+            <span class="btn-title">Espace parent</span>
+            <span class="btn-subtitle">Sauvegarde et joueurs</span>
+          </div>
+        </button>
+      </div>
     `;
+
+    loginEl.querySelector("#btn-open-parent")?.addEventListener("click", () => {
+      openParentArea();
+    });
 
     loginEl.querySelector("#btn-launch-radio")?.addEventListener("click", () => {
       openListeningTablesModal("radio");
@@ -574,6 +597,37 @@ export function createApp(): AppInstance {
     renderApp();
   }
 
+  // Le code est demandé à chaque entrée dans l'espace parent
+  function openParentArea() {
+    if (isParentAreaOpen) return;
+    openParentGate({
+      parentCode,
+      onGranted: () => {
+        isParentAreaOpen = true;
+        renderApp();
+      }
+    });
+  }
+
+  function renderParentAreaView(container: HTMLElement) {
+    renderParentArea(container, {
+      profiles: profileService.getProfiles(),
+      backupStatus: describeCloudSync(cloudSync.getState()),
+      onOpenBackup: () => openDriveModal(),
+      onDeleteProfile: (profile) => {
+        profileService.deleteProfile(profile.id);
+        // Le joueur supprimé était peut-être celui dont la progression est en mémoire
+        if (!profileService.getActiveProfile()) matrixStore.setProfile("guest");
+        renderApp();
+      },
+      onChangeCode: () => openParentGate({ parentCode, isChangingCode: true, onGranted: () => undefined }),
+      onBack: () => {
+        isParentAreaOpen = false;
+        renderApp();
+      }
+    });
+  }
+
   // Pastille du bouton ☁️ : sauvegarde à jour, en attente, ou qui demande l'intervention du parent
   function showCloudStatus() {
     const button = document.getElementById("btn-header-cloud");
@@ -582,6 +636,8 @@ export function createApp(): AppInstance {
     button.dataset.sync = state.status;
     button.setAttribute("aria-label", `Sauvegarde : ${describeCloudSync(state)}`);
     button.title = `Sauvegarde : ${describeCloudSync(state)}`;
+    const parentStatus = document.getElementById("parent-backup-status");
+    if (parentStatus) parentStatus.textContent = describeCloudSync(state);
   }
 
   // Écran du joueur de test : le snapshot choisi remplace toute sa progression
@@ -631,9 +687,7 @@ export function createApp(): AppInstance {
     carnetContainer.className = "carnet-content-wrapper";
     container.appendChild(carnetContainer);
 
-    const matrixView = createMatrixView(matrixStore, audio, repetitionEngine, () => {
-      openDriveModal();
-    });
+    const matrixView = createMatrixView(matrixStore, audio, repetitionEngine);
     matrixView.mount(carnetContainer);
   }
 
@@ -672,9 +726,10 @@ export function createApp(): AppInstance {
       profileService.logout();
     });
 
-    // Clic sur l icone Cloud dans le header -> Ouvre la sauvegarde Google Drive
+    // Le nuage montre l'état de la sauvegarde ; y toucher mène à l'espace parent, donc au code
     shell.querySelector("#btn-header-cloud")?.addEventListener("click", () => {
-      openDriveModal();
+      if (isParentAreaOpen) openDriveModal();
+      else openParentArea();
     });
 
     // Clic sur le compteur de points dans le header -> Ouvre le tableau des récompenses
@@ -703,6 +758,11 @@ export function createApp(): AppInstance {
     });
 
     const content = shell.querySelector("#main-content") as HTMLElement;
+
+    if (isParentAreaOpen) {
+      renderParentAreaView(content);
+      return;
+    }
 
     // Si aucun joueur n'est connecté -> Afficher l'écran de Login avec (+)
     if (!activeProfile) {

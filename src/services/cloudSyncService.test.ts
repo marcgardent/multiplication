@@ -102,6 +102,9 @@ function createDevice(drive: Drive, name: string, initial: Record<string, unknow
     importBackup(backup) {
       Object.assign(local, clone(backup.data));
     },
+    removeKeys(fullKeys) {
+      fullKeys.forEach((fullKey) => delete local[fullKey]);
+    },
     hash: async (text) => text,
     isOnline: () => isOnline,
     isBusy: () => isBusy,
@@ -123,6 +126,11 @@ function createDevice(drive: Drive, name: string, initial: Record<string, unknow
     // Une écriture de l'application
     write(key: string, value: unknown) {
       local[NS + key] = value;
+      sync.notifyLocalChange(NS + key);
+    },
+    // Une suppression de donnée par l'application
+    remove(key: string) {
+      delete local[NS + key];
       sync.notifyLocalChange(NS + key);
     },
     // Des points gagnés, comme après une bonne réponse
@@ -561,6 +569,38 @@ describe("Fusion entre deux appareils", () => {
     expect(a.shared()).toBe(b.shared());
   });
 
+  it("joueur supprimé sur A pendant qu'il jouait sur B : il disparaît des deux, avec toutes ses données", async () => {
+    const { drive, a, b } = await createPair();
+    const lea = (a.local[`${NS}user_profiles_v2`] as UserProfile[])[0];
+    const tom: UserProfile = { id: "p-2", name: "Tom", avatar: "🐼", createdAt: 2 };
+    a.write("user_profiles_v2", [lea, tom]);
+    a.write("points_p-2", 100);
+    await afterDebounce();
+    await b.sync.refresh();
+    expect(b.local[`${NS}points_p-2`]).toBe(100);
+
+    await goOffline(a, b);
+    // Comme l'espace parent : le joueur sort de la liste, ses données sont effacées, et sa suppression est retenue
+    a.write("user_profiles_v2", [lea]);
+    a.remove("points_p-2");
+    a.write("deleted_profiles", ["p-2"]);
+    b.write("points_p-2", 450);
+    b.write("matrix_items_p-2", [item(7, 8, { boxLevel: 2, lastReviewedAt: 9000 })]);
+    await afterDebounce();
+
+    await comeBack(b);
+    await comeBack(a);
+    await b.sync.refresh();
+
+    [a, b].forEach((device) => {
+      expect((device.local[`${NS}user_profiles_v2`] as UserProfile[]).map((p) => p.name)).toEqual(["Léa"]);
+      expect(Object.keys(device.local).filter((key) => key.includes("p-2"))).toEqual([]);
+    });
+    expect(Object.keys(drive.backup()?.data ?? {}).filter((key) => key.includes("p-2"))).toEqual([]);
+    expect(a.shared()).toBe(b.shared());
+    expect(a.points()).toBe(1000);
+  });
+
   it("chaque appareil garde son joueur connecté", async () => {
     const { a, b } = await createPair();
     a.write("active_profile_id_v2", "p-1");
@@ -672,9 +712,12 @@ describe("Quand le parent garde la main", () => {
     await settle();
     await b.sync.refresh();
 
+    b.write("radio_tables", [7, 8]);
     await b.sync.restoreRemote();
     expect(b.points()).toBe(400);
     expect(b.sync.getState().status).toBe("synced");
+    // Remplacement complet : ce que la sauvegarde n'avait pas disparaît de l'appareil
+    expect(b.local[`${NS}radio_tables`]).toBeUndefined();
 
     a.earn(10);
     b.earn(20);
