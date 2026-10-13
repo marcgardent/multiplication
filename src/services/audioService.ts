@@ -72,6 +72,8 @@ export function createAudioService(): AudioService {
     }
   }
 
+  let currentResolve: (() => void) | null = null;
+
   function playAudioFile(url: string): Promise<void> {
     if (isMutedState) return Promise.resolve();
     const resolvedUrl = resolveAudioUrl(url);
@@ -81,6 +83,10 @@ export function createAudioService(): AudioService {
         if (currentAudio) {
           currentAudio.pause();
           currentAudio.currentTime = 0;
+        }
+        if (currentResolve) {
+          currentResolve();
+          currentResolve = null;
         }
 
         let audio = audioCache.get(resolvedUrl);
@@ -93,17 +99,24 @@ export function createAudioService(): AudioService {
         }
 
         currentAudio = audio;
+        currentResolve = resolve;
 
-        const onEnded = () => {
+        const cleanup = () => {
           audio?.removeEventListener("ended", onEnded);
           audio?.removeEventListener("error", onError);
+          if (currentResolve === resolve) {
+            currentResolve = null;
+          }
+        };
+
+        const onEnded = () => {
+          cleanup();
           resolve();
         };
 
         const onError = (e: Event) => {
           console.warn(`Erreur lecture audio ${resolvedUrl}`, e);
-          audio?.removeEventListener("ended", onEnded);
-          audio?.removeEventListener("error", onError);
+          cleanup();
           resolve();
         };
 
@@ -112,10 +125,14 @@ export function createAudioService(): AudioService {
 
         audio.play().catch((err) => {
           console.warn(`Lecture audio bloquée ou échouée: ${resolvedUrl}`, err);
+          cleanup();
           resolve();
         });
       } catch (err) {
         console.warn("Exception playAudioFile", err);
+        if (currentResolve === resolve) {
+          currentResolve = null;
+        }
         resolve();
       }
     });
@@ -204,6 +221,11 @@ export function createAudioService(): AudioService {
         currentAudio.pause();
         currentAudio.currentTime = 0;
       }
+      if (currentResolve) {
+        const res = currentResolve;
+        currentResolve = null;
+        res();
+      }
     },
 
     isMuted(): boolean {
@@ -212,8 +234,8 @@ export function createAudioService(): AudioService {
 
     toggleMute(): boolean {
       isMutedState = !isMutedState;
-      if (isMutedState && currentAudio) {
-        currentAudio.pause();
+      if (isMutedState) {
+        this.stop();
       }
       return isMutedState;
     }

@@ -40,6 +40,7 @@ export function startEvaluationModal(
   let questionStartTime = 0;
   let currentInput = "";
   let keypad: KeypadComponent | null = null;
+  let isCheckingAnswer = false;
 
   // Création du container de modale
   const modalEl = document.createElement("div");
@@ -116,6 +117,7 @@ export function startEvaluationModal(
     window.removeEventListener("resize", handleResize);
     isRunning = false;
     isPaused = false;
+    isCheckingAnswer = false;
     keypad?.destroy();
     keypad = null;
     audioService.stop();
@@ -183,7 +185,6 @@ export function startEvaluationModal(
     if (!isPaused || !isRunning) return;
     isPaused = false;
     modalEl.querySelector("#eval-pause-overlay")?.remove();
-    keypad?.setEnabled(true);
 
     const pauseBtn = modalEl.querySelector("#btn-pause-eval");
     if (pauseBtn) {
@@ -192,10 +193,26 @@ export function startEvaluationModal(
       pauseBtn.classList.remove("is-paused");
     }
 
-    const currentItem = pool[currentIndex];
-    if (currentItem) {
-      audioService.playQuestion(currentItem.a, currentItem.b);
+    if (!isCheckingAnswer) {
+      keypad?.setEnabled(true);
+      const currentItem = pool[currentIndex];
+      if (currentItem) {
+        audioService.playQuestion(currentItem.a, currentItem.b);
+      }
     }
+  }
+
+  async function waitWithPauseCheck(durationMs: number): Promise<boolean> {
+    const start = performance.now();
+    while (performance.now() - start < durationMs) {
+      if (!isRunning) return false;
+      while (isPaused) {
+        if (!isRunning) return false;
+        await new Promise((r) => setTimeout(r, 100));
+      }
+      await new Promise((r) => setTimeout(r, 50));
+    }
+    return isRunning;
   }
 
   function togglePause() {
@@ -330,7 +347,10 @@ export function startEvaluationModal(
     const progressBar = modalEl.querySelector("#eval-progress-bar") as HTMLElement;
 
     if (factorsEl) factorsEl.textContent = `${item.a} × ${item.b}`;
-    if (inputEl) inputEl.textContent = "_";
+    if (inputEl) {
+      inputEl.textContent = "_";
+      inputEl.className = "stage-answer giant-answer user-answer";
+    }
     if (cueEl) cueEl.textContent = "Calcule et tape le résultat";
     if (cardEl) cardEl.className = "stage-card giant-card";
     fitOperation(cardEl);
@@ -342,7 +362,8 @@ export function startEvaluationModal(
   }
 
   async function checkCurrentAnswer(valStr: string) {
-    if (!isRunning || isPaused) return;
+    if (!isRunning || isPaused || isCheckingAnswer) return;
+    isCheckingAnswer = true;
     const item = pool[currentIndex];
     const val = parseInt(valStr, 10);
     const timeMs = Math.round(performance.now() - questionStartTime);
@@ -353,24 +374,45 @@ export function startEvaluationModal(
 
     const cardEl = modalEl.querySelector("#eval-card");
     const cueEl = modalEl.querySelector("#eval-cue");
+    const inputEl = modalEl.querySelector("#eval-input");
+
+    // Enregistrer les statistiques dans le store
+    matrixStore.recordAttempt(item.a, item.b, "evaluation", isCorrect, timeMs);
 
     if (isCorrect) {
       correctCount++;
       cardEl?.classList.add("card-correct");
+      if (inputEl) {
+        inputEl.textContent = item.result.toString();
+        inputEl.classList.add("revealed");
+      }
+      fitOperation(cardEl);
       if (cueEl) cueEl.textContent = `Correct ! ${(timeMs / 1000).toFixed(2)}s ⚡`;
       audioService.playFeedback("correct");
+      await audioService.playAnswer(item.result);
     } else {
       wrongItems.push(item);
       cardEl?.classList.add("card-wrong");
       if (cueEl) cueEl.textContent = `À revoir : ${item.a} × ${item.b} = ${item.result}`;
       audioService.playFeedback("wrong");
+      const ok1 = await waitWithPauseCheck(350);
+      if (!ok1) {
+        isCheckingAnswer = false;
+        return;
+      }
+      if (inputEl) {
+        inputEl.textContent = item.result.toString();
+        inputEl.classList.add("revealed");
+      }
+      fitOperation(cardEl);
+      await audioService.playAnswer(item.result);
     }
 
-    // Enregistrer les statistiques dans le store
-    matrixStore.recordAttempt(item.a, item.b, "evaluation", isCorrect, timeMs);
+    const ok2 = await waitWithPauseCheck(700);
+    isCheckingAnswer = false;
+    if (!ok2) return;
 
     currentIndex++;
-    await new Promise((r) => setTimeout(r, 650));
     if (isRunning) {
       showQuestion();
     }

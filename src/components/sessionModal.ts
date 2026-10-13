@@ -36,6 +36,7 @@ export function startSessionModal(
   let questionStartTime = 0;
   let currentInput = "";
   let hasUsedHelp = false;
+  let isCheckingAnswer = false;
   let isDiscoveryAudioActive = false;
   let hasDiscoveryWorkshopTimerEnded = false;
 
@@ -158,6 +159,7 @@ export function startSessionModal(
     window.removeEventListener("resize", handleResize);
     isRunning = false;
     isPaused = false;
+    isCheckingAnswer = false;
     timer?.stop();
     timer = null;
     keypad?.destroy();
@@ -225,17 +227,11 @@ export function startSessionModal(
     isPaused = false;
     modalEl.querySelector("#session-pause-overlay")?.remove();
     timer?.resume();
-    keypad?.setEnabled(true);
-
-    const pauseBtn = modalEl.querySelector("#btn-pause-session");
-    if (pauseBtn) {
-      pauseBtn.textContent = "⏸️";
-      pauseBtn.setAttribute("aria-label", "Mettre en pause");
-      pauseBtn.classList.remove("is-paused");
-    }
-
-    if (currentItem && (currentWorkshopIndex === 1 || currentWorkshopIndex === 2)) {
-      audioService.playQuestion(currentItem.a, currentItem.b);
+    if (!isCheckingAnswer) {
+      keypad?.setEnabled(true);
+      if (currentItem && (currentWorkshopIndex === 1 || currentWorkshopIndex === 2)) {
+        audioService.playQuestion(currentItem.a, currentItem.b);
+      }
     }
   }
 
@@ -670,29 +666,50 @@ export function startSessionModal(
   }
 
   async function checkTimeAttackAnswer(valStr: string) {
-    if (!currentItem || isPaused) return;
+    if (!currentItem || isPaused || isCheckingAnswer) return;
+    isCheckingAnswer = true;
     const timeMs = Math.round(performance.now() - questionStartTime);
     const val = parseInt(valStr, 10);
-    const isCorrect = val === currentItem.result;
+    const item = currentItem;
+    const isCorrect = val === item.result;
 
     keypad?.setEnabled(false);
     const cardEl = modalEl.querySelector("#modal-card");
     const cueEl = modalEl.querySelector("#modal-cue");
+    const answerEl = modalEl.querySelector("#modal-answer");
+
+    engine.registerResult(item, "time-attack", isCorrect, timeMs);
 
     if (isCorrect) {
       cardEl?.classList.add("card-correct");
+      if (answerEl) {
+        answerEl.textContent = item.result.toString();
+        answerEl.classList.add("revealed");
+      }
+      fitOperation(cardEl);
       if (cueEl) cueEl.textContent = `Éclair ! ${(timeMs / 1000).toFixed(2)}s ⚡`;
       audioService.playFeedback("correct");
+      await audioService.playAnswer(item.result);
     } else {
       cardEl?.classList.add("card-wrong");
-      if (cueEl) cueEl.textContent = `À revoir : ${currentItem.a} × ${currentItem.b} = ${currentItem.result}`;
+      if (cueEl) cueEl.textContent = `À revoir : ${item.a} × ${item.b} = ${item.result}`;
       audioService.playFeedback("wrong");
+      const ok1 = await waitWithPauseCheck(350);
+      if (!ok1 || currentWorkshopIndex !== 2) {
+        isCheckingAnswer = false;
+        return;
+      }
+      if (answerEl) {
+        answerEl.textContent = item.result.toString();
+        answerEl.classList.add("revealed");
+      }
+      fitOperation(cardEl);
+      await audioService.playAnswer(item.result);
     }
 
-    engine.registerResult(currentItem, "time-attack", isCorrect, timeMs);
-
-    await new Promise((r) => setTimeout(r, 600));
-    if (isRunning && currentWorkshopIndex === 2) nextTimeAttackQuestion();
+    const ok2 = await waitWithPauseCheck(700);
+    isCheckingAnswer = false;
+    if (ok2 && currentWorkshopIndex === 2) nextTimeAttackQuestion();
   }
 
   // Démarrer sur le premier atelier

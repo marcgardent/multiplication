@@ -115,21 +115,35 @@ export function createTimeAttackMode(
     keypad?.setEnabled(false);
     const cardEl = containerEl.querySelector("#ta-card");
     const cueEl = containerEl.querySelector("#ta-cue");
+    const inputEl = containerEl.querySelector("#ta-input");
+    const item = currentItem;
+
+    // Enregistrement précis dans le store pour les statistiques et la répétition espacée
+    engine.registerResult(item, "time-attack", isCorrect, responseTimeMs);
 
     if (isCorrect) {
       cardEl?.classList.add("card-correct");
+      if (inputEl) {
+        inputEl.textContent = item.result.toString();
+        inputEl.classList.add("revealed");
+      }
       if (cueEl) cueEl.textContent = `Correct en ${(responseTimeMs / 1000).toFixed(2)}s ! ⚡`;
       audioService.playFeedback("correct");
+      await audioService.playAnswer(item.result);
     } else {
       cardEl?.classList.add("card-wrong");
-      if (cueEl) cueEl.textContent = `Correction : ${currentItem.a} × ${currentItem.b} = ${currentItem.result} ⚠️`;
+      if (cueEl) cueEl.textContent = `Correction : ${item.a} × ${item.b} = ${item.result} ⚠️`;
       audioService.playFeedback("wrong");
+      await new Promise((r) => setTimeout(r, 350));
+      if (!isRunning) return;
+      if (inputEl) {
+        inputEl.textContent = item.result.toString();
+        inputEl.classList.add("revealed");
+      }
+      await audioService.playAnswer(item.result);
     }
 
-    // Enregistrement précis dans le store pour les statistiques et la répétition espacée
-    engine.registerResult(currentItem, "time-attack", isCorrect, responseTimeMs);
-
-    await new Promise((r) => setTimeout(r, 650));
+    await new Promise((r) => setTimeout(r, 700));
     if (isRunning) nextQuestion();
   }
 
