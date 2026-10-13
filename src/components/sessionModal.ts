@@ -36,9 +36,9 @@ export function startSessionModal(
   let questionStartTime = 0;
   let currentInput = "";
   let hasUsedHelp = false;
-  let isCheckingAnswer = false;
   let isDiscoveryAudioActive = false;
   let hasDiscoveryWorkshopTimerEnded = false;
+  let isCheckingAnswer = false;
 
   const modalEl = document.createElement("div");
   modalEl.className = "session-modal-overlay";
@@ -67,7 +67,9 @@ export function startSessionModal(
             <span class="workshop-name">${info.name}</span>
           </div>
           <div class="header-controls-group">
-            <button type="button" class="btn-session-program" id="btn-session-program" aria-label="Voir le programme des calculs">📋 ${sessionLot.items.length} calculs</button>
+            <button type="button" class="btn-session-program" id="btn-session-program" aria-label="Voir les calculs au programme de la séance">
+              📋 ${sessionLot.items.length} calculs
+            </button>
             <div class="timer-display" id="modal-timer">--:--</div>
             <button type="button" class="btn-session-pause ${isPaused ? "is-paused" : ""}" id="btn-pause-session" aria-label="Pause ou Reprendre">
               ${isPaused ? "▶️" : "⏸️"}
@@ -275,6 +277,15 @@ export function startSessionModal(
     isPaused = false;
     modalEl.querySelector("#session-pause-overlay")?.remove();
     timer?.resume();
+    keypad?.setEnabled(true);
+
+    const pauseBtn = modalEl.querySelector("#btn-pause-session");
+    if (pauseBtn) {
+      pauseBtn.textContent = "⏸️";
+      pauseBtn.setAttribute("aria-label", "Mettre en pause");
+      pauseBtn.classList.remove("is-paused");
+    }
+
     if (!isCheckingAnswer) {
       keypad?.setEnabled(true);
       if (currentItem && (currentWorkshopIndex === 1 || currentWorkshopIndex === 2)) {
@@ -545,7 +556,10 @@ export function startSessionModal(
 
     const keypadMount = modalEl.querySelector("#modal-keypad-mount") as HTMLElement;
     keypad = createKeypad({
-      showHelpButton: false,
+      showHelpButton: true,
+      onHelp: () => {
+        if (!isPaused && isRunning) revealPracticeAnswer();
+      },
       onInput: (_d, fullVal) => {
         if (isPaused) return;
         currentInput = fullVal;
@@ -655,15 +669,45 @@ export function startSessionModal(
     await audioService.playAnswer(currentItem.result);
     engine.registerResult(currentItem, "practice", false, 0);
 
-    await new Promise((r) => setTimeout(r, 1200));
-    if (isRunning && currentWorkshopIndex === 1) nextPracticeQuestion();
+    const ok = await waitWithPauseCheck(1200);
+    if (ok && isRunning && currentWorkshopIndex === 1) nextPracticeQuestion();
   }
 
   // --- ATELIER 3 : TIME-ATTACK ---
+  async function handleTimeAttackDontKnow() {
+    if (!currentItem || isPaused || isCheckingAnswer || currentWorkshopIndex !== 2) return;
+    isCheckingAnswer = true;
+    const timeMs = Math.round(performance.now() - questionStartTime);
+    const item = currentItem;
+
+    keypad?.setEnabled(false);
+    const cardEl = modalEl.querySelector("#modal-card");
+    const cueEl = modalEl.querySelector("#modal-cue");
+    const answerEl = modalEl.querySelector("#modal-answer");
+
+    engine.registerResult(item, "time-attack", false, timeMs);
+
+    cardEl?.classList.add("card-hint");
+    if (cueEl) cueEl.textContent = `C'est noté ! ${item.a} × ${item.b} = ${item.result}`;
+    if (answerEl) {
+      answerEl.textContent = item.result.toString();
+      answerEl.classList.add("revealed");
+    }
+    fitOperation(cardEl);
+    await audioService.playAnswer(item.result);
+
+    const ok = await waitWithPauseCheck(1000);
+    isCheckingAnswer = false;
+    if (ok && currentWorkshopIndex === 2) nextTimeAttackQuestion();
+  }
+
   function setupTimeAttackWorkshop() {
     const keypadMount = modalEl.querySelector("#modal-keypad-mount") as HTMLElement;
     keypad = createKeypad({
-      showHelpButton: false,
+      showHelpButton: true,
+      onHelp: () => {
+        handleTimeAttackDontKnow();
+      },
       onInput: (_d, fullVal) => {
         if (isPaused) return;
         currentInput = fullVal;

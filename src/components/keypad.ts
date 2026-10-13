@@ -12,6 +12,8 @@ export interface KeypadOptions {
   onSubmit?: (value: string) => void;
   onHelp?: () => void;
   showHelpButton?: boolean;
+  helpIcon?: string;
+  helpLabel?: string;
   // Nombre de chiffres acceptés : 3 par défaut, le plus grand résultat étant 100
   maxLength?: number;
 }
@@ -52,11 +54,15 @@ export function createKeypad(options: KeypadOptions = {}): KeypadComponent {
             options.onDelete?.(currentValue);
           });
         } else if (k === "help") {
-          btn.innerHTML = `<span class="icon">💡</span>`;
+          const helpIcon = options.helpIcon ?? "?";
+          const helpLabel = options.helpLabel ?? "Je ne sais pas";
+          btn.innerHTML = `<span class="keypad-help-icon">${helpIcon}</span><span class="keypad-help-label">${helpLabel}</span>`;
           btn.classList.add("keypad-btn-help");
-          btn.setAttribute("aria-label", "Aide réponse");
+          btn.setAttribute("aria-label", helpLabel);
+          btn.setAttribute("title", helpLabel);
           btn.addEventListener("click", () => {
             if (!isEnabled) return;
+            currentValue = "";
             options.onHelp?.();
           });
         } else if (k === "") {
@@ -94,6 +100,13 @@ export function createKeypad(options: KeypadOptions = {}): KeypadComponent {
       options.onDelete?.(currentValue);
     } else if (e.key === "Enter") {
       options.onSubmit?.(currentValue);
+    } else if (
+      options.showHelpButton &&
+      options.onHelp &&
+      (e.key === "?" || e.key === "h" || e.key === "H" || e.key === "p" || e.key === "P")
+    ) {
+      currentValue = "";
+      options.onHelp();
     }
   }
 

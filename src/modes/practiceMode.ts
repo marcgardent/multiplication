@@ -153,7 +153,10 @@ export function createPracticeMode(
       // Monter le Keypad
       const keypadMount = containerEl.querySelector("#prac-keypad") as HTMLElement;
       keypad = createKeypad({
-        showHelpButton: false,
+        showHelpButton: true,
+        onHelp: () => {
+          if (isRunning) revealAnswer();
+        },
         onInput: (_digit, fullVal) => {
           currentInput = fullVal;
           const inputEl = containerEl?.querySelector("#prac-input");
