@@ -66,6 +66,29 @@
       strong { color: $ink; font-weight: 600; }
     }
   }
+
+  &.learning-order-modal {
+    max-width: 520px;
+    padding: 16px;
+    gap: 10px;
+
+    .card-close-bar {
+      margin-bottom: -6px;
+    }
+
+    .learning-order-card {
+      border: none;
+      box-shadow: none;
+      padding: 0;
+      background: transparent;
+    }
+
+    .choice-footer {
+      margin-top: 6px;
+      padding-top: 10px;
+      border-top: 1px solid $line;
+    }
+  }
 }
 
 /* Modales de choix : joueur, durée, tables */

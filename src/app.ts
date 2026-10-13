@@ -4,6 +4,7 @@ import { createProfileService, ANIMAL_AVATARS, ProfileService } from "./services
 import { createMatrixStore, isGiftUnlocked, MatrixStore } from "./core/matrixStore";
 import { createRepetitionEngine } from "./core/repetitionEngine";
 import { createMatrixView } from "./components/matrixView";
+import { createLearningOrderCard } from "./components/learningOrderCard";
 import { startSessionModal } from "./components/sessionModal";
 import { startEvaluationModal } from "./components/evaluationModal";
 import { showRewardsFlow, openRewardsBoardModal } from "./components/rewardsBoard";
@@ -320,6 +321,58 @@ export function createApp(): AppInstance {
     document.body.appendChild(modal);
   }
 
+  // Modale de configuration : Ordre d'apprentissage des tables prioritaires
+  function openLearningOrderModal() {
+    const modal = document.createElement("div");
+    modal.className = "session-modal-overlay";
+
+    const container = document.createElement("div");
+    container.className = "session-modal-container prompt-choice-modal learning-order-modal";
+
+    const closeBar = document.createElement("div");
+    closeBar.className = "card-close-bar";
+    const closeBtn = document.createElement("button");
+    closeBtn.type = "button";
+    closeBtn.className = "btn-modal-close";
+    closeBtn.textContent = "✕";
+    closeBtn.setAttribute("aria-label", "Fermer");
+    closeBar.appendChild(closeBtn);
+    container.appendChild(closeBar);
+
+    const card = createLearningOrderCard(matrixStore);
+    card.mount(container);
+
+    const footer = document.createElement("div");
+    footer.className = "choice-footer";
+    const okBtn = document.createElement("button");
+    okBtn.type = "button";
+    okBtn.className = "btn-confirm-launch";
+    okBtn.textContent = "Fermer ✓";
+    footer.appendChild(okBtn);
+    container.appendChild(footer);
+
+    modal.appendChild(container);
+
+    const closeModal = () => {
+      document.removeEventListener("keydown", onKeyDown);
+      card.destroy();
+      modal.remove();
+    };
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closeModal();
+    };
+    document.addEventListener("keydown", onKeyDown);
+
+    closeBtn.addEventListener("click", closeModal);
+    okBtn.addEventListener("click", closeModal);
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) closeModal();
+    });
+
+    document.body.appendChild(modal);
+  }
+
   // --- 2. ÉCRAN PRINCIPAL ENFANT (3 BOUTONS ÉPURÉS) ---
   function renderKidsHome(container: HTMLElement) {
     container.innerHTML = "";
@@ -335,14 +388,21 @@ export function createApp(): AppInstance {
 
     homeEl.innerHTML = `
       <div class="kids-menu-container">
-        <!-- Bouton 1 : Révision guidée -->
-        <button type="button" class="kids-main-btn btn-guided" id="btn-launch-guided">
-          <div class="btn-bubble">🚀</div>
-          <div class="btn-text-block">
-            <span class="btn-title">Révision guidée</span>
-            <span class="btn-subtitle">Écoute, quiz et défis chrono</span>
-          </div>
-        </button>
+        <!-- Bouton 1 : Révision guidée avec extension de configuration -->
+        <div class="guided-btn-container">
+          <button type="button" class="kids-main-btn btn-guided" id="btn-launch-guided">
+            <div class="btn-bubble">🚀</div>
+            <div class="btn-text-block">
+              <span class="btn-title">Révision guidée</span>
+              <span class="btn-subtitle">Écoute, quiz et défis chrono</span>
+            </div>
+          </button>
+          <button type="button" class="btn-guided-extension" id="btn-open-learning-order" title="Choisir mes tables prioritaires">
+            <span class="extension-icon">🎯</span>
+            <span class="extension-label">Choisir mes tables prioritaires</span>
+            <span class="extension-action">⚙️</span>
+          </button>
+        </div>
 
         <!-- Bouton 2 : Révision tables -->
         <button type="button" class="kids-main-btn btn-tables" id="btn-launch-tables">
@@ -428,6 +488,11 @@ export function createApp(): AppInstance {
     // Bouton 1 : Révision guidée
     homeEl.querySelector("#btn-launch-guided")?.addEventListener("click", () => {
       openDurationModal();
+    });
+
+    // Extension : Choisir mes tables prioritaires
+    homeEl.querySelector("#btn-open-learning-order")?.addEventListener("click", () => {
+      openLearningOrderModal();
     });
 
     // Bouton 2 : Révision tables

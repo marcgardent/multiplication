@@ -2,7 +2,6 @@ import { MatrixStore } from "../core/matrixStore";
 import { MultiplicationItem, ItemStatus } from "../types";
 import { AudioService } from "../services/audioService";
 import { RepetitionEngine } from "../core/repetitionEngine";
-import { createLearningOrderCard } from "./learningOrderCard";
 
 export type MatrixDisplayMode = "status" | "accuracy" | "responseTime";
 
@@ -262,7 +261,7 @@ export function createMatrixView(
             <div class="guide-step-item">
               <span class="step-num-badge">5</span>
               <div class="step-desc">
-                <strong>Ordre d'apprentissage des tables</strong> : Les nouveaux calculs sont introduits selon l ordre défini ci-dessous (par défaut : 1, 10, 2, 5, 3, 4, 6, 7, 8, 9). Vous pouvez glisser-déposer les tables pour personnaliser cet ordre ou mettre des tables en pause.
+                <strong>Ordre d'apprentissage des tables</strong> : Les nouveaux calculs sont introduits selon l ordre défini sur l accueil sous Révision guidée (par défaut : 1, 10, 2, 5, 3, 4, 6, 7, 8, 9). Vous pouvez glisser-déposer les tables pour personnaliser cet ordre ou mettre des tables en pause.
               </div>
             </div>
             <div class="guide-step-item">
@@ -288,11 +287,7 @@ export function createMatrixView(
       container.appendChild(poolCard);
     }
 
-    // Section 2 : Ordre d'apprentissage des tables (Composant modulaire)
-    const learningOrderCard = createLearningOrderCard(matrixStore);
-    container.appendChild(learningOrderCard.render());
-
-    // Section 3 : Grille des 100 calculs
+    // Section 2 : Grille des 100 calculs
     const header = document.createElement("div");
     header.className = "matrix-header";
     header.innerHTML = `
