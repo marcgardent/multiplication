@@ -12,6 +12,10 @@
   justify-content: center;
   padding: 12px;
   animation: fadeIn 0.2s ease-out;
+
+  @media (max-width: 600px) {
+    padding: 6px;
+  }
 }
 
 .session-modal-container {
@@ -35,11 +39,20 @@
     max-width: 520px;
     height: 98vh;
     max-height: 98vh;
+    height: calc(100dvh - 24px);
+    max-height: calc(100dvh - 24px);
     padding: 12px 14px;
     justify-content: space-between;
     overflow: hidden;
     position: relative;
     background: $ground;
+
+    @media (max-width: 600px) {
+      height: calc(100dvh - 12px);
+      max-height: calc(100dvh - 12px);
+      padding: 8px 10px;
+      gap: 6px;
+    }
   }
 
   &.notification-modal {

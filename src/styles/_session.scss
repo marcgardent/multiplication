@@ -90,7 +90,12 @@
   display: flex;
   flex-direction: column;
   flex: 1;
+  min-height: 0;
   gap: 12px;
+
+  @media (max-width: 600px) {
+    gap: 6px;
+  }
 
   .mode-header {
     display: flex;
@@ -140,6 +145,10 @@
       min-height: 0;
       margin: 4px 0;
       padding: 0;
+
+      @media (max-width: 600px) {
+        margin: 2px 0;
+      }
     }
 
     .stage-card {
@@ -262,6 +271,12 @@
       color: $ink-soft;
       min-height: 22px;
       text-align: center;
+
+      @media (max-width: 600px) {
+        margin-top: 4px;
+        min-height: 18px;
+        font-size: 0.85rem;
+      }
     }
   }
 
@@ -270,6 +285,22 @@
     justify-content: center;
     gap: 12px;
     margin-bottom: 4px;
+
+    @media (max-width: 600px) {
+      gap: 8px;
+      margin-bottom: 2px;
+
+      .btn-help-inline {
+        min-height: 38px;
+        padding: 6px 14px;
+        font-size: $fs-caption;
+      }
+
+      .btn-repeat-audio {
+        width: 38px;
+        height: 38px;
+      }
+    }
   }
 
   .keypad-mount-point {
@@ -277,36 +308,33 @@
 
     &.giant-keypad-mount, &.giant-keypad-zone {
       width: 100%;
-      flex: 1;
-      min-height: 0;
-      max-height: 48vh;
+      flex-shrink: 0;
       display: flex;
       flex-direction: column;
       justify-content: flex-end;
-      padding-top: 4px;
+      padding-top: 2px;
 
       .keypad-container {
         max-width: 480px;
-        height: 100%;
+        height: auto;
         justify-content: space-between;
-        gap: 10px;
+        gap: clamp(6px, 1.2vh, 10px);
 
         .keypad-row {
-          gap: 10px;
-          flex: 1;
+          gap: clamp(6px, 1.5vw, 10px);
         }
 
         .keypad-btn {
-          height: 100%;
-          min-height: clamp(54px, 8.5vh, 76px);
-          font-size: clamp(1.75rem, 6vw, 2.25rem);
+          height: clamp(48px, 7.5vh, 72px);
+          min-height: clamp(44px, 6.2vh, 64px);
+          font-size: clamp(1.6rem, 5.5vw, 2.2rem);
 
           &.keypad-btn-help {
             .keypad-help-icon {
-              font-size: clamp(1.4rem, 4.5vw, 2rem);
+              font-size: clamp(1.2rem, 3.8vw, 1.8rem);
             }
             .keypad-help-label {
-              font-size: clamp(0.65rem, 1.8vw, 0.8rem);
+              font-size: clamp(0.58rem, 1.5vw, 0.75rem);
             }
           }
         }
