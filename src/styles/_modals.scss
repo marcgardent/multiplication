@@ -745,31 +745,6 @@
         }
       }
     }
-
-    .queues-explainer {
-      background: $surface;
-      border-radius: $radius-control;
-      border: 1px solid $line;
-      padding: 8px 12px;
-      font-size: $fs-caption;
-      color: $ink-soft;
-
-      summary {
-        font-weight: 600;
-        color: $ink;
-        cursor: pointer;
-        user-select: none;
-      }
-
-      .explainer-body {
-        margin-top: 8px;
-        line-height: 1.5;
-
-        p { margin: 0 0 6px; }
-        ul { margin: 0; padding-left: 18px; }
-        li { margin-bottom: 4px; }
-      }
-    }
   }
 }
 

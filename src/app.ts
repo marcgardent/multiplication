@@ -776,19 +776,6 @@ export function createApp(): AppInstance {
                 <span class="kpi-mini-lbl">À découvrir</span>
               </div>
             </div>
-
-            <details class="queues-explainer">
-              <summary>Comment fonctionne le choix des calculs ?</summary>
-              <div class="explainer-body">
-                <p>L'application utilise un système de <strong>répétition espacée (Boîtes 0 à 5)</strong> :</p>
-                <ul>
-                  <li>Un calcul réussi monte de boîte et revient à <strong>J1, J3, J7 et J21</strong>.</li>
-                  <li>En cas d'erreur, il revient aussitôt en <strong>Boîte 0</strong> pour être révisé.</li>
-                  <li>Le 21e jour, la réussite du calcul te fait gagner son <strong>cadeau 🎁</strong> définitif !</li>
-                  <li>Si beaucoup de révisions sont en attente, l'application bloque les nouveaux calculs pour que tu consolides tes acquis sans stress.</li>
-                </ul>
-              </div>
-            </details>
           </div>
         </details>
       `;
