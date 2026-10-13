@@ -10,7 +10,7 @@ export const DEFAULT_TABLES = [2, 3];
 
 // Modale « Choisis tes tables », commune à la révision des tables, à la radio et au brossage de dents
 export function openTableSelectionModal(options: TableSelectionOptions): void {
-  let selected = new Set(options.selected.length > 0 ? options.selected : DEFAULT_TABLES);
+  let selected = new Set(Array.isArray(options.selected) && options.selected.length > 0 ? options.selected : DEFAULT_TABLES);
 
   const modal = document.createElement("div");
   modal.className = "session-modal-overlay";

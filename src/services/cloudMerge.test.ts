@@ -214,6 +214,76 @@ describe("Règles de fusion", () => {
     expect(merged.sync.times).toEqual({ [`${NS}config_duration`]: 500, [`${NS}radio_tables`]: 300 });
   });
 
+  it("choix des tables : chaque contexte (profil, brosse à dents, radio) retient sa dernière sélection indépendamment", () => {
+    const onA = doc(
+      {
+        user_profiles_v2: [profile("p-1", "Léa", 1)],
+        "selected_tables_p-1": [2, 3],
+        brushing_tables: [4, 5],
+        radio_tables: [6, 7]
+      },
+      {
+        times: {
+          "selected_tables_p-1": 100,
+          brushing_tables: 300,
+          radio_tables: 100
+        }
+      }
+    );
+    const onB = doc(
+      {
+        user_profiles_v2: [profile("p-1", "Léa", 1)],
+        "selected_tables_p-1": [8, 9],
+        brushing_tables: [2, 3],
+        radio_tables: [7]
+      },
+      {
+        times: {
+          "selected_tables_p-1": 200,
+          brushing_tables: 200,
+          radio_tables: 400
+        }
+      }
+    );
+    const merged = mergeDocs(onA, onB);
+
+    expect(read(merged, "selected_tables_p-1")).toEqual([8, 9]);
+    expect(read(merged, "brushing_tables")).toEqual([4, 5]);
+    expect(read(merged, "radio_tables")).toEqual([7]);
+    expect(merged.sync.times).toEqual({
+      [`${NS}selected_tables_p-1`]: 200,
+      [`${NS}brushing_tables`]: 300,
+      [`${NS}radio_tables`]: 400
+    });
+  });
+
+  it("choix des tables du profil : supprimé quand le profil est supprimé", () => {
+    const lea = profile("p-1", "Léa", 1);
+    const onA = doc({
+      user_profiles_v2: [],
+      deleted_profiles: ["p-1"],
+      brushing_tables: [2, 3],
+      radio_tables: [5]
+    });
+    const onB = doc(
+      {
+        user_profiles_v2: [lea],
+        "selected_tables_p-1": [8, 9],
+        brushing_tables: [4, 5],
+        radio_tables: [5]
+      },
+      {
+        times: { "selected_tables_p-1": 500 }
+      }
+    );
+    const merged = mergeDocs(onA, onB);
+
+    expect(read(merged, "selected_tables_p-1")).toBeUndefined();
+    expect(read(merged, "brushing_tables")).toEqual([4, 5]);
+    expect(read(merged, "radio_tables")).toEqual([5]);
+    expect(merged.sync.times[`${NS}selected_tables_p-1`]).toBeUndefined();
+  });
+
   it("joueur connecté : chaque appareil garde le sien", () => {
     const onA = doc({ active_profile_id_v2: "p-1" });
     const onB = doc({ active_profile_id_v2: "p-2" });

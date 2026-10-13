@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMatrixStore, isGiftUnlocked } from "../core/matrixStore";
-import { exportProfileData, importProfileData, ProfileData } from "../core/profileData";
+import { deleteProfileData, exportProfileData, importProfileData, profileKey, ProfileData } from "../core/profileData";
 import { createMemoryStorage } from "../services/storageService";
 import { isTestProfile, rebaseProfileData, ScenarioSnapshot, summarizeProfileData } from "./snapshots";
 
@@ -163,6 +163,21 @@ describe("injection des données d'un joueur", () => {
 
     expect(store.getDailyWheelSpinsLeft()).toBe(3);
     expect(store.getAll().every((i) => !isGiftUnlocked(i))).toBe(true);
+  });
+
+  it("exporte, importe et efface la sélection de tables du profil", () => {
+    const storage = createMemoryStorage();
+    storage.set(profileKey("selected_tables", "p-1"), [5, 6]);
+
+    const exported = exportProfileData(storage, "p-1");
+    expect(exported.selected_tables).toEqual([5, 6]);
+
+    const targetStorage = createMemoryStorage();
+    importProfileData(targetStorage, "p-2", exported);
+    expect(targetStorage.get<number[]>(profileKey("selected_tables", "p-2"), [])).toEqual([5, 6]);
+
+    deleteProfileData(targetStorage, "p-2");
+    expect(targetStorage.get<number[] | null>(profileKey("selected_tables", "p-2"), null)).toBeNull();
   });
 });
 

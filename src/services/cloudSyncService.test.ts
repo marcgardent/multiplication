@@ -755,4 +755,15 @@ describe("Quand le parent garde la main", () => {
 
     expect(a.sync.getState()).toMatchObject({ status: "attention", issue: "conflict", remoteModifiedTime: "" });
   });
+
+  it("enregistre l'horodatage d'un réglage même si la synchronisation n'est pas encore activée", () => {
+    const drive = createDrive();
+    const dev = createDevice(drive, "unconnected");
+    expect(dev.sync.getState().status).toBe("off");
+
+    dev.write("selected_tables_p-1", [6, 7]);
+    const times = dev.settings.get<Record<string, number>>("times", {});
+    expect(typeof times[`${NS}selected_tables_p-1`]).toBe("number");
+    expect(times[`${NS}selected_tables_p-1`]).toBeGreaterThan(0);
+  });
 });

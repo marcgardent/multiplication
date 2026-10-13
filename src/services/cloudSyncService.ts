@@ -398,10 +398,10 @@ export function createCloudSync(deps: CloudSyncDeps): CloudSync {
     },
 
     notifyLocalChange(fullKey) {
-      if (!isEnabled()) return;
       if (fullKey && familyOf(fullKey) === "setting") {
         settings.set("times", { ...settings.get<SyncMeta["times"]>("times", {}), [fullKey]: Date.now() });
       }
+      if (!isEnabled()) return;
       setDirty(true);
       if (isRunning) changedWhileRunning = true;
       if (issue === "error") setIssue(null);

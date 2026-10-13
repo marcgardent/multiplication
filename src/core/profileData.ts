@@ -17,6 +17,7 @@ export interface ProfileData {
   kept_bgs: string[];
   wheel_spins?: WheelDailyState;
   active_bg?: string;
+  selected_tables?: number[];
 }
 
 export type ProfileDataKey = keyof ProfileData;
@@ -29,7 +30,8 @@ export const PROFILE_DATA_KEYS: ProfileDataKey[] = [
   "points",
   "kept_bgs",
   "wheel_spins",
-  "active_bg"
+  "active_bg",
+  "selected_tables"
 ];
 
 export function profileKey(name: ProfileDataKey, profileId: string): string {
@@ -57,6 +59,8 @@ export function exportProfileData(storage: StorageService, profileId: string): P
   if (wheel !== undefined) data.wheel_spins = wheel;
   const background = read("active_bg", undefined);
   if (background !== undefined) data.active_bg = background;
+  const tables = read("selected_tables", undefined);
+  if (tables !== undefined) data.selected_tables = tables;
   return data;
 }
 

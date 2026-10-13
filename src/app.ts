@@ -18,7 +18,7 @@ import { openParentGate } from "./components/parentGate";
 import { renderParentArea } from "./components/parentArea";
 import { downloadDriveBackup, exportAllAppData, findDriveBackup, importAllAppData, uploadDriveBackup } from "./services/googleDriveService";
 import { renderSnapshotLoader } from "./components/snapshotLoaderScreen";
-import { importProfileData } from "./core/profileData";
+import { importProfileData, profileKey } from "./core/profileData";
 import { isTestProfile } from "./testing/snapshots";
 import { createWakeLockService } from "./services/wakeLockService";
 import { DEFAULT_TABLES, openTableSelectionModal } from "./components/tableSelectionModal";
@@ -90,7 +90,6 @@ export function createApp(): AppInstance {
 
   let currentTab: "home" | "carnet" | "snapshots" = "home";
   let rootElement: HTMLElement | null = null;
-  let selectedRevisionTables: number[] = DEFAULT_TABLES;
   // Titre du dernier snapshot chargé par le joueur de test, rappelé sur l'accueil
   const LAST_SNAPSHOT_KEY = "test_last_snapshot";
 
@@ -757,13 +756,14 @@ export function createApp(): AppInstance {
     document.body.appendChild(modal);
   }
 
-  // Modale Choix Tables (Révision tables)
+  // Modale Choix Tables (Révision tables) : chaque joueur retient sa propre sélection
   function openRevisionTablesModal() {
+    const revisionKey = activeProfile ? profileKey("selected_tables", activeProfile.id) : "selected_tables_guest";
     openTableSelectionModal({
-      selected: selectedRevisionTables,
+      selected: storage.get<number[]>(revisionKey, DEFAULT_TABLES),
       confirmLabel: "Valider et commencer",
       onConfirm: (tables) => {
-        selectedRevisionTables = tables;
+        storage.set(revisionKey, tables);
         const before = snapshotProgress();
         const releaseScreen = wakeLock.keepAwake();
 
