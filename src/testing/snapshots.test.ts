@@ -179,6 +179,21 @@ describe("injection des données d'un joueur", () => {
     deleteProfileData(targetStorage, "p-2");
     expect(targetStorage.get<number[] | null>(profileKey("selected_tables", "p-2"), null)).toBeNull();
   });
+
+  it("exporte, importe et efface l'ordre d'apprentissage des tables du profil", () => {
+    const storage = createMemoryStorage();
+    storage.set(profileKey("learning_tables", "p-1"), [2, 5, 10]);
+
+    const exported = exportProfileData(storage, "p-1");
+    expect(exported.learning_tables).toEqual([2, 5, 10]);
+
+    const targetStorage = createMemoryStorage();
+    importProfileData(targetStorage, "p-2", exported);
+    expect(targetStorage.get<number[]>(profileKey("learning_tables", "p-2"), [])).toEqual([2, 5, 10]);
+
+    deleteProfileData(targetStorage, "p-2");
+    expect(targetStorage.get<number[] | null>(profileKey("learning_tables", "p-2"), null)).toBeNull();
+  });
 });
 
 function createMemoryStorageWithStore() {

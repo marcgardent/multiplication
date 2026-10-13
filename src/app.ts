@@ -488,36 +488,99 @@ export function createApp(): AppInstance {
     const modal = document.createElement("div");
     modal.className = "session-modal-overlay";
 
-    function renderChip(item: MultiplicationItem, type: "review" | "new" | "reinforce"): string {
-      let tagText = "";
-      let tagClass = "";
-      if (type === "new") {
-        tagText = "Nouveau";
-        tagClass = "tag-new";
-      } else if (type === "reinforce") {
-        tagText = "Renfort";
-        tagClass = "tag-reinforce";
-      } else {
-        if (item.status === "review") {
-          tagText = "À revoir";
-          tagClass = "tag-review";
-        } else if (item.boxLevel === 4) {
-          tagText = "Bientôt 🎁";
-          tagClass = "tag-gift";
-        } else if (item.boxLevel === 0) {
-          tagText = "À réécouter";
-          tagClass = "tag-disc";
-        } else {
-          tagText = `Boîte ${item.boxLevel}`;
-          tagClass = "tag-box";
-        }
-      }
+    function renderSimpleChip(item: MultiplicationItem, subgroupId?: string): string {
+      const extraClass = subgroupId ? `chip-${subgroupId}` : "";
       return `
-        <div class="queue-item-chip ${type}">
+        <div class="queue-item-chip ${extraClass}" title="${item.a} × ${item.b} = ${item.result}">
           <span class="chip-factors">${item.a} × ${item.b}</span>
-          <span class="chip-status ${tagClass}">${tagText}</span>
         </div>
       `;
+    }
+
+    interface ReviewSubgroup {
+      id: "review" | "listen" | "gift" | "scheduled" | "mastered";
+      title: string;
+      dotClass: string;
+      icon?: string;
+      desc: string;
+      items: MultiplicationItem[];
+    }
+
+    function categorizeReviews(items: MultiplicationItem[]): ReviewSubgroup[] {
+      const toReview: MultiplicationItem[] = [];
+      const toListen: MultiplicationItem[] = [];
+      const almostGift: MultiplicationItem[] = [];
+      const scheduled: MultiplicationItem[] = [];
+      const mastered: MultiplicationItem[] = [];
+
+      for (const item of items) {
+        if (item.status === "review") {
+          toReview.push(item);
+        } else if (item.boxLevel === 0) {
+          toListen.push(item);
+        } else if (item.boxLevel === 4) {
+          almostGift.push(item);
+        } else if (item.status === "mastered" || item.boxLevel >= 5) {
+          mastered.push(item);
+        } else {
+          scheduled.push(item);
+        }
+      }
+
+      const groups: ReviewSubgroup[] = [];
+
+      if (toReview.length > 0) {
+        groups.push({
+          id: "review",
+          title: "À revoir",
+          dotClass: "dot-review",
+          desc: "Erreurs récentes",
+          items: toReview
+        });
+      }
+
+      if (toListen.length > 0) {
+        groups.push({
+          id: "listen",
+          title: "À réécouter",
+          dotClass: "dot-discovery",
+          desc: "Découverte audio",
+          items: toListen
+        });
+      }
+
+      if (almostGift.length > 0) {
+        groups.push({
+          id: "gift",
+          title: "Bientôt le cadeau",
+          dotClass: "dot-gift",
+          icon: "🎁",
+          desc: "21e jour d'ancrage",
+          items: almostGift
+        });
+      }
+
+      if (scheduled.length > 0) {
+        groups.push({
+          id: "scheduled",
+          title: "Révisions programmées",
+          dotClass: "dot-discovery",
+          desc: "Calendrier espacé",
+          items: scheduled
+        });
+      }
+
+      if (mastered.length > 0) {
+        groups.push({
+          id: "mastered",
+          title: "Entretien",
+          dotClass: "dot-mastered",
+          desc: "Vérification d'ancrage",
+          items: mastered
+        });
+      }
+
+      return groups;
     }
 
     function renderQueuesHtml(minutes: number): string {
@@ -525,6 +588,7 @@ export function createApp(): AppInstance {
       const qStats = repetitionEngine.getQueueStats(minutes);
       const isOverloaded = repetitionEngine.isReviewQueueOverloaded(minutes);
 
+      const reviewSubgroups = categorizeReviews(lot.reviews);
       const reviewsHtml =
         lot.reviews.length > 0
           ? `
@@ -532,13 +596,32 @@ export function createApp(): AppInstance {
               <div class="queue-group-header">
                 <div class="queue-group-title">
                   <span class="queue-badge-icon">🔄</span>
-                  <strong>File des révisions</strong>
+                  <strong>Les révisions</strong>
                   <span class="queue-count-pill">${lot.reviews.length} calcul${lot.reviews.length > 1 ? "s" : ""}</span>
                 </div>
                 <span class="queue-group-help">Calculs déjà vus, à réviser aujourd'hui pour les retenir</span>
               </div>
-              <div class="queue-chips-grid">
-                ${lot.reviews.map((i) => renderChip(i, "review")).join("")}
+              <div class="queue-subgroups-list">
+                ${reviewSubgroups
+                  .map(
+                    (group) => `
+                      <div class="queue-subgroup subgroup-${group.id}">
+                        <div class="subgroup-header">
+                          ${
+                            group.icon
+                              ? `<span class="subgroup-gift-icon" aria-hidden="true">${group.icon}</span>`
+                              : `<span class="dot ${group.dotClass}" aria-hidden="true"></span>`
+                          }
+                          <strong class="subgroup-title">${group.title}</strong>
+                          <span class="subgroup-desc">${group.desc}</span>
+                        </div>
+                        <div class="queue-chips-grid">
+                          ${group.items.map((i) => renderSimpleChip(i, group.id)).join("")}
+                        </div>
+                      </div>
+                    `
+                  )
+                  .join("")}
               </div>
             </div>
           `
@@ -547,7 +630,7 @@ export function createApp(): AppInstance {
               <div class="queue-group-header">
                 <div class="queue-group-title">
                   <span class="queue-badge-icon">🔄</span>
-                  <strong>File des révisions</strong>
+                  <strong>Les révisions</strong>
                   <span class="queue-count-pill">0</span>
                 </div>
                 <span class="queue-group-help">✨ Aucune révision en attente : tu es parfaitement à jour !</span>
@@ -557,18 +640,40 @@ export function createApp(): AppInstance {
 
       let newsHtml = "";
       if (lot.news.length > 0) {
+        const newsByTable = new Map<number, MultiplicationItem[]>();
+        for (const item of lot.news) {
+          const list = newsByTable.get(item.a) ?? [];
+          list.push(item);
+          newsByTable.set(item.a, list);
+        }
+
         newsHtml = `
           <div class="queue-card-group group-news">
             <div class="queue-group-header">
               <div class="queue-group-title">
                 <span class="queue-badge-icon">✨</span>
-                <strong>File des nouveaux</strong>
+                <strong>Les nouveaux</strong>
                 <span class="queue-count-pill">${lot.news.length} calcul${lot.news.length > 1 ? "s" : ""}</span>
               </div>
               <span class="queue-group-help">Multiplications que tu découvres aujourd'hui</span>
             </div>
-            <div class="queue-chips-grid">
-              ${lot.news.map((i) => renderChip(i, "new")).join("")}
+            <div class="queue-subgroups-list">
+              ${Array.from(newsByTable.entries())
+                .map(
+                  ([tableNum, items]) => `
+                    <div class="queue-subgroup subgroup-news">
+                      <div class="subgroup-header">
+                        <span class="dot dot-discovery" aria-hidden="true"></span>
+                        <strong class="subgroup-title">Table de ${tableNum}</strong>
+                        <span class="subgroup-desc">Nouvelle découverte</span>
+                      </div>
+                      <div class="queue-chips-grid">
+                        ${items.map((i) => renderSimpleChip(i, "news")).join("")}
+                      </div>
+                    </div>
+                  `
+                )
+                .join("")}
             </div>
           </div>
         `;
@@ -615,8 +720,17 @@ export function createApp(): AppInstance {
                 </div>
                 <span class="queue-group-help">Calculs en cours pour compléter la séance</span>
               </div>
-              <div class="queue-chips-grid">
-                ${lot.reinforcements.map((i) => renderChip(i, "reinforce")).join("")}
+              <div class="queue-subgroups-list">
+                <div class="queue-subgroup subgroup-reinforce">
+                  <div class="subgroup-header">
+                    <span class="dot dot-discovery" aria-hidden="true"></span>
+                    <strong class="subgroup-title">En consolidation</strong>
+                    <span class="subgroup-desc">Entraînement supplémentaire</span>
+                  </div>
+                  <div class="queue-chips-grid">
+                    ${lot.reinforcements.map((i) => renderSimpleChip(i, "reinforce")).join("")}
+                  </div>
+                </div>
               </div>
             </div>
           `

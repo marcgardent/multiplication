@@ -376,6 +376,7 @@
   }
 
   .session-lot-program-card {
+    container-type: inline-size;
     background: $ground;
     border-radius: $radius-card;
     padding: 14px;
@@ -399,6 +400,7 @@
         font-size: $fs-caption;
         color: $accent-ink;
         font-weight: 500;
+        line-height: 1.35;
       }
     }
 
@@ -459,74 +461,130 @@
         }
       }
 
-      .queue-chips-grid {
+      .queue-subgroups-list {
         display: flex;
-        flex-wrap: wrap;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .queue-subgroup {
+        display: flex;
+        flex-direction: column;
         gap: 6px;
+        padding: 8px 10px;
+        background: $ground;
+        border-radius: $radius-control;
+        border: 1px solid rgba($line, 0.75);
+
+        &.subgroup-review {
+          border-color: rgba($status-review, 0.35);
+          background: rgba($status-review-soft, 0.35);
+        }
+
+        &.subgroup-listen {
+          border-color: rgba($status-discovery, 0.35);
+          background: rgba($status-discovery-soft, 0.35);
+        }
+
+        &.subgroup-gift {
+          border-color: rgba(#eab308, 0.4);
+          background: rgba($gold-soft, 0.5);
+        }
+
+        &.subgroup-news {
+          border-color: rgba($accent, 0.25);
+          background: rgba($accent-soft, 0.35);
+        }
+
+        &.subgroup-mastered {
+          border-color: rgba($status-mastered, 0.35);
+          background: rgba($status-mastered-soft, 0.35);
+        }
+
+        .subgroup-header {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          font-size: $fs-caption;
+          color: $ink;
+          flex-wrap: wrap;
+
+          .dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 2px;
+            flex-shrink: 0;
+
+            &.dot-review { background: $status-review; }
+            &.dot-discovery { background: $status-discovery; }
+            &.dot-mastered { background: $status-mastered; }
+            &.dot-gift { background: #eab308; }
+          }
+
+          .subgroup-gift-icon {
+            font-size: 0.875rem;
+            line-height: 1;
+          }
+
+          .subgroup-title {
+            font-weight: 600;
+            color: $ink;
+            font-size: $fs-small;
+          }
+
+          .subgroup-desc {
+            font-size: $fs-dense;
+            color: $ink-soft;
+            margin-left: auto;
+          }
+        }
+
+        .queue-chips-grid {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 6px;
+        }
       }
     }
 
     .queue-item-chip {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      padding: 4px 10px;
+      justify-content: center;
+      padding: 5px 11px;
       border-radius: $radius-pill;
-      background: $ground;
+      background: $surface;
       border: 1px solid $line;
-      font-size: $fs-small;
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: $ink;
+      font-variant-numeric: tabular-nums;
+      box-shadow: 0 1px 2px rgba($ink, 0.04);
+      transition: border-color $transition-base;
 
       .chip-factors {
-        font-weight: 600;
-        color: $ink;
+        line-height: 1.2;
       }
 
-      .chip-status {
-        font-size: $fs-dense;
-        font-weight: 600;
-        padding: 2px 6px;
-        border-radius: $radius-pill;
-
-        &.tag-review {
-          background: $status-review-soft;
-          color: $status-review-ink;
-        }
-
-        &.tag-gift {
-          background: $gold-soft;
-          color: $gold-ink;
-        }
-
-        &.tag-disc {
-          background: $status-discovery-soft;
-          color: $ink;
-        }
-
-        &.tag-box {
-          background: $surface;
-          color: $ink-soft;
-          border: 1px solid $line;
-        }
-
-        &.tag-new {
-          background: $accent-soft;
-          color: $accent-ink;
-        }
-
-        &.tag-reinforce {
-          background: $status-discovery-soft;
-          color: $ink;
-        }
+      &.chip-review {
+        border-color: rgba($status-review, 0.45);
       }
 
-      &.new, &.chip-new {
-        background: $accent-soft;
-        border-color: rgba($accent, 0.3);
+      &.chip-listen {
+        border-color: rgba($status-discovery, 0.45);
       }
 
-      &.review, &.chip-review {
-        background: $status-review-soft;
-        border-color: rgba($status-review, 0.3);
+      &.chip-gift {
+        border-color: rgba(#eab308, 0.55);
+      }
+
+      &.chip-news {
+        border-color: rgba($accent, 0.35);
+      }
+
+      &.chip-mastered {
+        border-color: rgba($status-mastered, 0.45);
       }
     }
 
@@ -569,23 +627,42 @@
 
     .queues-kpi-summary {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 6px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
       background: $surface;
       border-radius: $radius-control;
-      padding: 10px 8px;
+      padding: 10px;
       border: 1px solid $line;
+
+      @container (min-width: 440px) {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 6px;
+        padding: 10px 8px;
+      }
+
+      @media (min-width: 520px) {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 6px;
+        padding: 10px 8px;
+      }
 
       .kpi-mini-item {
         display: flex;
         flex-direction: column;
         align-items: center;
         text-align: center;
+        justify-content: center;
         gap: 2px;
+        min-width: 0;
+        padding: 8px 6px;
+        background: $ground;
+        border-radius: $radius-control;
+        border: 1px solid rgba($line, 0.6);
 
         .kpi-mini-num {
           font-size: 1.15rem;
           font-weight: 700;
+          line-height: 1.2;
           font-variant-numeric: tabular-nums;
 
           &.color-review { color: $status-review; }
@@ -597,7 +674,10 @@
         .kpi-mini-lbl {
           font-size: $fs-dense;
           color: $ink-soft;
-          white-space: nowrap;
+          text-align: center;
+          line-height: 1.25;
+          word-break: normal;
+          overflow-wrap: break-word;
         }
       }
     }

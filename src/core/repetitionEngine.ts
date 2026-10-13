@@ -65,6 +65,23 @@ export function createRepetitionEngine(
     return matrixStore.isItemDue(item, now);
   }
 
+  function getOrderedUnknowns(): MultiplicationItem[] {
+    const tables = matrixStore.getLearningTables ? matrixStore.getLearningTables() : [1, 10, 2, 5, 3, 4, 6, 7, 8, 9];
+    const result: MultiplicationItem[] = [];
+    const seen = new Set<string>();
+
+    for (const tableNum of tables) {
+      for (let b = 1; b <= 10; b++) {
+        const item = matrixStore.getByFactors(tableNum, b);
+        if (item && item.status === "unknown" && !seen.has(item.id)) {
+          result.push(item);
+          seen.add(item.id);
+        }
+      }
+    }
+    return result;
+  }
+
   let activeLot: DetailedLot | null = null;
 
   function planLot(durationMinutes = config.durationMinutes): DetailedLot {
@@ -92,7 +109,7 @@ export function createRepetitionEngine(
       const bDueDiff = now - (b.nextReviewAt ?? b.lastReviewedAt ?? now);
       return bDueDiff - aDueDiff;
     });
-    const unknowns = all.filter((i) => i.status === "unknown");
+    const unknowns = getOrderedUnknowns();
 
     // 1. Les révisions échues d'abord : quand elles remplissent le lot, aucun nouveau calcul n'entre
     const reviews = dueReviews.slice(0, rule.max);
@@ -270,11 +287,12 @@ export function createRepetitionEngine(
     getQueueStats(durationMinutes?: number): QueueStats {
       const all = matrixStore.getAll();
       const now = Date.now();
+      const unknowns = getOrderedUnknowns();
       return {
         dueCount: all.filter((i) => isItemDue(i, now)).length,
         learningCount: all.filter((i) => i.status === "discovery" || i.status === "review").length,
         masteredCount: all.filter((i) => i.status === "mastered").length,
-        newAvailableCount: all.filter((i) => i.status === "unknown").length,
+        newAvailableCount: unknowns.length,
         nextSessionNewCount: planLot(durationMinutes).newCount
       };
     },

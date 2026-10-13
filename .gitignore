@@ -5,3 +5,7 @@ dist
 
 # Voix Piper téléchargée par `make audio`
 scripts/.voices
+
+# IDE / Assistants
+.idea/
+.claude/

@@ -26,7 +26,7 @@ Limite assumée : un appareil écrasé dans cette fenêtre d'environ une seconde
 | Cadeaux ouverts, décors conservés | réunion | |
 | Historique des réponses | réunion sans doublon, les 500 plus récentes | |
 | Roue du jour | le jour le plus récent ; le même jour, le plus grand nombre de tours utilisés | |
-| Réglages : durée de séance, tables de la radio et du brossage, décor choisi | le plus récemment modifié | |
+| Réglages : durée de séance, tables de la radio et du brossage, ordre des tables à apprendre (carnet de suivi), décor choisi | le plus récemment modifié | |
 | Joueur connecté, dernier scénario de test | propre à chaque appareil, jamais fusionné | |
 
 Un joueur se supprime dans l'espace parent, après confirmation. L'application garde la liste des joueurs supprimés : c'est elle qui empêche un autre appareil de le faire revenir à la fusion suivante.

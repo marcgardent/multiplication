@@ -101,6 +101,16 @@ Les révisions échues passent avant les nouveaux calculs. Quand il y en a plus 
 
 Les révisions qui ne rentrent pas attendent la séance suivante. Tant qu'elles remplissent le lot, aucun nouveau calcul n'est proposé.
 
+### Ordre d'apprentissage des nouveaux calculs
+
+Quand des places sont disponibles pour de nouveaux calculs, l'algorithme pioche dans **l'ordre des tables défini dans le carnet de suivi** (par défaut `1, 10, 2, 5, 3, 4, 6, 7, 8, 9`, réorganisable par le parent) :
+
+1. L'algorithme pioche les calculs non abordés (`unknown`) de la première table de la liste (ex. `2 × 1`, `2 × 2`...).
+2. Dès que tous les calculs d'une table ont été introduits, il passe à la table suivante dans la liste.
+3. Si une séance a besoin de nouveaux calculs alors qu'une table est presque finie, le reste est pris au début de la table suivante.
+4. Les tables retirées de la liste (mises en réserve / en pause) ne sont pas piochées : aucun calcul n'en est introduit tant qu'elles ne sont pas réactivées.
+5. Lorsque toutes les tables actives ont été découvertes, aucun nouveau calcul n'entre tant que de nouvelles tables ne sont pas ajoutées.
+
 ## Cadeau
 
 Chaque calcul a un cadeau. Son état ne revient jamais en arrière.

@@ -459,4 +459,60 @@ describe("lot de séance", () => {
     expect(store.getCountsByStatus().mastered).toBe(0);
     expect(store.getAll().every((i) => i.boxLevel <= 2)).toBe(true);
   });
+
+  it("pioche les nouveaux calculs selon l'ordre personnalisé des tables", () => {
+    store.setLearningTables([2, 5, 10]);
+    const engine = createRepetitionEngine(store, sessionConfig(3));
+    const lot = engine.startSession();
+
+    // 4 calculs au départ (lot minimum) : ils viennent tous de la Table de 2
+    expect(lot.items.map((i) => i.id)).toEqual(["2x1", "2x2", "2x3", "2x4"]);
+    expect(engine.getQueueStats().newAvailableCount).toBe(30); // 3 tables de 10 calculs
+  });
+
+  it("enchaîne sur la table suivante dans l'ordre dès que la précédente est épuisée", () => {
+    store.setLearningTables([2, 5]);
+    // On apprend les 10 calculs de la Table de 2 le jour même (pas encore à réviser)
+    for (let b = 1; b <= 10; b++) {
+      listen(store, 2, b);
+      answer(store, 2, b);
+    }
+
+    const engine = createRepetitionEngine(store, sessionConfig(3));
+    const lot = engine.startSession();
+
+    // Les nouveaux calculs viennent maintenant de la Table de 5
+    expect(lot.news.map((i) => i.id)).toEqual(["5x1", "5x2"]);
+    expect(engine.getQueueStats().newAvailableCount).toBe(10); // 10 inconnus dans la table de 5 avant d'avoir joué
+  });
+
+  it("répartit les nouveaux calculs entre deux tables quand la première n'en a plus assez", () => {
+    store.setLearningTables([2, 5]);
+    // On apprend 8 calculs de la Table de 2 le jour même (il reste 2x9 et 2x10)
+    for (let b = 1; b <= 8; b++) {
+      listen(store, 2, b);
+      answer(store, 2, b);
+    }
+
+    const engine = createRepetitionEngine(store, sessionConfig(6)); // règle pour 6 min : jusqu'à 4 nouveaux
+    const lot = engine.startSession();
+
+    // Prend les 2 restants de la Table de 2 puis 2 de la Table de 5
+    expect(lot.news.map((i) => i.id)).toEqual(["2x9", "2x10", "5x1", "5x2"]);
+  });
+
+  it("ne pioche aucun nouveau calcul hors des tables autorisées une fois celles-ci maîtrisées", () => {
+    store.setLearningTables([2]);
+    for (let b = 1; b <= 10; b++) {
+      listen(store, 2, b);
+      answer(store, 2, b);
+    }
+    goTo(1);
+
+    const engine = createRepetitionEngine(store, sessionConfig(3));
+    const lot = engine.startSession();
+
+    expect(lot.newCount).toBe(0);
+    expect(engine.getQueueStats().newAvailableCount).toBe(0);
+  });
 });

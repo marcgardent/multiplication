@@ -2,6 +2,7 @@ import { MatrixStore } from "../core/matrixStore";
 import { MultiplicationItem, ItemStatus } from "../types";
 import { AudioService } from "../services/audioService";
 import { RepetitionEngine } from "../core/repetitionEngine";
+import { createLearningOrderCard } from "./learningOrderCard";
 
 export type MatrixDisplayMode = "status" | "accuracy" | "responseTime";
 
@@ -176,104 +177,125 @@ export function createMatrixView(
       : `${totalSeconds} secondes`;
 
     // Section 1 : État des files et régulation
-    let poolSectionHtml = "";
     if (repetitionEngine) {
       const qStats = repetitionEngine.getQueueStats();
       const isOverloaded = repetitionEngine.isReviewQueueOverloaded();
-      poolSectionHtml = `
-        <div class="parent-kpi-card">
-          <div class="kpi-header">
-            <h3>Temps utile & apprentissage</h3>
-            <span class="kpi-badge ${isOverloaded ? "badge-warning" : "badge-ok"}">
-              ${isOverloaded ? "Priorité aux révisions" : "Progression fluide"}
-            </span>
+      const poolCard = document.createElement("div");
+      poolCard.className = "parent-kpi-card";
+      poolCard.innerHTML = `
+        <div class="kpi-header">
+          <h3>Temps utile & apprentissage</h3>
+          <span class="kpi-badge ${isOverloaded ? "badge-warning" : "badge-ok"}">
+            ${isOverloaded ? "Priorité aux révisions" : "Progression fluide"}
+          </span>
+        </div>
+
+        <div class="practice-time-banner">
+          <span class="time-clock-icon">⏱️</span>
+          <div class="time-banner-info">
+            <span class="time-banner-val">${formattedPracticeTime}</span>
+            <span class="time-banner-lbl">Temps effectif passé à s'entraîner</span>
           </div>
+        </div>
 
-          <div class="practice-time-banner">
-            <span class="time-clock-icon">⏱️</span>
-            <div class="time-banner-info">
-              <span class="time-banner-val">${formattedPracticeTime}</span>
-              <span class="time-banner-lbl">Temps effectif passé à s'entraîner</span>
+        <div class="kpi-grid">
+          <div class="kpi-box">
+            <span class="kpi-num">${qStats.dueCount}</span>
+            <span class="kpi-lbl">À réviser aujourd'hui</span>
+          </div>
+          <div class="kpi-box">
+            <span class="kpi-num">${qStats.learningCount}</span>
+            <span class="kpi-lbl">En apprentissage</span>
+          </div>
+          <div class="kpi-box">
+            <span class="kpi-num">${qStats.masteredCount}</span>
+            <span class="kpi-lbl">Maîtrisés</span>
+          </div>
+          <div class="kpi-box">
+            <span class="kpi-num">${qStats.nextSessionNewCount}</span>
+            <span class="kpi-lbl">Nouveaux à la prochaine séance</span>
+          </div>
+        </div>
+        ${
+          isOverloaded
+            ? `<p class="kpi-advice">${qStats.dueCount} calculs sont à réviser : ils occupent toute la prochaine séance. Les nouveaux calculs reprendront une fois ces révisions faites.</p>`
+            : qStats.newAvailableCount === 0
+            ? `<p class="kpi-advice">Tous les calculs des tables actives ont été abordés ! Vos prochaines séances consolident les révisions.</p>`
+            : `<p class="kpi-advice">La prochaine séance mêle les révisions du jour et ${qStats.nextSessionNewCount} nouveaux calculs.</p>`
+        }
+
+        <button type="button" class="btn-parent-guide-toggle" id="btn-toggle-parent-guide">
+          <span class="guide-toggle-icon">📖</span>
+          <span class="guide-toggle-title">Comprendre la méthode de répétition espacée</span>
+          <span class="guide-toggle-arrow" id="guide-arrow">▼</span>
+        </button>
+
+        <div class="parent-guide-content" id="parent-guide-content" style="display: none;">
+          <div class="guide-intro">
+            Cette application applique les principes neuroscientifiques de la mémoire à long terme pour éviter le par cœur éphémère.
+          </div>
+          <div class="guide-steps-list">
+            <div class="guide-step-item">
+              <span class="step-num-badge">1</span>
+              <div class="step-desc">
+                <strong>Révisions à jours fixes</strong> : Un calcul réussi pour la première fois se révise le lendemain, puis au 3e, au 7e et au 21e jour. Réussi ce 21e jour, il est maîtrisé et son cadeau est gagné pour de bon. Après une erreur, il revient 10 minutes plus tard et son calendrier repart du début. Un calcul ne change de boîte que le jour prévu : le réussir plusieurs fois dans la même séance l'entraîne, sans le faire monter plus vite.
+              </div>
+            </div>
+            <div class="guide-step-item">
+              <span class="step-num-badge">2</span>
+              <div class="step-desc">
+                <strong>Espacement intra-séance protecteur</strong> : Après une réponse incorrecte, l application attend au moins 3 calculs intercalaires avant de réinterroger votre enfant. Cela force l évocation active en mémoire profonde au lieu du simple souvenir immédiat.
+              </div>
+            </div>
+            <div class="guide-step-item">
+              <span class="step-num-badge">3</span>
+              <div class="step-desc">
+                <strong>Vitesse de réponse et réflexe</strong> : Une réponse ultra rapide en moins de 2,2 secondes élargit l intervalle de révision. À l inverse, une hésitation de plus de 3,8 secondes resserre le planning pour consolider le calcul sans précipitation.
+              </div>
+            </div>
+            <div class="guide-step-item">
+              <span class="step-num-badge">4</span>
+              <div class="step-desc">
+                <strong>Un lot fixe par séance</strong> : Chaque séance travaille un lot de calculs choisi au départ, les révisions du jour d'abord, puis quelques nouveaux selon la durée (2 pour 3 minutes, jusqu'à 8 pour 15 minutes). Quand les révisions remplissent le lot, aucun nouveau calcul n'est ajouté, pour protéger votre enfant de la surcharge cognitive.
+              </div>
+            </div>
+            <div class="guide-step-item">
+              <span class="step-num-badge">5</span>
+              <div class="step-desc">
+                <strong>Ordre d'apprentissage des tables</strong> : Les nouveaux calculs sont introduits selon l ordre défini ci-dessous (par défaut : 1, 10, 2, 5, 3, 4, 6, 7, 8, 9). Vous pouvez glisser-déposer les tables pour personnaliser cet ordre ou mettre des tables en pause.
+              </div>
+            </div>
+            <div class="guide-step-item">
+              <span class="step-num-badge">6</span>
+              <div class="step-desc">
+                <strong>Contrôle d ancrage à 21 jours</strong> : Même lorsqu un calcul est validé comme maîtrisé, il est revu toutes les 3 semaines pour vérifier que le réflexe reste parfait au fil du temps.
+              </div>
             </div>
           </div>
-
-          <div class="kpi-grid">
-            <div class="kpi-box">
-              <span class="kpi-num">${qStats.dueCount}</span>
-              <span class="kpi-lbl">À réviser aujourd'hui</span>
-            </div>
-            <div class="kpi-box">
-              <span class="kpi-num">${qStats.learningCount}</span>
-              <span class="kpi-lbl">En apprentissage</span>
-            </div>
-            <div class="kpi-box">
-              <span class="kpi-num">${qStats.masteredCount}</span>
-              <span class="kpi-lbl">Maîtrisés</span>
-            </div>
-            <div class="kpi-box">
-              <span class="kpi-num">${qStats.nextSessionNewCount}</span>
-              <span class="kpi-lbl">Nouveaux à la prochaine séance</span>
-            </div>
-          </div>
-          ${
-            isOverloaded
-              ? `<p class="kpi-advice">${qStats.dueCount} calculs sont à réviser : ils occupent toute la prochaine séance. Les nouveaux calculs reprendront une fois ces révisions faites.</p>`
-              : `<p class="kpi-advice">La prochaine séance mêle les révisions du jour et ${qStats.nextSessionNewCount} nouveaux calculs.</p>`
-          }
-
-          <button type="button" class="btn-parent-guide-toggle" id="btn-toggle-parent-guide">
-            <span class="guide-toggle-icon">📖</span>
-            <span class="guide-toggle-title">Comprendre la méthode de répétition espacée</span>
-            <span class="guide-toggle-arrow" id="guide-arrow">▼</span>
-          </button>
-
-          <div class="parent-guide-content" id="parent-guide-content" style="display: none;">
-            <div class="guide-intro">
-              Cette application applique les principes neuroscientifiques de la mémoire à long terme pour éviter le par cœur éphémère.
-            </div>
-            <div class="guide-steps-list">
-              <div class="guide-step-item">
-                <span class="step-num-badge">1</span>
-                <div class="step-desc">
-                  <strong>Révisions à jours fixes</strong> : Un calcul réussi pour la première fois se révise le lendemain, puis au 3e, au 7e et au 21e jour. Réussi ce 21e jour, il est maîtrisé et son cadeau est gagné pour de bon. Après une erreur, il revient 10 minutes plus tard et son calendrier repart du début. Un calcul ne change de boîte que le jour prévu : le réussir plusieurs fois dans la même séance l'entraîne, sans le faire monter plus vite.
-                </div>
-              </div>
-              <div class="guide-step-item">
-                <span class="step-num-badge">2</span>
-                <div class="step-desc">
-                  <strong>Espacement intra-séance protecteur</strong> : Après une réponse incorrecte, l application attend au moins 3 calculs intercalaires avant de réinterroger votre enfant. Cela force l évocation active en mémoire profonde au lieu du simple souvenir immédiat.
-                </div>
-              </div>
-              <div class="guide-step-item">
-                <span class="step-num-badge">3</span>
-                <div class="step-desc">
-                  <strong>Vitesse de réponse et réflexe</strong> : Une réponse ultra rapide en moins de 2,2 secondes élargit l intervalle de révision. À l inverse, une hésitation de plus de 3,8 secondes resserre le planning pour consolider le calcul sans précipitation.
-                </div>
-              </div>
-              <div class="guide-step-item">
-                <span class="step-num-badge">4</span>
-                <div class="step-desc">
-                  <strong>Un lot fixe par séance</strong> : Chaque séance travaille un lot de calculs choisi au départ, les révisions du jour d'abord, puis quelques nouveaux selon la durée (2 pour 3 minutes, jusqu'à 8 pour 15 minutes). Quand les révisions remplissent le lot, aucun nouveau calcul n'est ajouté, pour protéger votre enfant de la surcharge cognitive.
-                </div>
-              </div>
-              <div class="guide-step-item">
-                <span class="step-num-badge">5</span>
-                <div class="step-desc">
-                  <strong>Contrôle d ancrage à 21 jours</strong> : Même lorsqu un calcul est validé comme maîtrisé, il est revu toutes les 3 semaines pour vérifier que le réflexe reste parfait au fil du temps.
-                </div>
-              </div>
-            </div>
-          </div>
-
         </div>
       `;
+
+      poolCard.querySelector("#btn-toggle-parent-guide")?.addEventListener("click", () => {
+        const content = poolCard.querySelector("#parent-guide-content") as HTMLElement | null;
+        const arrow = poolCard.querySelector("#guide-arrow") as HTMLElement | null;
+        if (content) {
+          const isHidden = content.style.display === "none";
+          content.style.display = isHidden ? "block" : "none";
+          if (arrow) arrow.textContent = isHidden ? "▲" : "▼";
+        }
+      });
+
+      container.appendChild(poolCard);
     }
 
+    // Section 2 : Ordre d'apprentissage des tables (Composant modulaire)
+    const learningOrderCard = createLearningOrderCard(matrixStore);
+    container.appendChild(learningOrderCard.render());
+
+    // Section 3 : Grille des 100 calculs
     const header = document.createElement("div");
     header.className = "matrix-header";
     header.innerHTML = `
-      ${poolSectionHtml}
-
       <div class="matrix-title-row">
         <h2>Grille des 100 calculs</h2>
         <div class="matrix-mastery-score">${masteredPct}% maîtrisé</div>

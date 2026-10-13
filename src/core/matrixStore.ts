@@ -20,6 +20,8 @@ export interface MatrixStore {
   addPoints(amount: number): number;
   getDailyWheelSpinsLeft(): number;
   useWheelSpin(): boolean;
+  getLearningTables(): number[];
+  setLearningTables(tables: number[]): void;
   setProfile(profileId: string): void;
   reload(): void;
   resetAll(): void;
@@ -57,18 +59,21 @@ function startOfDayAfter(now: number, days: number): number {
 
 export function createMatrixStore(storage: StorageService, initialProfileId = "default-1"): MatrixStore {
   let currentProfileId = initialProfileId;
+  const DEFAULT_LEARNING_TABLES = [1, 10, 2, 5, 3, 4, 6, 7, 8, 9];
   const getStorageKey = () => profileKey("matrix_items", currentProfileId);
   const getHistoryKey = () => profileKey("attempt_history", currentProfileId);
   const getTimeKey = () => profileKey("practice_time", currentProfileId);
   const getGiftsKey = () => profileKey("opened_gifts", currentProfileId);
   const getPointsKey = () => profileKey("points", currentProfileId);
   const getWheelKey = () => profileKey("wheel_spins", currentProfileId);
+  const getLearningTablesKey = () => profileKey("learning_tables", currentProfileId);
 
   let itemsMap: Map<string, MultiplicationItem> = new Map();
   let history: AttemptLog[] = [];
   let openedGifts: Set<string> = new Set();
   let totalPracticeTimeMs = 0;
   let points = 0;
+  let learningTables: number[] = [...DEFAULT_LEARNING_TABLES];
   const listeners: Set<() => void> = new Set();
 
   function isItemDueCheck(item: MultiplicationItem, now = Date.now()): boolean {
@@ -113,6 +118,12 @@ export function createMatrixStore(storage: StorageService, initialProfileId = "d
     totalPracticeTimeMs = storage.get<number>(getTimeKey(), 0);
     openedGifts = new Set(storage.get<string[]>(getGiftsKey(), []));
     points = storage.get<number>(getPointsKey(), 0);
+    const savedTables = storage.get<number[]>(getLearningTablesKey(), DEFAULT_LEARNING_TABLES);
+    if (Array.isArray(savedTables)) {
+      learningTables = Array.from(new Set(savedTables.filter((t) => Number.isInteger(t) && t >= 1 && t <= 10)));
+    } else {
+      learningTables = [...DEFAULT_LEARNING_TABLES];
+    }
     const savedItems = storage.get<MultiplicationItem[]>(getStorageKey(), []);
 
     itemsMap = new Map();
@@ -360,6 +371,17 @@ export function createMatrixStore(storage: StorageService, initialProfileId = "d
       return true;
     },
 
+    getLearningTables(): number[] {
+      return [...learningTables];
+    },
+
+    setLearningTables(tables: number[]): void {
+      const sanitized = Array.from(new Set(tables.filter((t) => Number.isInteger(t) && t >= 1 && t <= 10)));
+      learningTables = sanitized;
+      storage.set(getLearningTablesKey(), learningTables);
+      notify();
+    },
+
     setProfile(profileId: string): void {
       if (currentProfileId !== profileId) {
         currentProfileId = profileId;
@@ -379,6 +401,8 @@ export function createMatrixStore(storage: StorageService, initialProfileId = "d
       totalPracticeTimeMs = 0;
       openedGifts.clear();
       points = 0;
+      storage.remove(getLearningTablesKey());
+      learningTables = [...DEFAULT_LEARNING_TABLES];
       save();
     },
 

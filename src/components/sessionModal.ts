@@ -207,36 +207,16 @@ export function startSessionModal(
                 .map((i) => {
                   const isNew = sessionLot.news.some((n) => n.id === i.id);
                   const isReinforce = sessionLot.reinforcements?.some((r) => r.id === i.id);
-                  let tagText = "";
-                  let tagClass = "";
-                  let chipType = "review";
-
-                  if (isNew) {
-                    tagText = "Nouveau";
-                    tagClass = "tag-new";
-                    chipType = "new";
-                  } else if (isReinforce) {
-                    tagText = "Renfort";
-                    tagClass = "tag-reinforce";
-                    chipType = "reinforce";
-                  } else if (i.status === "review") {
-                    tagText = "À revoir";
-                    tagClass = "tag-review";
-                  } else if (i.boxLevel === 4) {
-                    tagText = "Bientôt 🎁";
-                    tagClass = "tag-gift";
-                  } else if (i.boxLevel === 0) {
-                    tagText = "À réécouter";
-                    tagClass = "tag-disc";
-                  } else {
-                    tagText = `Boîte ${i.boxLevel}`;
-                    tagClass = "tag-box";
-                  }
+                  let chipClass = "chip-scheduled";
+                  if (isNew) chipClass = "chip-news";
+                  else if (isReinforce) chipClass = "chip-reinforce";
+                  else if (i.status === "review") chipClass = "chip-review";
+                  else if (i.boxLevel === 4) chipClass = "chip-gift";
+                  else if (i.boxLevel === 0) chipClass = "chip-listen";
 
                   return `
-                    <span class="queue-item-chip ${chipType}">
+                    <span class="queue-item-chip ${chipClass}">
                       <span class="chip-factors">${i.a} × ${i.b}</span>
-                      <span class="chip-status ${tagClass}">${tagText}</span>
                     </span>
                   `;
                 })

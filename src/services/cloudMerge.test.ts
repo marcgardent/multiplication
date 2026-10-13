@@ -284,6 +284,56 @@ describe("Règles de fusion", () => {
     expect(merged.sync.times[`${NS}selected_tables_p-1`]).toBeUndefined();
   });
 
+  it("ordre des tables d'apprentissage : la modification la plus récente l'emporte", () => {
+    const onA = doc(
+      {
+        user_profiles_v2: [profile("p-1", "Léa", 1)],
+        "learning_tables_p-1": [1, 10, 2, 5, 3, 4, 6, 7, 8, 9]
+      },
+      {
+        times: {
+          "learning_tables_p-1": 150
+        }
+      }
+    );
+    const onB = doc(
+      {
+        user_profiles_v2: [profile("p-1", "Léa", 1)],
+        "learning_tables_p-1": [2, 3, 4, 5, 6, 7, 8, 9, 1, 10]
+      },
+      {
+        times: {
+          "learning_tables_p-1": 300
+        }
+      }
+    );
+    const merged = mergeDocs(onA, onB);
+
+    expect(read(merged, "learning_tables_p-1")).toEqual([2, 3, 4, 5, 6, 7, 8, 9, 1, 10]);
+    expect(merged.sync.times[`${NS}learning_tables_p-1`]).toBe(300);
+  });
+
+  it("ordre des tables d'apprentissage : supprimé quand le profil est supprimé", () => {
+    const lea = profile("p-1", "Léa", 1);
+    const onA = doc({
+      user_profiles_v2: [],
+      deleted_profiles: ["p-1"]
+    });
+    const onB = doc(
+      {
+        user_profiles_v2: [lea],
+        "learning_tables_p-1": [1, 10, 2, 5]
+      },
+      {
+        times: { "learning_tables_p-1": 500 }
+      }
+    );
+    const merged = mergeDocs(onA, onB);
+
+    expect(read(merged, "learning_tables_p-1")).toBeUndefined();
+    expect(merged.sync.times[`${NS}learning_tables_p-1`]).toBeUndefined();
+  });
+
   it("joueur connecté : chaque appareil garde le sien", () => {
     const onA = doc({ active_profile_id_v2: "p-1" });
     const onB = doc({ active_profile_id_v2: "p-2" });
