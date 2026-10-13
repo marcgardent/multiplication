@@ -742,50 +742,55 @@ export function createApp(): AppInstance {
         : "2 ateliers : 🎯 Quiz → ⚡ Défi Chrono";
 
       return `
-        <div class="session-lot-program-card">
-          <div class="program-card-header">
-            <span class="program-title">📋 <strong>${lot.items.length} calculs</strong> au programme de cette séance</span>
-            <span class="program-workshops-tag">${workshopsSummary}</span>
-          </div>
+        <details class="session-lot-program-card">
+          <summary class="program-card-header">
+            <div class="program-header-titles">
+              <span class="program-title">📋 <strong>${lot.items.length} calculs</strong> au programme de cette séance</span>
+              <span class="program-workshops-tag">${workshopsSummary}</span>
+            </div>
+            <span class="program-expand-hint" aria-hidden="true">Détail</span>
+          </summary>
 
-          <div class="queues-groups-list">
-            ${reviewsHtml}
-            ${newsHtml}
-            ${reinforceHtml}
-          </div>
+          <div class="program-card-content">
+            <div class="queues-groups-list">
+              ${reviewsHtml}
+              ${newsHtml}
+              ${reinforceHtml}
+            </div>
 
-          <div class="queues-kpi-summary">
-            <div class="kpi-mini-item">
-              <span class="kpi-mini-num color-review">${qStats.dueCount}</span>
-              <span class="kpi-mini-lbl">À réviser</span>
+            <div class="queues-kpi-summary">
+              <div class="kpi-mini-item">
+                <span class="kpi-mini-num color-review">${qStats.dueCount}</span>
+                <span class="kpi-mini-lbl">À réviser</span>
+              </div>
+              <div class="kpi-mini-item">
+                <span class="kpi-mini-num color-learning">${qStats.learningCount}</span>
+                <span class="kpi-mini-lbl">En apprentissage</span>
+              </div>
+              <div class="kpi-mini-item">
+                <span class="kpi-mini-num color-mastered">${qStats.masteredCount}</span>
+                <span class="kpi-mini-lbl">Maîtrisés 🎁</span>
+              </div>
+              <div class="kpi-mini-item">
+                <span class="kpi-mini-num color-unknown">${qStats.newAvailableCount}</span>
+                <span class="kpi-mini-lbl">À découvrir</span>
+              </div>
             </div>
-            <div class="kpi-mini-item">
-              <span class="kpi-mini-num color-learning">${qStats.learningCount}</span>
-              <span class="kpi-mini-lbl">En apprentissage</span>
-            </div>
-            <div class="kpi-mini-item">
-              <span class="kpi-mini-num color-mastered">${qStats.masteredCount}</span>
-              <span class="kpi-mini-lbl">Maîtrisés 🎁</span>
-            </div>
-            <div class="kpi-mini-item">
-              <span class="kpi-mini-num color-unknown">${qStats.newAvailableCount}</span>
-              <span class="kpi-mini-lbl">À découvrir</span>
-            </div>
-          </div>
 
-          <details class="queues-explainer">
-            <summary>Comment fonctionne le choix des calculs ?</summary>
-            <div class="explainer-body">
-              <p>L'application utilise un système de <strong>répétition espacée (Boîtes 0 à 5)</strong> :</p>
-              <ul>
-                <li>Un calcul réussi monte de boîte et revient à <strong>J1, J3, J7 et J21</strong>.</li>
-                <li>En cas d'erreur, il revient aussitôt en <strong>Boîte 0</strong> pour être révisé.</li>
-                <li>Le 21e jour, la réussite du calcul te fait gagner son <strong>cadeau 🎁</strong> définitif !</li>
-                <li>Si beaucoup de révisions sont en attente, l'application bloque les nouveaux calculs pour que tu consolides tes acquis sans stress.</li>
-              </ul>
-            </div>
-          </details>
-        </div>
+            <details class="queues-explainer">
+              <summary>Comment fonctionne le choix des calculs ?</summary>
+              <div class="explainer-body">
+                <p>L'application utilise un système de <strong>répétition espacée (Boîtes 0 à 5)</strong> :</p>
+                <ul>
+                  <li>Un calcul réussi monte de boîte et revient à <strong>J1, J3, J7 et J21</strong>.</li>
+                  <li>En cas d'erreur, il revient aussitôt en <strong>Boîte 0</strong> pour être révisé.</li>
+                  <li>Le 21e jour, la réussite du calcul te fait gagner son <strong>cadeau 🎁</strong> définitif !</li>
+                  <li>Si beaucoup de révisions sont en attente, l'application bloque les nouveaux calculs pour que tu consolides tes acquis sans stress.</li>
+                </ul>
+              </div>
+            </details>
+          </div>
+        </details>
       `;
     }
 
@@ -837,7 +842,11 @@ export function createApp(): AppInstance {
 
         const previewContainer = modal.querySelector("#guided-queues-preview");
         if (previewContainer) {
+          const wasOpen = previewContainer.querySelector("details.session-lot-program-card")?.hasAttribute("open");
           previewContainer.innerHTML = renderQueuesHtml(m);
+          if (wasOpen) {
+            previewContainer.querySelector("details.session-lot-program-card")?.setAttribute("open", "");
+          }
         }
 
         const btnLaunch = modal.querySelector("#btn-start-guided-now");

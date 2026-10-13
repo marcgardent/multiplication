@@ -392,29 +392,80 @@
     container-type: inline-size;
     background: $ground;
     border-radius: $radius-card;
-    padding: 14px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
+    padding: 12px 14px;
     border: 1px solid $line;
 
     .program-card-header {
+      cursor: pointer;
+      user-select: none;
+      list-style: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+
+      &::-webkit-details-marker {
+        display: none;
+      }
+
+      .program-header-titles {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        min-width: 0;
+
+        .program-title {
+          font-size: 0.9375rem;
+          font-weight: 600;
+          color: $ink;
+        }
+
+        .program-workshops-tag {
+          font-size: $fs-caption;
+          color: $accent-ink;
+          font-weight: 500;
+          line-height: 1.35;
+        }
+      }
+
+      .program-expand-hint {
+        font-size: $fs-caption;
+        font-weight: 600;
+        color: $accent;
+        padding: 4px 9px;
+        border-radius: $radius-pill;
+        background: $surface;
+        border: 1px solid $line;
+        white-space: nowrap;
+        flex-shrink: 0;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+
+        &::after {
+          content: "▾";
+          font-size: 0.85rem;
+          line-height: 1;
+        }
+      }
+    }
+
+    &[open] {
+      .program-card-header {
+        .program-expand-hint::after {
+          content: "▴";
+        }
+      }
+    }
+
+    .program-card-content {
       display: flex;
       flex-direction: column;
-      gap: 4px;
-
-      .program-title {
-        font-size: 0.9375rem;
-        font-weight: 600;
-        color: $ink;
-      }
-
-      .program-workshops-tag {
-        font-size: $fs-caption;
-        color: $accent-ink;
-        font-weight: 500;
-        line-height: 1.35;
-      }
+      gap: 12px;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid rgba($line, 0.8);
+      animation: fadeIn 0.2s ease-out;
     }
 
     .queues-groups-list {
