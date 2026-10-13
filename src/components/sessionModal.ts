@@ -19,7 +19,7 @@ export function startSessionModal(
   onCancel: (actualPracticeTimeMs: number) => void
 ): void {
   // Le lot de calculs est figé pour toute la séance
-  engine.startSession();
+  const sessionLot = engine.startSession();
 
   // Ateliers : 0 = Découverte, 1 = Quiz sans enjeu, 2 = Time-Attack, à durées égales.
   // Sans nouveau calcul ni erreur à réécouter, la séance commence directement au Quiz
@@ -67,6 +67,7 @@ export function startSessionModal(
             <span class="workshop-name">${info.name}</span>
           </div>
           <div class="header-controls-group">
+            <button type="button" class="btn-session-program" id="btn-session-program" aria-label="Voir le programme des calculs">📋 ${sessionLot.items.length} calculs</button>
             <div class="timer-display" id="modal-timer">--:--</div>
             <button type="button" class="btn-session-pause ${isPaused ? "is-paused" : ""}" id="btn-pause-session" aria-label="Pause ou Reprendre">
               ${isPaused ? "▶️" : "⏸️"}
@@ -109,7 +110,11 @@ export function startSessionModal(
       </div>
     `;
 
-    // Attacher les écouteurs de Pause et Quitter
+    // Attacher les écouteurs de Pause, Programme et Quitter
+    modalEl.querySelector("#btn-session-program")?.addEventListener("click", () => {
+      pauseSession();
+    });
+
     modalEl.querySelector("#btn-pause-session")?.addEventListener("click", () => {
       togglePause();
     });
@@ -193,6 +198,49 @@ export function startSessionModal(
           <div class="pause-icon">⏸️</div>
           <h3>Session en pause</h3>
           <p>Prends ton temps, le chronomètre est arrêté.</p>
+          <div class="pause-lot-preview">
+            <div class="pause-lot-title">📋 Au programme de ta séance (${sessionLot.items.length} calculs) :</div>
+            <div class="pause-chips-list">
+              ${sessionLot.items
+                .map((i) => {
+                  const isNew = sessionLot.news.some((n) => n.id === i.id);
+                  const isReinforce = sessionLot.reinforcements?.some((r) => r.id === i.id);
+                  let tagText = "";
+                  let tagClass = "";
+                  let chipType = "review";
+
+                  if (isNew) {
+                    tagText = "Nouveau";
+                    tagClass = "tag-new";
+                    chipType = "new";
+                  } else if (isReinforce) {
+                    tagText = "Renfort";
+                    tagClass = "tag-reinforce";
+                    chipType = "reinforce";
+                  } else if (i.status === "review") {
+                    tagText = "À revoir";
+                    tagClass = "tag-review";
+                  } else if (i.boxLevel === 4) {
+                    tagText = "Bientôt 🎁";
+                    tagClass = "tag-gift";
+                  } else if (i.boxLevel === 0) {
+                    tagText = "À réécouter";
+                    tagClass = "tag-disc";
+                  } else {
+                    tagText = `Boîte ${i.boxLevel}`;
+                    tagClass = "tag-box";
+                  }
+
+                  return `
+                    <span class="queue-item-chip ${chipType}">
+                      <span class="chip-factors">${i.a} × ${i.b}</span>
+                      <span class="chip-status ${tagClass}">${tagText}</span>
+                    </span>
+                  `;
+                })
+                .join("")}
+            </div>
+          </div>
           <div class="quit-confirm-buttons" style="width: 100%;">
             <button type="button" class="btn-confirm-launch btn-resume-action" id="btn-resume-session">
               Reprendre l'entraînement ▶️

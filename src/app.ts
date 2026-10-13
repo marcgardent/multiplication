@@ -24,7 +24,7 @@ import { createWakeLockService } from "./services/wakeLockService";
 import { DEFAULT_TABLES, openTableSelectionModal } from "./components/tableSelectionModal";
 import { startListeningModal } from "./components/listeningModal";
 import { ListeningMode } from "./radio/listeningPlayer";
-import { SessionConfig, UserProfile } from "./types";
+import { MultiplicationItem, SessionConfig, UserProfile } from "./types";
 
 export interface AppInstance {
   mount(rootSelector: string): void;
@@ -484,33 +484,230 @@ export function createApp(): AppInstance {
     }
   }
 
-  // Modale Choix Durée (Révision guidée)
+  // Modale Choix Durée & Files d'apprentissage (Révision guidée)
   function openDurationModal() {
     const modal = document.createElement("div");
     modal.className = "session-modal-overlay";
 
+    function renderChip(item: MultiplicationItem, type: "review" | "new" | "reinforce"): string {
+      let tagText = "";
+      let tagClass = "";
+      if (type === "new") {
+        tagText = "Nouveau";
+        tagClass = "tag-new";
+      } else if (type === "reinforce") {
+        tagText = "Renfort";
+        tagClass = "tag-reinforce";
+      } else {
+        if (item.status === "review") {
+          tagText = "À revoir";
+          tagClass = "tag-review";
+        } else if (item.boxLevel === 4) {
+          tagText = "Bientôt 🎁";
+          tagClass = "tag-gift";
+        } else if (item.boxLevel === 0) {
+          tagText = "À réécouter";
+          tagClass = "tag-disc";
+        } else {
+          tagText = `Boîte ${item.boxLevel}`;
+          tagClass = "tag-box";
+        }
+      }
+      return `
+        <div class="queue-item-chip ${type}">
+          <span class="chip-factors">${item.a} × ${item.b}</span>
+          <span class="chip-status ${tagClass}">${tagText}</span>
+        </div>
+      `;
+    }
+
+    function renderQueuesHtml(minutes: number): string {
+      const lot = repetitionEngine.previewLot(minutes);
+      const qStats = repetitionEngine.getQueueStats(minutes);
+      const isOverloaded = repetitionEngine.isReviewQueueOverloaded(minutes);
+
+      const reviewsHtml =
+        lot.reviews.length > 0
+          ? `
+            <div class="queue-card-group group-reviews">
+              <div class="queue-group-header">
+                <div class="queue-group-title">
+                  <span class="queue-badge-icon">🔄</span>
+                  <strong>File des révisions</strong>
+                  <span class="queue-count-pill">${lot.reviews.length} calcul${lot.reviews.length > 1 ? "s" : ""}</span>
+                </div>
+                <span class="queue-group-help">Calculs déjà vus, à réviser aujourd'hui pour les retenir</span>
+              </div>
+              <div class="queue-chips-grid">
+                ${lot.reviews.map((i) => renderChip(i, "review")).join("")}
+              </div>
+            </div>
+          `
+          : `
+            <div class="queue-card-group group-empty">
+              <div class="queue-group-header">
+                <div class="queue-group-title">
+                  <span class="queue-badge-icon">🔄</span>
+                  <strong>File des révisions</strong>
+                  <span class="queue-count-pill">0</span>
+                </div>
+                <span class="queue-group-help">✨ Aucune révision en attente : tu es parfaitement à jour !</span>
+              </div>
+            </div>
+          `;
+
+      let newsHtml = "";
+      if (lot.news.length > 0) {
+        newsHtml = `
+          <div class="queue-card-group group-news">
+            <div class="queue-group-header">
+              <div class="queue-group-title">
+                <span class="queue-badge-icon">✨</span>
+                <strong>File des nouveaux</strong>
+                <span class="queue-count-pill">${lot.news.length} calcul${lot.news.length > 1 ? "s" : ""}</span>
+              </div>
+              <span class="queue-group-help">Multiplications que tu découvres aujourd'hui</span>
+            </div>
+            <div class="queue-chips-grid">
+              ${lot.news.map((i) => renderChip(i, "new")).join("")}
+            </div>
+          </div>
+        `;
+      } else if (isOverloaded) {
+        newsHtml = `
+          <div class="queue-info-banner banner-warning">
+            <span class="banner-icon">🛡️</span>
+            <div class="banner-text">
+              <strong>Priorité aux révisions</strong>
+              <p>Tu as ${lot.reviews.length} révisions à consolider d'abord. L'application attend que tu maîtrises ces calculs avant d'en ajouter de nouveaux pour ne pas te surcharger !</p>
+            </div>
+          </div>
+        `;
+      } else if (qStats.newAvailableCount === 0) {
+        newsHtml = `
+          <div class="queue-info-banner banner-success">
+            <span class="banner-icon">🏆</span>
+            <div class="banner-text">
+              <strong>Toutes les tables découvertes !</strong>
+              <p>Tu as déjà abordé les 100 multiplications. Tes séances consolident la vitesse et les révisions d'entretien.</p>
+            </div>
+          </div>
+        `;
+      } else {
+        newsHtml = `
+          <div class="queue-info-banner banner-neutral">
+            <span class="banner-icon">💡</span>
+            <div class="banner-text">
+              <p>Séance de ${minutes} min axée sur tes révisions. Choisis 6, 9 ou 15 minutes pour ajouter de nouveaux calculs.</p>
+            </div>
+          </div>
+        `;
+      }
+
+      const reinforceHtml =
+        lot.reinforcements.length > 0
+          ? `
+            <div class="queue-card-group group-reinforce">
+              <div class="queue-group-header">
+                <div class="queue-group-title">
+                  <span class="queue-badge-icon">⚡</span>
+                  <strong>Calculs de renfort</strong>
+                  <span class="queue-count-pill">${lot.reinforcements.length}</span>
+                </div>
+                <span class="queue-group-help">Calculs en cours pour compléter la séance</span>
+              </div>
+              <div class="queue-chips-grid">
+                ${lot.reinforcements.map((i) => renderChip(i, "reinforce")).join("")}
+              </div>
+            </div>
+          `
+          : "";
+
+      const hasDiscovery = lot.reviews.filter((i) => i.boxLevel === 0).length + lot.news.length > 0;
+      const workshopsSummary = hasDiscovery
+        ? "3 ateliers : 🎧 Découverte → 🎯 Quiz → ⚡ Défi Chrono"
+        : "2 ateliers : 🎯 Quiz → ⚡ Défi Chrono";
+
+      return `
+        <div class="session-lot-program-card">
+          <div class="program-card-header">
+            <span class="program-title">📋 <strong>${lot.items.length} calculs</strong> au programme de cette séance</span>
+            <span class="program-workshops-tag">${workshopsSummary}</span>
+          </div>
+
+          <div class="queues-groups-list">
+            ${reviewsHtml}
+            ${newsHtml}
+            ${reinforceHtml}
+          </div>
+
+          <div class="queues-kpi-summary">
+            <div class="kpi-mini-item">
+              <span class="kpi-mini-num color-review">${qStats.dueCount}</span>
+              <span class="kpi-mini-lbl">À réviser</span>
+            </div>
+            <div class="kpi-mini-item">
+              <span class="kpi-mini-num color-learning">${qStats.learningCount}</span>
+              <span class="kpi-mini-lbl">En apprentissage</span>
+            </div>
+            <div class="kpi-mini-item">
+              <span class="kpi-mini-num color-mastered">${qStats.masteredCount}</span>
+              <span class="kpi-mini-lbl">Maîtrisés 🎁</span>
+            </div>
+            <div class="kpi-mini-item">
+              <span class="kpi-mini-num color-unknown">${qStats.newAvailableCount}</span>
+              <span class="kpi-mini-lbl">À découvrir</span>
+            </div>
+          </div>
+
+          <details class="queues-explainer">
+            <summary>Comment fonctionne le choix des calculs ?</summary>
+            <div class="explainer-body">
+              <p>L'application utilise un système de <strong>répétition espacée (Boîtes 0 à 5)</strong> :</p>
+              <ul>
+                <li>Un calcul réussi monte de boîte et revient à <strong>J1, J3, J7 et J21</strong>.</li>
+                <li>En cas d'erreur, il revient aussitôt en <strong>Boîte 0</strong> pour être révisé.</li>
+                <li>Le 21e jour, la réussite du calcul te fait gagner son <strong>cadeau 🎁</strong> définitif !</li>
+                <li>Si beaucoup de révisions sont en attente, l'application bloque les nouveaux calculs pour que tu consolides tes acquis sans stress.</li>
+              </ul>
+            </div>
+          </details>
+        </div>
+      `;
+    }
+
     modal.innerHTML = `
-      <div class="session-modal-container prompt-choice-modal">
+      <div class="session-modal-container prompt-choice-modal duration-queues-modal">
         <div class="prompt-header">
-          <h3>Combien de temps ?</h3>
-          <button type="button" class="btn-modal-close" id="btn-close-duration">✕</button>
+          <div>
+            <h3>🎯 Révision guidée</h3>
+            <p class="modal-subheading">Choisis ta durée & découvre le programme</p>
+          </div>
+          <button type="button" class="btn-modal-close" id="btn-close-duration" aria-label="Fermer">✕</button>
         </div>
 
-        <div class="choice-durations-grid">
-          ${[3, 6, 9, 15]
-            .map(
-              (m) => `
-                <button type="button" class="btn-choice-duration ${sessionConfig.durationMinutes === m ? "active" : ""}" data-m="${m}">
-                  <span class="choice-val">${m}</span>
-                  <span class="choice-unit">minutes</span>
-                </button>
-              `
-            )
-            .join("")}
+        <div class="duration-picker-block">
+          <span class="block-mini-title">⏱️ Durée de la séance</span>
+          <div class="choice-durations-grid">
+            ${[3, 6, 9, 15]
+              .map(
+                (m) => `
+                  <button type="button" class="btn-choice-duration ${sessionConfig.durationMinutes === m ? "active" : ""}" data-m="${m}">
+                    <span class="choice-val">${m}</span>
+                    <span class="choice-unit">minutes</span>
+                  </button>
+                `
+              )
+              .join("")}
+          </div>
+        </div>
+
+        <div id="guided-queues-preview">
+          ${renderQueuesHtml(sessionConfig.durationMinutes)}
         </div>
 
         <button type="button" class="btn-confirm-launch" id="btn-start-guided-now">
-          C'est parti ! 🚀
+          C'est parti pour ${sessionConfig.durationMinutes} min ! 🚀
         </button>
       </div>
     `;
@@ -524,6 +721,16 @@ export function createApp(): AppInstance {
         storage.set("config_duration", m);
         modal.querySelectorAll(".btn-choice-duration").forEach((el) => el.classList.remove("active"));
         (e.currentTarget as HTMLElement).classList.add("active");
+
+        const previewContainer = modal.querySelector("#guided-queues-preview");
+        if (previewContainer) {
+          previewContainer.innerHTML = renderQueuesHtml(m);
+        }
+
+        const btnLaunch = modal.querySelector("#btn-start-guided-now");
+        if (btnLaunch) {
+          btnLaunch.textContent = `C'est parti pour ${m} min ! 🚀`;
+        }
       });
     });
 

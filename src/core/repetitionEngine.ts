@@ -7,6 +7,12 @@ export interface SessionLot {
   newCount: number;
 }
 
+export interface DetailedLot extends SessionLot {
+  reviews: MultiplicationItem[];
+  news: MultiplicationItem[];
+  reinforcements: MultiplicationItem[];
+}
+
 export interface QueueStats {
   dueCount: number;
   learningCount: number;
@@ -16,13 +22,15 @@ export interface QueueStats {
 }
 
 export interface RepetitionEngine {
-  startSession(): SessionLot;
+  startSession(): DetailedLot;
   getDiscoveryItems(): MultiplicationItem[];
   getNextDiscovery(): MultiplicationItem;
   getNextQuestion(): MultiplicationItem;
   registerResult(item: MultiplicationItem, mode: "discovery" | "practice" | "time-attack", isCorrect: boolean, timeMs: number): void;
-  isReviewQueueOverloaded(): boolean;
-  getQueueStats(): QueueStats;
+  isReviewQueueOverloaded(durationMinutes?: number): boolean;
+  getQueueStats(durationMinutes?: number): QueueStats;
+  previewLot(durationMinutes?: number): DetailedLot;
+  getCurrentLotDetails(): DetailedLot | null;
 }
 
 // Taille du lot selon la durée choisie : nouveaux calculs au plus, et calculs au total
@@ -57,8 +65,10 @@ export function createRepetitionEngine(
     return matrixStore.isItemDue(item, now);
   }
 
-  function planLot(): SessionLot {
-    const rule = getLotRule(config.durationMinutes);
+  let activeLot: DetailedLot | null = null;
+
+  function planLot(durationMinutes = config.durationMinutes): DetailedLot {
+    const rule = getLotRule(durationMinutes);
     const all = matrixStore.getAll();
     const now = Date.now();
 
@@ -92,6 +102,7 @@ export function createRepetitionEngine(
 
     const items = [...reviews, ...news];
     const ids = new Set(items.map((i) => i.id));
+    const reinforcements: MultiplicationItem[] = [];
 
     // 3. Lot trop court : compléter avec les calculs en apprentissage dont l'échéance approche
     if (items.length < MIN_LOT_SIZE) {
@@ -101,6 +112,7 @@ export function createRepetitionEngine(
       for (const item of upcoming) {
         if (items.length >= MIN_LOT_SIZE) break;
         items.push(item);
+        reinforcements.push(item);
         ids.add(item.id);
       }
     }
@@ -110,19 +122,24 @@ export function createRepetitionEngine(
       if (items.length >= MIN_LOT_SIZE) break;
       if (!ids.has(item.id)) {
         items.push(item);
+        news.push(item);
         ids.add(item.id);
       }
     }
 
     return {
       items,
+      reviews,
+      news,
+      reinforcements,
       reviewCount: reviews.length,
       newCount: items.filter((i) => i.status === "unknown").length
     };
   }
 
-  function startSession(): SessionLot {
+  function startSession(): DetailedLot {
     const lot = planLot();
+    activeLot = lot;
     lotIds = lot.items.map((i) => i.id);
     // À écouter avant d'être interrogés : les nouveaux et les erreurs. Les révisions échues se font sans rappel
     discoveryIds = lot.items.filter((i) => i.boxLevel === 0).map((i) => i.id);
@@ -245,12 +262,12 @@ export function createRepetitionEngine(
     },
 
     // Vrai quand les révisions occupent toute la prochaine séance alors qu'il reste des calculs à découvrir
-    isReviewQueueOverloaded(): boolean {
-      const stats = this.getQueueStats();
+    isReviewQueueOverloaded(durationMinutes?: number): boolean {
+      const stats = this.getQueueStats(durationMinutes);
       return stats.nextSessionNewCount === 0 && stats.newAvailableCount > 0;
     },
 
-    getQueueStats(): QueueStats {
+    getQueueStats(durationMinutes?: number): QueueStats {
       const all = matrixStore.getAll();
       const now = Date.now();
       return {
@@ -258,8 +275,16 @@ export function createRepetitionEngine(
         learningCount: all.filter((i) => i.status === "discovery" || i.status === "review").length,
         masteredCount: all.filter((i) => i.status === "mastered").length,
         newAvailableCount: all.filter((i) => i.status === "unknown").length,
-        nextSessionNewCount: planLot().newCount
+        nextSessionNewCount: planLot(durationMinutes).newCount
       };
+    },
+
+    previewLot(durationMinutes = config.durationMinutes): DetailedLot {
+      return planLot(durationMinutes);
+    },
+
+    getCurrentLotDetails(): DetailedLot | null {
+      return activeLot;
     }
   };
 }
