@@ -43,34 +43,12 @@ export function startSessionModal(
   const modalEl = document.createElement("div");
   modalEl.className = "session-modal-overlay";
 
-  function getWorkshopInfo(idx: number) {
-    const num = workshops.indexOf(idx) + 1;
-    const tag = `Atelier ${num}/${workshops.length}`;
-    switch (idx) {
-      case 0:
-        return { num, name: "Découverte & Écoute", tag, class: "tag-disc" };
-      case 1:
-        return { num, name: "Quiz Sans Enjeu", tag, class: "tag-prac" };
-      case 2:
-      default:
-        return { num, name: "Time-Attack Défis", tag, class: "tag-ta" };
-    }
-  }
-
   function renderModalLayout(): HTMLElement {
-    const info = getWorkshopInfo(currentWorkshopIndex);
     modalEl.innerHTML = `
       <div class="session-modal-container workshop-active-modal mode-screen">
         <div class="session-modal-header">
-          <div class="workshop-title">
-            <span class="workshop-tag ${info.class}">${info.tag}</span>
-            <span class="workshop-name">${info.name}</span>
-          </div>
+          <div class="timer-display" id="modal-timer">--:--</div>
           <div class="header-controls-group">
-            <button type="button" class="btn-session-program" id="btn-session-program" aria-label="Voir les calculs au programme de la séance">
-              📋 ${sessionLot.items.length} calculs
-            </button>
-            <div class="timer-display" id="modal-timer">--:--</div>
             <button type="button" class="btn-session-pause ${isPaused ? "is-paused" : ""}" id="btn-pause-session" aria-label="Pause ou Reprendre">
               ${isPaused ? "▶️" : "⏸️"}
             </button>
@@ -112,11 +90,7 @@ export function startSessionModal(
       </div>
     `;
 
-    // Attacher les écouteurs de Pause, Programme et Quitter
-    modalEl.querySelector("#btn-session-program")?.addEventListener("click", () => {
-      pauseSession();
-    });
-
+    // Attacher les écouteurs de Pause et Quitter
     modalEl.querySelector("#btn-pause-session")?.addEventListener("click", () => {
       togglePause();
     });
@@ -373,10 +347,6 @@ export function startSessionModal(
     currentWorkshopIndex = idx;
     renderModalLayout();
 
-    const info = getWorkshopInfo(idx);
-    const cueEl = modalEl.querySelector("#modal-cue");
-    if (cueEl) cueEl.textContent = `Bienvenue dans l'${info.tag} : ${info.name}`;
-
     hasDiscoveryWorkshopTimerEnded = false;
     isDiscoveryAudioActive = false;
 
@@ -414,7 +384,6 @@ export function startSessionModal(
 
   // Splashscreen animé plein écran lors du changement d'activité / atelier
   function showActivityTransitionSplash(nextIdx: number) {
-    const nextInfo = getWorkshopInfo(nextIdx);
     keypad?.setEnabled(false);
     audioService.stop();
     audioService.playFeedback("finish");
@@ -439,7 +408,6 @@ export function startSessionModal(
     splashOverlay.innerHTML = `
       <div class="session-modal-container activity-transition-card">
         <div class="transition-fireworks">🎉 🌟 ✨</div>
-        <div class="transition-badge-tag ${nextInfo.class}">${nextInfo.tag}</div>
         <div class="transition-huge-icon">${iconEmoji}</div>
         <h2 class="transition-title">${stepTitle}</h2>
         <p class="transition-subtitle">${stepDescription}</p>
