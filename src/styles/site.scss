@@ -67,6 +67,15 @@ a {
   @include btn-primary;
 }
 
+.btn-install-app {
+  @include btn-secondary;
+  font-family: inherit;
+
+  &[hidden] {
+    display: none;
+  }
+}
+
 .btn-open-app-small {
   @include btn-secondary;
   min-height: 40px;
@@ -91,6 +100,13 @@ a {
     margin: 12px auto 20px;
     font-size: 1.0625rem;
     color: $ink-soft;
+  }
+
+  .site-hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
   }
 
   .site-hero-facts {
