@@ -119,6 +119,12 @@ a {
     font-weight: 600;
   }
 
+  h3 {
+    margin: 24px 0 8px;
+    font-size: $fs-title;
+    font-weight: 600;
+  }
+
   > .site-wrap > p {
     max-width: 720px;
     margin-bottom: 12px;
@@ -187,6 +193,11 @@ a {
     font-weight: 600;
     color: $ink;
   }
+}
+
+// Étapes longues : une colonne sur téléphone
+.site-steps-wide {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
 }
 
 .site-note {
