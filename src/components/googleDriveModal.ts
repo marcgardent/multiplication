@@ -38,11 +38,12 @@ export function openGoogleDriveModal(options: GoogleDriveModalOptions): HTMLElem
     if (state.status === "off") {
       return `
         <p class="section-hint">
-          À activer une seule fois avec votre compte Google. Ensuite chaque progrès est enregistré tout seul dans votre Drive.
+          À activer une fois sur chaque appareil, avec le même compte Google. Les progrès de cet appareil sont alors fusionnés
+          avec ceux déjà présents dans votre Drive : rien n'est écrasé, ni d'un côté ni de l'autre.
         </p>
         <div class="drive-actions-group">
           <button type="button" class="btn-drive-action btn-drive-login" data-action="enable">
-            Activer la sauvegarde automatique
+            Activer la synchronisation cloud
           </button>
         </div>
       `;
@@ -77,11 +78,11 @@ export function openGoogleDriveModal(options: GoogleDriveModalOptions): HTMLElem
           ? `L'envoi a échoué : ${state.errorMessage}. Il sera retenté au prochain progrès.`
           : state.status === "pending"
             ? "Les derniers progrès partiront dès que possible : au retour du réseau, ou au prochain toucher sur l'accueil."
-            : "Chaque progrès est enregistré dans votre Drive et fusionné avec ceux de vos autres appareils, sans rien avoir à faire.";
+            : "Chaque progrès est fusionné avec ceux de vos autres appareils, dans les deux sens, sans rien avoir à faire.";
 
     return `
       <div class="drive-sync-meta">
-        <span class="meta-label">Dernière sauvegarde :</span>
+        <span class="meta-label">Dernière synchronisation :</span>
         <span class="meta-val">${formatDate(state.lastPushAt)}</span>
       </div>
       <p class="section-hint">${hint}</p>
@@ -93,9 +94,6 @@ export function openGoogleDriveModal(options: GoogleDriveModalOptions): HTMLElem
               </button>`
             : ""
         }
-        <button type="button" class="btn-drive-action btn-drive-download" data-action="restore-confirm">
-          ⬇️ Restaurer depuis Google Drive
-        </button>
         <button type="button" class="btn-drive-action btn-drive-logout" data-action="disable">Désactiver</button>
       </div>
     `;
@@ -126,7 +124,7 @@ export function openGoogleDriveModal(options: GoogleDriveModalOptions): HTMLElem
 
           <div class="drive-section-card">
             <div class="section-title-row">
-              <h4>1. Sauvegarde automatique</h4>
+              <h4>1. Synchronisation cloud</h4>
               <span class="drive-status-badge ${badgeClass}">${describeCloudSync(state)}</span>
             </div>
             ${renderSyncSection(state)}
@@ -191,22 +189,21 @@ export function openGoogleDriveModal(options: GoogleDriveModalOptions): HTMLElem
 
   async function runAction(action: string): Promise<void> {
     if (action === "enable") {
-      await runGoogleAction("Connexion à Google...", "Sauvegarde automatique activée", () => cloudSync.enable());
+      await runGoogleAction("Connexion à Google...", "Synchronisation cloud activée", () => cloudSync.enable());
     } else if (action === "reconnect") {
       await runGoogleAction("Connexion à Google...", "Connexion rétablie", () => cloudSync.reconnect());
     } else if (action === "keep-local") {
       await runGoogleAction("Envoi vers Google Drive...", "Sauvegarde remplacée par les données de cet appareil", () =>
         cloudSync.keepLocal()
       );
-    } else if (action === "restore" || action === "restore-confirm") {
-      if (action === "restore-confirm" && !window.confirm("Remplacer les données de cet appareil par la sauvegarde du Drive ?")) return;
+    } else if (action === "restore") {
       const isRestored = await runGoogleAction("Récupération depuis Google Drive...", "Données restaurées", () =>
         cloudSync.restoreRemote()
       );
       if (isRestored) onDataRestored();
     } else if (action === "disable") {
       cloudSync.disable();
-      setFeedback("Sauvegarde automatique désactivée. La sauvegarde déjà présente dans votre Drive n'est pas supprimée.");
+      setFeedback("Synchronisation cloud désactivée. La sauvegarde déjà présente dans votre Drive n'est pas supprimée.");
     } else if (action === "local-export") {
       downloadLocalBackup(exportAllAppData());
       setFeedback("Fichier de sauvegarde téléchargé");
