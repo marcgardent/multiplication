@@ -24,9 +24,11 @@ import { isTestProfile } from "./testing/snapshots";
 import { createWakeLockService } from "./services/wakeLockService";
 import { DEFAULT_TABLES, openTableSelectionModal } from "./components/tableSelectionModal";
 import { startListeningModal } from "./components/listeningModal";
+import { ListeningTab, openListeningSetupModal } from "./components/listeningSetupModal";
 import { ListeningMode, ListeningSelection } from "./radio/listeningPlayer";
 import { calculationsOf } from "./radio/program";
 import { calculationId, manualRounds } from "./radio/spacedSchedule";
+import { guidedLabel, guidedPool, guidedRounds, readPlayerProgress } from "./radio/guidedPool";
 import { MultiplicationItem, SessionConfig, UserProfile } from "./types";
 
 export interface AppInstance {
@@ -196,7 +198,7 @@ export function createApp(): AppInstance {
         </div>
       </div>
 
-      <!-- Écoute sans joueur : ni points, ni progression -->
+      <!-- Écoute : ni points, ni progression, même en mode guidé -->
       <div class="kids-menu-container">
         <button type="button" class="kids-main-btn" id="btn-launch-radio">
           <div class="btn-bubble">📻</div>
@@ -232,11 +234,11 @@ export function createApp(): AppInstance {
     });
 
     loginEl.querySelector("#btn-launch-radio")?.addEventListener("click", () => {
-      openListeningTablesModal("radio");
+      openListeningSetup("radio");
     });
 
     loginEl.querySelector("#btn-launch-brushing")?.addEventListener("click", () => {
-      openListeningTablesModal("brushing");
+      openListeningSetup("brushing");
     });
 
     // Clic sur un profil existant -> Connexion directe
@@ -255,16 +257,35 @@ export function createApp(): AppInstance {
     container.appendChild(loginEl);
   }
 
-  // Choix des tables de la radio ou du brossage : chaque mode retient sa dernière sélection, hors de tout joueur
-  function openListeningTablesModal(mode: ListeningMode) {
-    const storageKey = `${mode}_tables`;
-    openTableSelectionModal({
-      selected: storage.get<number[]>(storageKey, DEFAULT_TABLES),
-      confirmLabel: mode === "radio" ? "Lancer la radio" : "Commencer le brossage",
-      onConfirm: (tables) => {
-        storage.set(storageKey, tables);
-        const pool = calculationsOf(tables);
-        startListeningModal(mode, listeningSelection(mode, pool, manualRounds(pool, lastHeardIds(mode)), `Tables : ${tables.join(", ")}`), wakeLock);
+  // Lancement de la radio ou du brossage : mode guidé (joueurs) ou manuel (tables) ; chaque mode retient sa dernière sélection
+  function openListeningSetup(mode: ListeningMode) {
+    const profiles = profileService.getProfiles();
+    const tabKey = `${mode}_listen_tab`;
+    const playersKey = `${mode}_players`;
+    const tablesKey = `${mode}_tables`;
+    const poolFor = (playerIds: string[]) => guidedPool(playerIds.map((id) => readPlayerProgress(storage, id)));
+
+    openListeningSetupModal({
+      mode,
+      profiles,
+      tab: storage.get<ListeningTab>(tabKey, "guided"),
+      playerIds: storage.get<string[]>(playersKey, []),
+      tables: storage.get<number[]>(tablesKey, DEFAULT_TABLES),
+      guidedCount: (playerIds) => poolFor(playerIds).length,
+      onConfirm: (choice) => {
+        storage.set(tabKey, choice.tab);
+        if (choice.tab === "guided") {
+          storage.set(playersKey, choice.playerIds);
+          const entries = poolFor(choice.playerIds);
+          const names = profiles.filter((p) => choice.playerIds.includes(p.id)).map((p) => p.name);
+          const pool = entries.map((entry) => entry.calc);
+          startListeningModal(mode, listeningSelection(mode, pool, guidedRounds(entries, lastHeardIds(mode)), guidedLabel(names)), wakeLock);
+        } else {
+          storage.set(tablesKey, choice.tables);
+          const pool = calculationsOf(choice.tables);
+          const label = `Tables : ${choice.tables.join(", ")}`;
+          startListeningModal(mode, listeningSelection(mode, pool, manualRounds(pool, lastHeardIds(mode)), label), wakeLock);
+        }
       }
     });
   }
