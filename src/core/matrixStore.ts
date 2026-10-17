@@ -57,9 +57,11 @@ function startOfDayAfter(now: number, days: number): number {
   return date.getTime();
 }
 
+// Ordre des tables à apprendre tant que le parent ne l'a pas changé dans le carnet de suivi
+export const DEFAULT_LEARNING_TABLES = [1, 10, 2, 5, 3, 4, 6, 7, 8, 9];
+
 export function createMatrixStore(storage: StorageService, initialProfileId = "default-1"): MatrixStore {
   let currentProfileId = initialProfileId;
-  const DEFAULT_LEARNING_TABLES = [1, 10, 2, 5, 3, 4, 6, 7, 8, 9];
   const getStorageKey = () => profileKey("matrix_items", currentProfileId);
   const getHistoryKey = () => profileKey("attempt_history", currentProfileId);
   const getTimeKey = () => profileKey("practice_time", currentProfileId);

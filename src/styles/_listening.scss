@@ -1,4 +1,5 @@
 @use "variables" as *;
+@use "mixins" as *;
 
 /* Écran d'écoute : radio des tables et brossage de dents */
 .listening-modal {
@@ -28,5 +29,50 @@
     color: $ink-soft;
     line-height: 1.4;
     text-align: center;
+  }
+}
+
+/* Lancement de la radio et du brossage : onglets Guidé (joueurs) et Manuel (tables) */
+.listening-setup-modal {
+  [hidden] {
+    display: none !important;
+  }
+
+  .listening-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .listening-tab {
+    @include selectable;
+    min-height: 44px;
+    padding: 8px 12px;
+    border-radius: $radius-control;
+    font-size: $fs-body;
+    font-weight: 500;
+
+    &.selected {
+      @include selected;
+      font-weight: 600;
+    }
+  }
+
+  .listening-tab-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .listening-tab-hint, .listening-empty {
+    margin: 0;
+    font-size: $fs-small;
+    color: $ink-soft;
+    line-height: 1.4;
+  }
+
+  .btn-confirm-launch:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 }

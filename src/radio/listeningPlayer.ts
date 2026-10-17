@@ -2,17 +2,30 @@ import { AudioManifest, resolveAudioUrl } from "../services/audioService";
 import {
   answerFile,
   AudioProgram,
+  BRUSHING_MS,
   buildBrushingProgram,
   buildRadioSegment,
-  calculationsOf,
-  createShuffler,
+  Calculation,
   encodeWav,
   locateCue,
   ProgramCue,
-  questionFile
+  questionFile,
+  slotCountFor
 } from "./program";
+import { createSpacedStream } from "./spacedSchedule";
 
 export type ListeningMode = "radio" | "brushing";
+
+// Ce que l'on écoute : les calculs du pool, l'ordre dans lequel ils entrent, et pour qui
+export interface ListeningSelection {
+  pool: Calculation[];
+  // Ordre d'entrée d'un tour ; rappelé quand tout le pool est entré
+  nextRound(): Calculation[];
+  // « Tables : 2, 3 » ou « Pour Léa et Tom »
+  label: string;
+  // Calculs entrés depuis le début de l'écoute, à chaque nouveau morceau joué
+  onIntroduced?(calcs: Calculation[]): void;
+}
 
 export interface ListeningPosition {
   cue: ProgramCue | null;
@@ -70,11 +83,13 @@ async function decodeClips(files: string[]): Promise<{ clips: Map<string, Float3
 }
 
 // Doit être appelé pendant le clic qui lance l'écoute : le téléphone n'autorise le son qu'à ce moment-là
-export function startListeningPlayer(mode: ListeningMode, tables: number[], events: ListeningEvents): ListeningPlayer {
+export function startListeningPlayer(mode: ListeningMode, selection: ListeningSelection, events: ListeningEvents): ListeningPlayer {
   const audio = new Audio();
-  const next = createShuffler(tables);
+  const stream = createSpacedStream(selection.nextRound);
   let current: AudioProgram | null = null;
   let upcoming: AudioProgram | null = null;
+  // Calculs entrés jusqu'à la fin de chaque morceau préparé, annoncés quand ce morceau commence
+  const introducedBy = new WeakMap<AudioProgram, Calculation[]>();
   let currentUrl: string | null = null;
   let buildSegment: (() => AudioProgram) | null = null;
   let isStopped = false;
@@ -100,6 +115,8 @@ export function startListeningPlayer(mode: ListeningMode, tables: number[], even
 
   function playProgram(program: AudioProgram) {
     current = program;
+    const introduced = introducedBy.get(program);
+    if (introduced) selection.onIntroduced?.(introduced);
     setSource(program.wav);
     if (wantsToPlay) play();
   }
@@ -108,7 +125,7 @@ export function startListeningPlayer(mode: ListeningMode, tables: number[], even
     if (!("mediaSession" in navigator)) return;
     navigator.mediaSession.metadata = new MediaMetadata({
       title: mode === "radio" ? "Radio des tables" : "Brossage de dents",
-      artist: `Tables : ${tables.join(", ")}`,
+      artist: selection.label,
       album: "Multiplications",
       artwork: [{ src: `${import.meta.env.BASE_URL}icons/icon-512.svg`, sizes: "512x512", type: "image/svg+xml" }]
     });
@@ -163,7 +180,7 @@ export function startListeningPlayer(mode: ListeningMode, tables: number[], even
   audio.play().catch(() => undefined);
 
   async function prepare() {
-    const calcs = calculationsOf(tables);
+    const calcs = selection.pool;
     const voiceFiles = [...calcs.map((c) => questionFile(c.a, c.b)), ...new Set(calcs.map((c) => answerFile(c.result)))];
 
     let cheer = "";
@@ -179,12 +196,20 @@ export function startListeningPlayer(mode: ListeningMode, tables: number[], even
     const clipOf = (file: string) => clips.get(file) as Float32Array;
 
     announceToSystem();
+    const withIntroduced = (program: AudioProgram) => {
+      introducedBy.set(program, stream.introduced());
+      return program;
+    };
     if (mode === "radio") {
-      buildSegment = () => buildRadioSegment(next, clipOf, sampleRate);
+      buildSegment = () => withIntroduced(buildRadioSegment(() => stream.next(), clipOf, sampleRate));
       playProgram(buildSegment());
       upcoming = buildSegment();
     } else {
-      playProgram(buildBrushingProgram(next, clipOf, sampleRate, { ...BRUSHING_PHRASES, cheer }));
+      // Le planificateur connaît le nombre de créneaux : aucun calcul n'entre sans le temps de ses reprises
+      const slotCount = slotCountFor(calcs, clipOf, sampleRate, BRUSHING_MS);
+      let slot = 0;
+      const next = () => stream.next(slotCount - slot++);
+      playProgram(withIntroduced(buildBrushingProgram(next, clipOf, sampleRate, { ...BRUSHING_PHRASES, cheer })));
     }
   }
 

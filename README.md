@@ -38,10 +38,12 @@ Application web progressive (PWA) d'apprentissage des tables de multiplication, 
    - 🎯 **Mode 2 : Quiz Sans Enjeu** : Entraînement bienveillant, possibilité de recommencer à l'infini ou de dévoiler la réponse vocale.
    - ⚡ **Mode 3 : Time-Attack** : Chronomètre haute précision (ms), mesure des réflexes et alimentation automatique des révisions.
 
-5. **2 Modes d'Écoute Sans Joueur** (écran « Qui va s'entraîner ? ») :
-   - 📻 **Radio des tables** : question, temps de réflexion, réponse, dans un ordre aléatoire et sans fin. Elle continue écran éteint.
+5. **2 Modes d'Écoute** (écran « Qui va s'entraîner ? ») :
+   - 📻 **Radio des tables** : question, temps de réflexion, réponse, sans fin. Elle continue écran éteint.
    - 🪥 **Brossage de dents** : « Début du brossage des dents », 3 minutes de calculs avec décompte à l'écran, puis une félicitation et « Fin du brossage des dents ». L'écran reste allumé.
-   - On choisit ses tables avant de lancer ; chaque mode retient sa dernière sélection. Aucun point, aucune progression : ces modes n'appartiennent à aucun joueur.
+   - Avant de lancer, onglet **Guidé** (on coche un ou plusieurs joueurs : l'écoute reprend ce qu'ils ont à revoir) ou **Manuel** (on coche des tables). Chaque mode retient sa dernière sélection.
+   - Chaque calcul est repris 3, 6 puis 12 calculs plus tard (répétition espacée pendant l'écoute) ; l'écoute suivante commence par les calculs qui n'ont pas été entendus. Règles : [`docs/progression-et-recompenses.md`](docs/progression-et-recompenses.md#radio-et-brossage-de-dents).
+   - Aucun point, aucune progression, même en mode guidé : écouter ne prouve pas que l'enfant sait.
 
 6. **PWA Mobile-First pour Android** :
    - Pavé tactile virtuel ergonomique évitant les sursauts d'affichage du clavier virtuel Android.
