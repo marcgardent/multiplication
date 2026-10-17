@@ -24,7 +24,9 @@ import { isTestProfile } from "./testing/snapshots";
 import { createWakeLockService } from "./services/wakeLockService";
 import { DEFAULT_TABLES, openTableSelectionModal } from "./components/tableSelectionModal";
 import { startListeningModal } from "./components/listeningModal";
-import { ListeningMode } from "./radio/listeningPlayer";
+import { ListeningMode, ListeningSelection } from "./radio/listeningPlayer";
+import { calculationsOf } from "./radio/program";
+import { calculationId, manualRounds } from "./radio/spacedSchedule";
 import { MultiplicationItem, SessionConfig, UserProfile } from "./types";
 
 export interface AppInstance {
@@ -261,9 +263,29 @@ export function createApp(): AppInstance {
       confirmLabel: mode === "radio" ? "Lancer la radio" : "Commencer le brossage",
       onConfirm: (tables) => {
         storage.set(storageKey, tables);
-        startListeningModal(mode, tables, wakeLock);
+        const pool = calculationsOf(tables);
+        startListeningModal(mode, listeningSelection(mode, pool, manualRounds(pool, lastHeardIds(mode)), `Tables : ${tables.join(", ")}`), wakeLock);
       }
     });
+  }
+
+  // Calculs entendus à la dernière écoute de ce mode : l'écoute suivante commence par les autres
+  function lastHeardIds(mode: ListeningMode): string[] {
+    return storage.get<string[]>(`${mode}_last_heard`, []);
+  }
+
+  function listeningSelection(
+    mode: ListeningMode,
+    pool: ListeningSelection["pool"],
+    nextRound: ListeningSelection["nextRound"],
+    label: string
+  ): ListeningSelection {
+    return {
+      pool,
+      nextRound,
+      label,
+      onIntroduced: (calcs) => storage.set(`${mode}_last_heard`, calcs.map(calculationId))
+    };
   }
 
   // Modale de création d'un joueur avec prénom et emoji animal

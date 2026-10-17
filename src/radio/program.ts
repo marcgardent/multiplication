@@ -51,26 +51,15 @@ export function calculationsOf(tables: number[]): Calculation[] {
   return tables.flatMap((a) => Array.from({ length: 10 }, (_, i) => ({ a, b: i + 1, result: a * (i + 1) })));
 }
 
-// Tirage sans fin : tous les calculs passent une fois avant de revenir, jamais deux fois le même de suite
-export function createShuffler(tables: number[], random: () => number = Math.random): () => Calculation {
-  const pool = calculationsOf(tables);
-  let queue: Calculation[] = [];
-  let last: Calculation | null = null;
-
-  return () => {
-    if (queue.length === 0) {
-      queue = [...pool];
-      for (let i = queue.length - 1; i > 0; i--) {
-        const j = Math.floor(random() * (i + 1));
-        [queue[i], queue[j]] = [queue[j], queue[i]];
-      }
-      if (queue.length > 1 && queue[0] === last) {
-        [queue[0], queue[1]] = [queue[1], queue[0]];
-      }
-    }
-    last = queue.shift() as Calculation;
-    return last;
-  };
+// Nombre de créneaux qu'offre une durée d'écoute, d'après la longueur moyenne des calculs du pool
+export function slotCountFor(pool: Calculation[], clips: ClipSource, sampleRate: number, durationMs: number): number {
+  const toSamples = (ms: number) => Math.round((ms * sampleRate) / 1000);
+  const total = pool.reduce(
+    (sum, c) => sum + clips(questionFile(c.a, c.b)).length + toSamples(THINK_PAUSE_MS) + clips(answerFile(c.result)).length + toSamples(NEXT_PAUSE_MS),
+    0
+  );
+  // La pause qui suit le dernier calcul peut manquer
+  return Math.floor((toSamples(durationMs) + toSamples(NEXT_PAUSE_MS)) / (total / pool.length));
 }
 
 export function encodeWav(chunks: Float32Array[], sampleRate: number): ArrayBuffer {

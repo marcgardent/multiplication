@@ -39,7 +39,9 @@ const FAMILY_BY_NAME: Record<string, KeyFamily> = {
   user_profiles_v2: "profiles",
   [DELETED_PROFILES_KEY]: "set",
   active_profile_id_v2: "device",
-  test_last_snapshot: "device"
+  test_last_snapshot: "device",
+  radio_last_heard: "device",
+  brushing_last_heard: "device"
 };
 
 // La clé complète porte l'espace de stockage devant : « mult_clean_v3:points_<joueur> »

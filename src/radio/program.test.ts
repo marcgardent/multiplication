@@ -4,14 +4,16 @@ import {
   BRUSHING_MS,
   buildBrushingProgram,
   buildRadioSegment,
+  Calculation,
   calculationsOf,
-  createShuffler,
   encodeWav,
   locateCue,
   NEXT_PAUSE_MS,
   questionFile,
+  slotCountFor,
   THINK_PAUSE_MS
 } from "./program";
+import { createSpacedStream, manualRounds } from "./spacedSchedule";
 
 const SAMPLE_RATE = 1000;
 const PHRASES = { intro: "intro", cheer: "cheer", outro: "outro" };
@@ -21,6 +23,11 @@ function fakeClips(file: string): Float32Array {
   if (file.includes("/q_")) return new Float32Array(1300).fill(0.5);
   if (file.includes("/ans_")) return new Float32Array(900).fill(0.5);
   return new Float32Array(2000).fill(0.5);
+}
+
+function tablesStream(tables: number[], seed: number): () => Calculation {
+  const stream = createSpacedStream(manualRounds(calculationsOf(tables), [], seededRandom(seed)));
+  return () => stream.next();
 }
 
 function seededRandom(seed: number): () => number {
@@ -38,26 +45,15 @@ describe("Tirage des calculs", () => {
     expect(calcs[7]).toEqual({ a: 7, b: 8, result: 56 });
   });
 
-  it("tous les calculs passent une fois avant de revenir", () => {
-    const next = createShuffler([2, 3], seededRandom(1));
-    const firstRound = Array.from({ length: 20 }, () => next());
-    expect(new Set(firstRound.map((c) => `${c.a}x${c.b}`)).size).toBe(20);
-  });
-
-  it("jamais deux fois le même calcul de suite, même d'un tour au suivant", () => {
-    const next = createShuffler([4], seededRandom(9));
-    let previous = next();
-    for (let i = 0; i < 500; i++) {
-      const current = next();
-      expect(current).not.toBe(previous);
-      previous = current;
-    }
+  it("compte les créneaux d'une durée d'après la longueur des voix", () => {
+    // 1,3 s de question, 1,8 s de réflexion, 0,9 s de réponse et 1,2 s de pause : 5,2 s par calcul
+    expect(slotCountFor(calculationsOf([2]), fakeClips, SAMPLE_RATE, BRUSHING_MS)).toBe(34);
   });
 });
 
 describe("Morceau de radio", () => {
   it("enchaîne question, réflexion, réponse et pause pour chaque calcul", () => {
-    const program = buildRadioSegment(createShuffler([2], seededRandom(3)), fakeClips, SAMPLE_RATE, 5);
+    const program = buildRadioSegment(tablesStream([2], 3), fakeClips, SAMPLE_RATE, 5);
     const calcLengthS = (1300 + THINK_PAUSE_MS + 900 + NEXT_PAUSE_MS) / 1000;
 
     expect(program.cues).toHaveLength(5);
@@ -71,7 +67,7 @@ describe("Morceau de radio", () => {
   });
 
   it("retrouve le calcul en cours et le moment où la réponse est dite", () => {
-    const program = buildRadioSegment(createShuffler([2], seededRandom(3)), fakeClips, SAMPLE_RATE, 2);
+    const program = buildRadioSegment(tablesStream([2], 3), fakeClips, SAMPLE_RATE, 2);
     const [first, second] = program.cues;
 
     expect(locateCue(program.cues, 0.5)).toEqual({ cue: first, isAnswerRevealed: false });
@@ -82,7 +78,7 @@ describe("Morceau de radio", () => {
 });
 
 describe("Brossage de dents", () => {
-  const program = buildBrushingProgram(createShuffler([2, 3], seededRandom(5)), fakeClips, SAMPLE_RATE, PHRASES);
+  const program = buildBrushingProgram(tablesStream([2, 3], 5), fakeClips, SAMPLE_RATE, PHRASES);
   const brushing = program.brushing as { startS: number; endS: number };
 
   it("dure 3 minutes entre l'annonce de début et la félicitation", () => {

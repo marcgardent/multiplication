@@ -1,4 +1,4 @@
-import { ListeningMode, startListeningPlayer } from "../radio/listeningPlayer";
+import { ListeningMode, ListeningSelection, startListeningPlayer } from "../radio/listeningPlayer";
 import { WakeLockService } from "../services/wakeLockService";
 
 const MODE_TEXTS: Record<ListeningMode, { tag: string; emoji: string }> = {
@@ -13,7 +13,7 @@ function formatCountdown(seconds: number): string {
 
 // Écran d'écoute de la radio et du brossage de dents. Sans joueur : ni points, ni boîtes.
 // À appeler pendant le clic qui lance l'écoute, pour que le téléphone autorise le son.
-export function startListeningModal(mode: ListeningMode, tables: number[], wakeLock: WakeLockService): void {
+export function startListeningModal(mode: ListeningMode, selection: ListeningSelection, wakeLock: WakeLockService): void {
   const texts = MODE_TEXTS[mode];
   const isBrushing = mode === "brushing";
   let isOpen = true;
@@ -31,7 +31,7 @@ export function startListeningModal(mode: ListeningMode, tables: number[], wakeL
       <div class="session-modal-header">
         <div class="workshop-title">
           <span class="workshop-tag">${texts.tag}</span>
-          <span class="workshop-name">Tables : ${tables.join(", ")}</span>
+          <span class="workshop-name">${selection.label}</span>
         </div>
         <div class="header-controls-group">
           <button type="button" class="btn-session-pause" id="btn-listen-pause" aria-label="Pause ou Reprendre">⏸️</button>
@@ -77,7 +77,7 @@ export function startListeningModal(mode: ListeningMode, tables: number[], wakeL
   // Pendant le brossage personne ne touche l'écran : on empêche la veille. La radio, elle, laisse l'écran s'éteindre
   let releaseScreen = isBrushing ? wakeLock.keepAwake() : () => undefined;
 
-  const player = startListeningPlayer(mode, tables, {
+  const player = startListeningPlayer(mode, selection, {
     onPlayingChange(playing) {
       isPlaying = playing;
     },

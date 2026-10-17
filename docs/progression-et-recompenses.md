@@ -146,7 +146,7 @@ stateDiagram-v2
 | Ouverture d'un cadeau | +25 |
 | Roue magique, 3 tours par jour | le résultat du calcul tiré, de 1 à 100 |
 
-La radio des tables et le brossage de dents se lancent sans joueur : ils ne donnent aucun point et ne déplacent aucun calcul d'une boîte à l'autre.
+La radio des tables et le brossage de dents ne donnent aucun point et ne déplacent aucun calcul d'une boîte à l'autre, même en mode guidé : écouter ne prouve pas que l'enfant sait.
 
 Un décor est débloqué dès que le total de points atteint son seuil. Les points ne baissent jamais, donc un décor débloqué le reste.
 
@@ -172,6 +172,57 @@ Les seuils sont réglés pour s'étaler sur tout le parcours d'une élève régu
 Les points gagnés sont proportionnels au temps joué : un enfant qui joue plus longtemps chaque jour débloque les décors plus vite.
 
 Les décors débloqués avec les anciens seuils (500 à 22 000 points pour dix décors) restent acquis aux joueurs qui les avaient.
+
+## Radio et brossage de dents
+
+### Deux façons de choisir les calculs
+
+Un appui sur 📻 ou 🪥 ouvre une fenêtre à deux onglets :
+
+- **🎯 Guidé** : on coche un ou plusieurs joueurs, et l'écoute reprend ce qu'ils ont à revoir. Le brossage se fait souvent à plusieurs : les calculs utiles à plusieurs enfants passent devant.
+- **✋ Manuel** : on coche des tables, comme avant ; tous leurs calculs forment le pool.
+
+Chaque mode, radio et brossage, retient sur l'appareil son dernier onglet et ses derniers joueurs cochés ; les tables cochées suivent la règle des réglages. Sans aucun joueur, seul l'onglet Manuel est proposé.
+
+### Le pool en mode guidé
+
+Pour chaque joueur coché, chaque calcul reçoit un rang. Ses données sont seulement lues, jamais modifiées.
+
+| Situation du calcul pour ce joueur | Rang |
+|---|---|
+| Raté, à reprendre | 1 |
+| Révision échue, quelle que soit la boîte | 2 |
+| En cours d'apprentissage (Boîte 0 déjà vu, Boîte 1 ou 2), pas encore échu | 3 |
+| Les 2 prochains nouveaux calculs de son ordre du carnet de suivi | 3 |
+| Boîte 3 à 5, pas encore échu | hors du pool |
+| Pas encore abordé, au-delà des 2 prochains | hors du pool |
+
+- Un calcul prend le meilleur rang qu'il a chez l'un des joueurs.
+- À rang égal, le calcul concerné par le plus de joueurs passe devant.
+- À égalité complète, les calculs qui n'ont pas été entendus à la dernière écoute passent devant, puis le hasard décide.
+- Moins de 6 calculs dans le pool : il est complété par les calculs de Boîte 3 à 5 les plus proches de leur échéance. S'il reste vide, la fenêtre l'annonce et propose l'onglet Manuel.
+
+Exemple : Léa a raté 7 × 8 ; Tom a sa révision de 7 × 8 échue et 6 × 4 en Boîte 1. Le pool commence par 7 × 8 (rang 1, deux joueurs), puis 6 × 4 (rang 3, un joueur).
+
+En mode manuel, le pool est mélangé au hasard, et les calculs entendus à la dernière écoute passent à la fin.
+
+### Répétition espacée pendant l'écoute
+
+Un calcul dure environ 5,5 secondes : question, temps de réflexion, réponse et courte pause. L'écoute est une suite de créneaux, environ 32 pour les 3 minutes d'un brossage.
+
+1. Sur un créneau libre, le calcul suivant du pool entre : il est dit une première fois, puis repris **3, 6 et 12 calculs plus tard** (environ 15 secondes, 30 secondes et 1 minute). Une reprise qui tombe sur un créneau déjà pris glisse au suivant libre.
+2. Un calcul n'entre que si au moins ses deux premières reprises tiennent avant la fin. Les créneaux restants servent à réentendre le calcul entendu il y a le plus longtemps.
+3. Le même calcul ne passe jamais deux fois de suite, sauf si le pool n'en compte qu'un.
+
+Exemple, un brossage avec les tables de 2 et 3 (chaque lettre est un calcul) :
+
+```
+A B C A B C D E F A B C D E F A B C D E F A B C F A B C F A D E
+```
+
+Six calculs entrent, chacun entendu 4 à 7 fois. Les quatorze autres attendent le brossage suivant, qui commence par eux.
+
+La radio ne finit pas : les reprises continuent d'un morceau à l'autre, et quand tout le pool est entré, un nouveau tour recommence dans un autre ordre.
 
 ## Vérifier ces règles sans attendre 21 jours
 
