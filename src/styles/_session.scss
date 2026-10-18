@@ -97,18 +97,6 @@
     gap: 6px;
   }
 
-  .mode-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-
-    .session-badge {
-      font-size: $fs-caption;
-      font-weight: 500;
-      color: $ink-soft;
-    }
-  }
-
   .progress-bar-container {
     height: 8px;
     background: $line;
@@ -122,14 +110,6 @@
       border-radius: $radius-pill;
       transition: width 0.3s ease;
     }
-  }
-
-  .stats-live-bar {
-    display: flex;
-    justify-content: space-between;
-    font-size: $fs-small;
-    font-weight: 500;
-    color: $ink-soft;
   }
 
   .question-stage {
@@ -335,12 +315,6 @@
         }
       }
     }
-  }
-
-  .mode-controls {
-    display: flex;
-    justify-content: center;
-    margin-top: 8px;
   }
 }
 
