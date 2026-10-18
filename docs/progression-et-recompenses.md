@@ -77,6 +77,7 @@ Précisions :
 - **À l'échéance** veut dire le jour prévu ou après. Les échéances en jours tombent à minuit : la séance compte à n'importe quelle heure du jour prévu.
 - **Avant l'échéance**, une réussite entraîne et rapporte des points, mais ne fait pas monter. C'est ce qui empêche de gagner plusieurs boîtes dans la même séance.
 - **Un échec renvoie toujours en Boîte 0**, depuis n'importe quelle boîte, même avant l'échéance. Le calendrier repart alors du début : le calcul revient 10 minutes plus tard, et il faudra de nouveau J1, J3, J7 et J21.
+- **Temps de réponse** : de la question à l'appui sur Valider, moins 0,5 seconde accordée pour cet appui. C'est ce temps qui compte pour la réponse fluide, le bonus de rapidité et l'échelle de vitesse du carnet.
 - **Réponse fluide** : en 3,8 secondes au plus. Elle n'est exigée que pour entrer en Boîte 5. Une réussite lente ce jour-là ne fait pas perdre 14 jours : le calcul revient le lendemain.
 - En Boîte 0, un calcul jamais écouté peut monter directement en Boîte 1 par une réussite, par exemple en « Révision tables ».
 - Les attentes sont fixes : la vitesse de réponse ne les allonge ni ne les raccourcit.

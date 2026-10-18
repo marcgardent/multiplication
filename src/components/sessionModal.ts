@@ -1,7 +1,7 @@
 import { RepetitionEngine } from "../core/repetitionEngine";
 import { AudioService } from "../services/audioService";
 import { SessionTimer, createSessionTimer } from "../components/timer";
-import { KeypadComponent, createKeypad } from "../components/keypad";
+import { KeypadComponent, answerTimeMs, createKeypad } from "../components/keypad";
 import { SessionConfig, MultiplicationItem } from "../types";
 import { runCelebration } from "./celebration";
 
@@ -559,7 +559,7 @@ export function startSessionModal(
   async function checkPracticeAnswer(valStr: string) {
     if (!currentItem || isPaused) return;
     const val = parseInt(valStr, 10);
-    const timeMs = questionStartTime > 0 ? Math.round(performance.now() - questionStartTime) : 0;
+    const timeMs = questionStartTime > 0 ? answerTimeMs(questionStartTime) : 0;
     const cardEl = modalEl.querySelector("#modal-card");
     const cueEl = modalEl.querySelector("#modal-cue");
     const inputEl = modalEl.querySelector("#modal-answer");
@@ -667,7 +667,7 @@ export function startSessionModal(
   async function checkTimeAttackAnswer(valStr: string) {
     if (!currentItem || isPaused || isCheckingAnswer) return;
     isCheckingAnswer = true;
-    const timeMs = Math.round(performance.now() - questionStartTime);
+    const timeMs = answerTimeMs(questionStartTime);
     const val = parseInt(valStr, 10);
     const item = currentItem;
     const isCorrect = val === item.result;

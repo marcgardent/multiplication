@@ -1,6 +1,6 @@
 import { MatrixStore } from "../core/matrixStore";
 import { AudioService } from "../services/audioService";
-import { KeypadComponent, createKeypad } from "../components/keypad";
+import { KeypadComponent, answerTimeMs, createKeypad } from "../components/keypad";
 import { MultiplicationItem } from "../types";
 
 export interface EvaluationResult {
@@ -361,7 +361,7 @@ export function startEvaluationModal(
     isCheckingAnswer = true;
     const item = pool[currentIndex];
     const val = parseInt(valStr, 10);
-    const timeMs = Math.round(performance.now() - questionStartTime);
+    const timeMs = answerTimeMs(questionStartTime);
     times.push(timeMs);
 
     const isCorrect = val === item.result;

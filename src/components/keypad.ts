@@ -1,3 +1,11 @@
+// Temps accordé pour appuyer sur Valider : il n'est pas compté dans le temps de réponse
+export const SUBMIT_ALLOWANCE_MS = 500;
+
+// Temps de réponse d'une question posée à questionStartTime et validée maintenant
+export function answerTimeMs(questionStartTime: number, now = performance.now()): number {
+  return Math.max(1, Math.round(now - questionStartTime) - SUBMIT_ALLOWANCE_MS);
+}
+
 export interface KeypadComponent {
   mount(parent: HTMLElement): void;
   destroy(): void;

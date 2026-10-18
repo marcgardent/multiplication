@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { createKeypad } from "./keypad";
+import { answerTimeMs, createKeypad, SUBMIT_ALLOWANCE_MS } from "./keypad";
 
 class MockElement {
   tagName: string;
@@ -166,5 +166,12 @@ describe("KeypadComponent", () => {
     expect(keypad.getCurrentValue()).toBe("");
 
     keypad.destroy();
+  });
+
+  it("ne compte pas les 500 ms accordées pour appuyer sur Valider dans le temps de réponse", () => {
+    expect(SUBMIT_ALLOWANCE_MS).toBe(500);
+    expect(answerTimeMs(1000, 3800)).toBe(2300);
+    // Une réponse plus rapide que l'appui lui-même garde un temps positif : elle reste enregistrée
+    expect(answerTimeMs(1000, 1300)).toBe(1);
   });
 });
