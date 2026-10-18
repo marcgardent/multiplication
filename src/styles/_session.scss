@@ -329,13 +329,8 @@
           min-height: clamp(44px, 6.2vh, 64px);
           font-size: clamp(1.6rem, 5.5vw, 2.2rem);
 
-          &.keypad-btn-help {
-            .keypad-help-icon {
-              font-size: clamp(1.2rem, 3.8vw, 1.8rem);
-            }
-            .keypad-help-label {
-              font-size: clamp(0.58rem, 1.5vw, 0.75rem);
-            }
+          &.keypad-btn-submit {
+            font-size: clamp(1rem, 3.6vw, 1.3rem);
           }
         }
       }
@@ -394,49 +389,16 @@
       color: $ink-soft;
     }
 
-    &.keypad-btn-help {
-      background: $ground;
-      color: $ink-soft;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 1px;
-      padding: 4px 2px;
-      user-select: none;
+    /* Valider : la seule touche en couleur, verte comme une réussite */
+    &.keypad-btn-submit {
+      background: $status-mastered;
+      border-color: $status-mastered;
+      color: $surface;
+      font-size: 1.1rem;
 
-      .keypad-help-icon {
-        font-size: 1.4rem;
-        font-weight: 700;
-        line-height: 1;
-        color: $accent;
+      &:hover, &:active {
+        background: #19654a;
       }
-
-      .keypad-help-label {
-        font-size: 0.62rem;
-        font-weight: 600;
-        color: $ink-soft;
-        line-height: 1;
-        white-space: nowrap;
-        letter-spacing: -0.01em;
-      }
-
-      &:hover {
-        background: $accent-soft;
-        .keypad-help-icon {
-          color: $accent-hover;
-        }
-        .keypad-help-label {
-          color: $accent-ink;
-        }
-      }
-    }
-
-    &.keypad-btn-empty {
-      background: transparent;
-      border: none;
-      box-shadow: none;
-      cursor: default;
     }
 
     &:disabled {

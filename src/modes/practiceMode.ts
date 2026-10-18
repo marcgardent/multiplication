@@ -153,19 +153,11 @@ export function createPracticeMode(
       // Monter le Keypad
       const keypadMount = containerEl.querySelector("#prac-keypad") as HTMLElement;
       keypad = createKeypad({
-        showHelpButton: true,
-        onHelp: () => {
-          if (isRunning) revealAnswer();
-        },
+        onSubmit: (value) => checkAnswer(value),
         onInput: (_digit, fullVal) => {
           currentInput = fullVal;
           const inputEl = containerEl?.querySelector("#prac-input");
           if (inputEl) inputEl.textContent = currentInput;
-
-          // Auto-validation dès que la longueur atteint le nombre de chiffres du résultat
-          if (currentItem && currentInput.length >= currentItem.result.toString().length) {
-            checkAnswer(currentInput);
-          }
         },
         onDelete: (fullVal) => {
           currentInput = fullVal;

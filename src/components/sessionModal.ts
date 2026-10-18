@@ -504,20 +504,13 @@ export function startSessionModal(
 
     const keypadMount = modalEl.querySelector("#modal-keypad-mount") as HTMLElement;
     keypad = createKeypad({
-      showHelpButton: true,
-      onHelp: () => {
-        if (!isPaused && isRunning) revealPracticeAnswer();
-      },
+      onSubmit: (value) => checkPracticeAnswer(value),
       onInput: (_d, fullVal) => {
         if (isPaused) return;
         currentInput = fullVal;
         const ansEl = modalEl.querySelector("#modal-answer");
         if (ansEl) ansEl.textContent = currentInput;
         fitOperation(modalEl.querySelector("#modal-card"));
-
-        if (currentItem && currentInput.length >= currentItem.result.toString().length) {
-          checkPracticeAnswer(currentInput);
-        }
       },
       onDelete: (fullVal) => {
         if (isPaused) return;
@@ -622,50 +615,16 @@ export function startSessionModal(
   }
 
   // --- ATELIER 3 : TIME-ATTACK ---
-  async function handleTimeAttackDontKnow() {
-    if (!currentItem || isPaused || isCheckingAnswer || currentWorkshopIndex !== 2) return;
-    isCheckingAnswer = true;
-    const timeMs = Math.round(performance.now() - questionStartTime);
-    const item = currentItem;
-
-    keypad?.setEnabled(false);
-    const cardEl = modalEl.querySelector("#modal-card");
-    const cueEl = modalEl.querySelector("#modal-cue");
-    const answerEl = modalEl.querySelector("#modal-answer");
-
-    engine.registerResult(item, "time-attack", false, timeMs);
-
-    cardEl?.classList.add("card-hint");
-    if (cueEl) cueEl.textContent = `C'est noté ! ${item.a} × ${item.b} = ${item.result}`;
-    if (answerEl) {
-      answerEl.textContent = item.result.toString();
-      answerEl.classList.add("revealed");
-    }
-    fitOperation(cardEl);
-    await audioService.playAnswer(item.result);
-
-    const ok = await waitWithPauseCheck(1000);
-    isCheckingAnswer = false;
-    if (ok && currentWorkshopIndex === 2) nextTimeAttackQuestion();
-  }
-
   function setupTimeAttackWorkshop() {
     const keypadMount = modalEl.querySelector("#modal-keypad-mount") as HTMLElement;
     keypad = createKeypad({
-      showHelpButton: true,
-      onHelp: () => {
-        handleTimeAttackDontKnow();
-      },
+      onSubmit: (value) => checkTimeAttackAnswer(value),
       onInput: (_d, fullVal) => {
         if (isPaused) return;
         currentInput = fullVal;
         const ansEl = modalEl.querySelector("#modal-answer");
         if (ansEl) ansEl.textContent = currentInput;
         fitOperation(modalEl.querySelector("#modal-card"));
-
-        if (currentItem && currentInput.length >= currentItem.result.toString().length) {
-          checkTimeAttackAnswer(currentInput);
-        }
       },
       onDelete: (fullVal) => {
         if (isPaused) return;

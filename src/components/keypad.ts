@@ -9,11 +9,8 @@ export interface KeypadComponent {
 export interface KeypadOptions {
   onInput?: (digit: string, currentValue: string) => void;
   onDelete?: (currentValue: string) => void;
+  // Touche « Valider » ou Entrée, seulement quand une réponse est tapée
   onSubmit?: (value: string) => void;
-  onHelp?: () => void;
-  showHelpButton?: boolean;
-  helpIcon?: string;
-  helpLabel?: string;
   // Nombre de chiffres acceptés : 3 par défaut, le plus grand résultat étant 100
   maxLength?: number;
 }
@@ -32,7 +29,7 @@ export function createKeypad(options: KeypadOptions = {}): KeypadComponent {
       ["1", "2", "3"],
       ["4", "5", "6"],
       ["7", "8", "9"],
-      [options.showHelpButton ? "help" : "", "0", "delete"]
+      ["delete", "0", "submit"]
     ];
 
     keys.forEach((row) => {
@@ -53,21 +50,10 @@ export function createKeypad(options: KeypadOptions = {}): KeypadComponent {
             currentValue = currentValue.slice(0, -1);
             options.onDelete?.(currentValue);
           });
-        } else if (k === "help") {
-          const helpIcon = options.helpIcon ?? "?";
-          const helpLabel = options.helpLabel ?? "Je ne sais pas";
-          btn.innerHTML = `<span class="keypad-help-icon">${helpIcon}</span><span class="keypad-help-label">${helpLabel}</span>`;
-          btn.classList.add("keypad-btn-help");
-          btn.setAttribute("aria-label", helpLabel);
-          btn.setAttribute("title", helpLabel);
-          btn.addEventListener("click", () => {
-            if (!isEnabled) return;
-            currentValue = "";
-            options.onHelp?.();
-          });
-        } else if (k === "") {
-          btn.classList.add("keypad-btn-empty");
-          btn.disabled = true;
+        } else if (k === "submit") {
+          btn.textContent = "Valider";
+          btn.classList.add("keypad-btn-submit");
+          btn.addEventListener("click", submit);
         } else {
           btn.textContent = k;
           btn.addEventListener("click", () => {
@@ -87,6 +73,11 @@ export function createKeypad(options: KeypadOptions = {}): KeypadComponent {
     return container;
   }
 
+  function submit() {
+    if (!isEnabled || currentValue.length === 0) return;
+    options.onSubmit?.(currentValue);
+  }
+
   // Support du clavier physique si disponible
   function handleKeyDown(e: KeyboardEvent) {
     if (!isEnabled) return;
@@ -99,14 +90,7 @@ export function createKeypad(options: KeypadOptions = {}): KeypadComponent {
       currentValue = currentValue.slice(0, -1);
       options.onDelete?.(currentValue);
     } else if (e.key === "Enter") {
-      options.onSubmit?.(currentValue);
-    } else if (
-      options.showHelpButton &&
-      options.onHelp &&
-      (e.key === "?" || e.key === "h" || e.key === "H" || e.key === "p" || e.key === "P")
-    ) {
-      currentValue = "";
-      options.onHelp();
+      submit();
     }
   }
 

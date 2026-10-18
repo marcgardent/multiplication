@@ -293,21 +293,13 @@ export function startEvaluationModal(
 
   const keypadMount = modalEl.querySelector("#eval-keypad") as HTMLElement;
   keypad = createKeypad({
-    showHelpButton: true,
-    onHelp: () => {
-      handleDontKnow();
-    },
+    onSubmit: (value) => checkCurrentAnswer(value),
     onInput: (_digit, fullVal) => {
       if (isPaused || !isRunning) return;
       currentInput = fullVal;
       const inputEl = modalEl.querySelector("#eval-input");
       if (inputEl) inputEl.textContent = currentInput;
       fitOperation(modalEl.querySelector("#eval-card"));
-
-      const currentItem = pool[currentIndex];
-      if (currentItem && currentInput.length >= currentItem.result.toString().length) {
-        checkCurrentAnswer(currentInput);
-      }
     },
     onDelete: (fullVal) => {
       if (isPaused || !isRunning) return;
@@ -362,41 +354,6 @@ export function startEvaluationModal(
 
     questionStartTime = performance.now();
     audioService.playQuestion(item.a, item.b);
-  }
-
-  async function handleDontKnow() {
-    if (!isRunning || isPaused || isCheckingAnswer) return;
-    isCheckingAnswer = true;
-    const item = pool[currentIndex];
-    const timeMs = Math.round(performance.now() - questionStartTime);
-    times.push(timeMs);
-
-    keypad?.setEnabled(false);
-
-    const cardEl = modalEl.querySelector("#eval-card");
-    const cueEl = modalEl.querySelector("#eval-cue");
-    const inputEl = modalEl.querySelector("#eval-input");
-
-    matrixStore.recordAttempt(item.a, item.b, "evaluation", false, timeMs);
-    wrongItems.push(item);
-
-    cardEl?.classList.add("card-hint");
-    if (cueEl) cueEl.textContent = `C'est noté ! ${item.a} × ${item.b} = ${item.result}`;
-    if (inputEl) {
-      inputEl.textContent = item.result.toString();
-      inputEl.classList.add("revealed");
-    }
-    fitOperation(cardEl);
-    await audioService.playAnswer(item.result);
-
-    const ok = await waitWithPauseCheck(1000);
-    isCheckingAnswer = false;
-    if (!ok) return;
-
-    currentIndex++;
-    if (isRunning) {
-      showQuestion();
-    }
   }
 
   async function checkCurrentAnswer(valStr: string) {

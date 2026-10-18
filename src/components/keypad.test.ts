@@ -88,56 +88,61 @@ describe("KeypadComponent", () => {
     vi.unstubAllGlobals();
   });
 
-  it("renders keypad with digits and delete button without help button by default", () => {
+  it("met Effacer à gauche du 0 et Valider à droite, sans touche pour passer", () => {
     const parent = new MockElement("DIV");
-    const keypad = createKeypad({ showHelpButton: false });
+    const keypad = createKeypad();
     keypad.mount(parent as unknown as HTMLElement);
 
-    const buttons = parent.querySelectorAll("button");
-    expect(buttons.length).toBe(12);
-
-    const emptyBtn = parent.querySelector(".keypad-btn-empty");
-    expect(emptyBtn).not.toBeNull();
-    expect(emptyBtn?.disabled).toBe(true);
+    expect(parent.querySelectorAll("button").length).toBe(12);
+    const lastRow = parent.children[0].children[3].children;
+    expect(lastRow[0].classList.contains("keypad-btn-delete")).toBe(true);
+    expect(lastRow[2].classList.contains("keypad-btn-submit")).toBe(true);
+    expect(lastRow[1].textContent).toBe("0");
+    expect(lastRow[2].textContent).toBe("Valider");
 
     keypad.destroy();
   });
 
-  it("renders '?' button with label 'Je ne sais pas' when showHelpButton is true", () => {
+  it("valide la réponse tapée, avec la touche Valider ou Entrée", () => {
     const parent = new MockElement("DIV");
-    const onHelp = vi.fn();
-    const keypad = createKeypad({
-      showHelpButton: true,
-      onHelp
-    });
+    const onSubmit = vi.fn();
+    const keypad = createKeypad({ onSubmit });
     keypad.mount(parent as unknown as HTMLElement);
 
-    const helpBtn = parent.querySelector(".keypad-btn-help");
-    expect(helpBtn).not.toBeNull();
-    expect(helpBtn?.getAttribute("aria-label")).toBe("Je ne sais pas");
-    expect(helpBtn?.innerHTML).toContain("?");
-    expect(helpBtn?.innerHTML).toContain("Je ne sais pas");
+    parent.querySelectorAll("button").find((b) => b.textContent === "5")?.click();
+    parent.querySelectorAll("button").find((b) => b.textContent === "6")?.click();
+    parent.querySelector(".keypad-btn-submit")?.click();
+    expect(onSubmit).toHaveBeenCalledWith("56");
 
-    helpBtn?.click();
-    expect(onHelp).toHaveBeenCalledTimes(1);
+    keydownListeners.forEach((l) => l({ key: "Enter" } as KeyboardEvent));
+    expect(onSubmit).toHaveBeenCalledTimes(2);
 
     keypad.destroy();
   });
 
-  it("triggers onHelp when '?' keyboard key is pressed", () => {
+  it("ne valide rien tant qu'aucun chiffre n'est tapé", () => {
     const parent = new MockElement("DIV");
-    const onHelp = vi.fn();
-    const keypad = createKeypad({
-      showHelpButton: true,
-      onHelp
-    });
+    const onSubmit = vi.fn();
+    const keypad = createKeypad({ onSubmit });
     keypad.mount(parent as unknown as HTMLElement);
 
-    keydownListeners.forEach((l) => l({ key: "?" } as KeyboardEvent));
-    expect(onHelp).toHaveBeenCalledTimes(1);
+    parent.querySelector(".keypad-btn-submit")?.click();
+    keydownListeners.forEach((l) => l({ key: "Enter" } as KeyboardEvent));
+    expect(onSubmit).not.toHaveBeenCalled();
 
-    keydownListeners.forEach((l) => l({ key: "p" } as KeyboardEvent));
-    expect(onHelp).toHaveBeenCalledTimes(2);
+    keypad.destroy();
+  });
+
+  it("ne valide rien quand le clavier est désactivé", () => {
+    const parent = new MockElement("DIV");
+    const onSubmit = vi.fn();
+    const keypad = createKeypad({ onSubmit });
+    keypad.mount(parent as unknown as HTMLElement);
+
+    parent.querySelectorAll("button").find((b) => b.textContent === "7")?.click();
+    keypad.setEnabled(false);
+    keydownListeners.forEach((l) => l({ key: "Enter" } as KeyboardEvent));
+    expect(onSubmit).not.toHaveBeenCalled();
 
     keypad.destroy();
   });
