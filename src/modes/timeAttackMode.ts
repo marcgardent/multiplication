@@ -147,34 +147,6 @@ export function createTimeAttackMode(
     if (isRunning) nextQuestion();
   }
 
-  async function handleDontKnow() {
-    if (!currentItem || !containerEl || questionStartTime === 0) return;
-    const responseTimeMs = Math.round(performance.now() - questionStartTime);
-    const item = currentItem;
-
-    totalCount++;
-    totalResponseTimeMs += responseTimeMs;
-    updateLiveStats();
-
-    keypad?.setEnabled(false);
-    const cardEl = containerEl.querySelector("#ta-card");
-    const cueEl = containerEl.querySelector("#ta-cue");
-    const inputEl = containerEl.querySelector("#ta-input");
-
-    engine.registerResult(item, "time-attack", false, responseTimeMs);
-
-    cardEl?.classList.add("card-hint");
-    if (cueEl) cueEl.textContent = `C'est noté ! ${item.a} × ${item.b} = ${item.result}`;
-    if (inputEl) {
-      inputEl.textContent = item.result.toString();
-      inputEl.classList.add("revealed");
-    }
-    await audioService.playAnswer(item.result);
-
-    await new Promise((r) => setTimeout(r, 1000));
-    if (isRunning) nextQuestion();
-  }
-
   return {
     start(container: HTMLElement, onFinished: () => void) {
       isRunning = true;
@@ -187,18 +159,11 @@ export function createTimeAttackMode(
 
       const keypadMount = containerEl.querySelector("#ta-keypad") as HTMLElement;
       keypad = createKeypad({
-        showHelpButton: true,
-        onHelp: () => {
-          if (isRunning) handleDontKnow();
-        },
+        onSubmit: (value) => checkAnswer(value),
         onInput: (_digit, fullVal) => {
           currentInput = fullVal;
           const inputEl = containerEl?.querySelector("#ta-input");
           if (inputEl) inputEl.textContent = currentInput;
-
-          if (currentItem && currentInput.length >= currentItem.result.toString().length) {
-            checkAnswer(currentInput);
-          }
         },
         onDelete: (fullVal) => {
           currentInput = fullVal;
