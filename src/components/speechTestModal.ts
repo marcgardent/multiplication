@@ -51,6 +51,7 @@ export function openSpeechTestModal(): void {
       </div>
 
       <p class="speech-test-status" id="speech-test-status"></p>
+      <div class="speech-test-level" aria-hidden="true"><span id="speech-test-level"></span></div>
 
       <div class="speech-test-actions">
         <button type="button" class="btn-choice-helper" id="btn-speech-test-next">Autre calcul →</button>
@@ -66,6 +67,7 @@ export function openSpeechTestModal(): void {
   const rulesEl = modal.querySelector("#speech-test-rules") as HTMLElement;
   const statusEl = modal.querySelector("#speech-test-status") as HTMLElement;
   const historyEl = modal.querySelector("#speech-test-history") as HTMLElement;
+  const levelEl = modal.querySelector("#speech-test-level") as HTMLElement;
 
   const label = (guess: SpeechGuess | null) => (guess ? guessLabel(guess) : "?");
   const verdictClass = (guess: SpeechGuess | null, x: number, y: number) =>
@@ -125,6 +127,10 @@ export function openSpeechTestModal(): void {
         state === "loading"
           ? `⏳ Préparation de la reconnaissance… La première fois, téléchargement du modèle vocal (${MODEL_SIZE_MB} Mo).`
           : "🎤 J'écoute… Tout se passe sur l'appareil, sans internet.";
+    },
+    // Ce que le micro capte : rien ne bouge, c'est le micro ; ça bouge sans texte, c'est la reconnaissance
+    onLevel(level) {
+      levelEl.style.width = `${Math.round(level * 100)}%`;
     },
     onProblem(problem) {
       statusEl.textContent = `⚠️ ${PROBLEMS[problem]}`;

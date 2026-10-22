@@ -8,16 +8,19 @@ export interface AnswerInputOptions extends KeypadOptions {
   preferences: AnswerPreferencesStore;
   // Dit à voix haute : « je passe », « réponse », « je ne sais pas »
   onDontKnow(): void;
+  // Case de la réponse dans le grand calcul : à la voix, le micro s'y affiche tant que rien n'est entendu
+  answerSlot?(): HTMLElement | null;
 }
 
 // Bandeau au-dessus du clavier quand l'enfant répond à la voix : où il en est, en une phrase
-type SpeechState = "loading" | "wait" | "question" | "listen" | "heard" | "unclear";
+type SpeechState = "loading" | "wait" | "question" | "listen" | "hearing" | "heard" | "unclear";
 
 const CUES: Record<SpeechState, { icon: string; text: string }> = {
   loading: { icon: "⏳", text: "Je prépare mes oreilles…" },
   wait: { icon: "✋", text: "Attends…" },
   question: { icon: "👂", text: "Écoute la question…" },
   listen: { icon: "🎤", text: "Dis la réponse, puis appuie sur Valider." },
+  hearing: { icon: "👂", text: "Je t'entends…" },
   heard: { icon: "✅", text: "Appuie sur Valider, ou redis la réponse." },
   unclear: { icon: "🤔", text: "Je n'ai pas compris. Redis la réponse." }
 };
@@ -32,6 +35,9 @@ const PROBLEM_NOTICES: Record<SpeechProblem, string> = {
 const MIC_IDLE_MS = 4000;
 // Après une commande dite, la même phrase ne compte pas deux fois
 const AFTER_COMMAND_MS = 800;
+// Volume (0 à 1) au-delà duquel l'enfant est en train de parler, et combien de temps « Je t'entends » reste affiché après
+const SPEAKING_LEVEL = 0.2;
+const HEARING_MS = 700;
 
 // Saisie d'une réponse : le clavier, toujours là, et la voix quand l'enfant l'a choisie.
 // Un nombre dit remplit la réponse comme s'il avait été tapé ; c'est Valider qui l'envoie.
@@ -45,10 +51,12 @@ export function createAnswerInput(options: AnswerInputOptions): KeypadComponent 
     onInput(digit, value) {
       spoken = null;
       options.onInput?.(digit, value);
+      render();
     },
     onDelete(value) {
       spoken = null;
       options.onDelete?.(value);
+      render();
     },
     onSubmit(value) {
       options.onSubmit?.(value, spoken?.value === value ? spoken.at : undefined);
@@ -59,20 +67,23 @@ export function createAnswerInput(options: AnswerInputOptions): KeypadComponent 
   let ignoreUntil = 0;
   let isUnclear = false;
   let isLoading = false;
+  let lastLoudAt = 0;
   let idleTimer: ReturnType<typeof setTimeout> | null = null;
   let root: HTMLElement | null = null;
 
+  // Une ligne au-dessus du clavier : ce qu'il faut faire
   const strip = document.createElement("div");
   strip.className = "speech-strip";
   strip.innerHTML = `
-    <span class="speech-mic" aria-hidden="true"></span>
-    <span class="speech-texts">
-      <span class="speech-cue" aria-live="polite"></span>
-      <span class="speech-tips">Tu peux aussi dire « je passe » ou « je ne sais pas ».</span>
-    </span>
+    <span class="speech-cue" aria-live="polite"></span>
+    <span class="speech-tips">Tu peux aussi dire « je passe » ou « je ne sais pas ».</span>
   `;
-  const micEl = strip.querySelector(".speech-mic") as HTMLElement;
   const cueEl = strip.querySelector(".speech-cue") as HTMLElement;
+  // Le micro, à la place de la réponse dans le grand calcul : il respire quand c'est à l'enfant, grossit avec sa voix
+  const mic = document.createElement("span");
+  mic.className = "answer-mic";
+  mic.setAttribute("aria-hidden", "true");
+  mic.innerHTML = `<svg viewBox="0 0 24 24"><rect x="9" y="2.5" width="6" height="11.5" rx="3"></rect><path d="M5.5 11a6.5 6.5 0 0 0 13 0"></path><path d="M12 17.5v4M8.5 21.5h7"></path></svg>`;
   const notice = document.createElement("p");
   notice.className = "answer-notice";
   notice.hidden = true;
@@ -87,6 +98,12 @@ export function createAnswerInput(options: AnswerInputOptions): KeypadComponent 
     onState(listenerState) {
       isLoading = listenerState === "loading";
       render();
+    },
+    // Le micro du bandeau grossit avec la voix : l'enfant voit tout de suite qu'il est entendu
+    onLevel(level) {
+      mic.style.setProperty("--level", level.toFixed(2));
+      if (level >= SPEAKING_LEVEL) lastLoudAt = performance.now();
+      render();
     }
   });
 
@@ -98,8 +115,9 @@ export function createAnswerInput(options: AnswerInputOptions): KeypadComponent 
     if (isLoading) return "loading";
     if (!isEnabled) return "wait";
     if (audio.isSpeaking()) return "question";
-    if (isUnclear) return "unclear";
-    return spoken ? "heard" : "listen";
+    if (spoken) return "heard";
+    if (performance.now() - lastLoudAt < HEARING_MS) return "hearing";
+    return isUnclear ? "unclear" : "listen";
   }
 
   function render() {
@@ -107,8 +125,26 @@ export function createAnswerInput(options: AnswerInputOptions): KeypadComponent 
     root.classList.toggle("is-speech-mode", isSpeechMode);
     const current = state();
     strip.dataset.state = current;
-    micEl.textContent = CUES[current].icon;
-    cueEl.textContent = CUES[current].text;
+    mic.dataset.state = current;
+    const text = current === "heard" && spoken ? `J'ai compris ${spoken.value} : appuie sur Valider.` : CUES[current].text;
+    cueEl.textContent = `${CUES[current].icon} ${text}`;
+    if (!isListening()) mic.style.setProperty("--level", "0");
+    renderSlot();
+  }
+
+  // Le micro occupe la case de la réponse tant qu'une réponse est attendue et que rien n'y est écrit.
+  // Hors de ces moments, la case appartient à la séance (réponse donnée, correction)
+  function renderSlot() {
+    const slot = options.answerSlot?.();
+    if (!slot) return;
+    const isShown = isSpeechMode && isEnabled && keypad.getCurrentValue() === "";
+    if (isShown && !slot.contains(mic)) {
+      slot.textContent = "";
+      slot.appendChild(mic);
+    } else if (!isShown && slot.contains(mic)) {
+      mic.remove();
+      slot.textContent = keypad.getCurrentValue() || "_";
+    }
   }
 
   // Vosk n'entend que pendant qu'une réponse est attendue : ni la question lue, ni la correction.
@@ -127,16 +163,20 @@ export function createAnswerInput(options: AnswerInputOptions): KeypadComponent 
   }
 
   function handleHeard(heard: HeardSpeech) {
-    if (!isListening() || performance.now() < ignoreUntil || !heard.isFinal) return;
-    const { guess } = heard;
+    if (!isListening() || performance.now() < ignoreUntil) return;
+    const { guess, isFinal } = heard;
 
     if (guess?.kind === "number") {
-      // Comme tapé au clavier : la réponse s'affiche, Valider l'enverra
+      // Comme tapé au clavier, dès que le nombre est entendu, sans attendre la fin de la phrase : la réponse s'affiche,
+      // Valider l'enverra. La phrase finie confirme le nombre et donne l'heure exacte du dernier mot
       isUnclear = false;
       const value = String(guess.value);
       keypad.setValue?.(value);
       options.onInput?.("", value);
       spoken = { value, at: heard.spokenAt ?? performance.now() };
+    } else if (!isFinal) {
+      // Phrase en cours sans nombre : « Je t'entends » suffit
+      return;
     } else if (guess) {
       // « Je passe », « je ne sais pas » : aussi clair que le bouton, envoyé tout de suite
       isUnclear = false;
@@ -187,6 +227,7 @@ export function createAnswerInput(options: AnswerInputOptions): KeypadComponent 
       listener.release();
       keypad.destroy();
       strip.remove();
+      mic.remove();
       notice.remove();
       root?.classList.remove("answer-input", "is-speech-mode");
       root = null;

@@ -40,16 +40,23 @@ export interface SpeechListener {
   release(): void;
 }
 
-// Le son arrive par paquets de 128 échantillons : on en regroupe environ 0,1 s avant de l'envoyer au worker
+// Le son arrive par paquets de 128 échantillons : on en regroupe environ 0,04 s avant de l'envoyer au worker,
+// avec son volume, qui fait bouger le micro à l'écran pendant que l'enfant parle
 const CAPTURE_WORKLET = `
 class Capture extends AudioWorkletProcessor {
-  constructor() { super(); this.chunk = new Float32Array(4096); this.size = 0; }
+  constructor() { super(); this.chunk = new Float32Array(2048); this.size = 0; this.sum = 0; }
   process(inputs) {
     const channel = inputs[0] && inputs[0][0];
     if (channel) {
       for (let i = 0; i < channel.length; i++) {
-        this.chunk[this.size++] = channel[i];
-        if (this.size === this.chunk.length) { this.port.postMessage(this.chunk.slice(0)); this.size = 0; }
+        const sample = channel[i];
+        this.sum += sample * sample;
+        this.chunk[this.size++] = sample;
+        if (this.size === this.chunk.length) {
+          this.port.postMessage({ samples: this.chunk.slice(0), level: Math.sqrt(this.sum / this.size) });
+          this.size = 0;
+          this.sum = 0;
+        }
       }
     }
     return true;
@@ -57,6 +64,9 @@ class Capture extends AudioWorkletProcessor {
 }
 registerProcessor("speech-capture", Capture);
 `;
+
+// Volume d'une voix normale près du téléphone (moyenne quadratique) : au-delà, le micro est « plein »
+const LOUD_LEVEL = 0.12;
 
 interface Capture {
   context: AudioContext;
@@ -69,6 +79,8 @@ export function createSpeechListener(handlers: {
   // L'écoute ne peut pas marcher : il faut repasser au clavier
   onProblem(problem: SpeechProblem): void;
   onState?(state: ListenerState): void;
+  // Volume entendu, de 0 à 1, plusieurs fois par seconde pendant l'écoute
+  onLevel?(level: number): void;
 }): SpeechListener {
   let isWanted = false;
   let isReleased = false;
@@ -86,6 +98,10 @@ export function createSpeechListener(handlers: {
     const segment = [...segments].reverse().find((s) => s.sample <= sample);
     return segment ? segment.wall + ((sample - segment.sample) / sampleRate) * 1000 : undefined;
   }
+
+  // Une supposition en cours n'a pas d'heure de fin de mot : on retient quand son texte a changé pour la dernière fois
+  let lastPartial = "";
+  let lastPartialAt = 0;
 
   function heard(text: string, isFinal: boolean, spokenAt?: number) {
     const { guess, transcript, rulesUsed } = interpretAlternatives([text]);
@@ -124,28 +140,37 @@ export function createSpeechListener(handlers: {
 
       const recognizer = new model.KaldiRecognizer(context.sampleRate, JSON.stringify(ANSWER_GRAMMAR));
       recognizer.on("partialresult", (message) => {
-        if (message.event === "partialresult" && message.result.partial) heard(message.result.partial, false);
+        if (message.event !== "partialresult" || !message.result.partial) return;
+        if (message.result.partial !== lastPartial) {
+          lastPartial = message.result.partial;
+          lastPartialAt = performance.now();
+        }
+        heard(message.result.partial, false, lastPartialAt);
       });
       recognizer.setWords(true);
       recognizer.on("result", (message) => {
-        if (message.event !== "result" || !message.result.text) return;
+        if (message.event !== "result") return;
+        lastPartial = "";
+        if (!message.result.text) return;
         const lastWord = message.result.result?.[message.result.result.length - 1];
         heard(message.result.text, true, lastWord ? wallTimeOf(lastWord.end, context.sampleRate) : undefined);
       });
 
       const node = new AudioWorkletNode(context, "speech-capture");
-      node.port.onmessage = (e: MessageEvent<Float32Array>) => {
+      node.port.onmessage = (e: MessageEvent<{ samples: Float32Array; level: number }>) => {
+        const { samples, level } = e.data;
         if (!isWanted) {
           isFeeding = false;
           return;
         }
+        handlers.onLevel?.(Math.min(1, level / LOUD_LEVEL));
         if (!isFeeding) {
           // Le paquet vient d'arriver : il a commencé à être enregistré sa propre durée plus tôt
-          segments.push({ sample: fedSamples, wall: performance.now() - (e.data.length / context.sampleRate) * 1000 });
+          segments.push({ sample: fedSamples, wall: performance.now() - (samples.length / context.sampleRate) * 1000 });
           isFeeding = true;
         }
-        recognizer.acceptWaveformFloat(e.data, context.sampleRate);
-        fedSamples += e.data.length;
+        recognizer.acceptWaveformFloat(samples, context.sampleRate);
+        fedSamples += samples.length;
       };
       // Relié à une sortie muette : sans sortie, certains navigateurs ne font pas tourner le nœud
       const mute = context.createGain();
