@@ -27,6 +27,7 @@ Limite assumée : un appareil écrasé dans cette fenêtre d'environ une seconde
 | Historique des réponses | réunion sans doublon, les 500 plus récentes | |
 | Roue du jour | le jour le plus récent ; le même jour, le plus grand nombre de tours utilisés | |
 | Réglages : durée de séance, tables de la radio et du brossage, ordre des tables à apprendre (carnet de suivi), décor choisi | le plus récemment modifié | |
+| Voix enregistrées (un fichier par voix dans le Drive, à côté de la sauvegarde) | la plus récente, retrait compris : revenir à la voix de synthèse est daté comme un enregistrement | voix de 7 × 8 enregistrée lundi sur A, réenregistrée mardi sur B : celle de B ; retirée mercredi sur A : retirée partout |
 | Joueur connecté, dernier scénario de test ; pour la radio et le brossage : onglet choisi, joueurs cochés, calculs entendus à la dernière écoute | propre à chaque appareil, jamais fusionné | |
 
 Un joueur se supprime dans l'espace parent, après confirmation. L'application garde la liste des joueurs supprimés : c'est elle qui empêche un autre appareil de le faire revenir à la fusion suivante.

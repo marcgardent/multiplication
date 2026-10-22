@@ -1,5 +1,5 @@
 // Voix enregistrées, rangées sur l'appareil (IndexedDB) : trop lourdes pour le stockage habituel,
-// elles ne font pas partie de la sauvegarde des joueurs ni de l'export
+// elles ne font pas partie de la sauvegarde des joueurs ni de l'export ; voiceSync les envoie à part dans le Drive
 
 import { setVoiceOverride } from "../services/audioService";
 
@@ -19,8 +19,11 @@ export interface VoiceStore {
   // Toutes les voix, retraits compris, avec leur date
   records(): Promise<Map<string, VoiceRecord>>;
   get(file: string): Promise<Blob | undefined>;
+  // Enregistrement ou retrait fait sur cet appareil, daté de maintenant
   put(file: string, wav: Blob): Promise<void>;
   remove(file: string): Promise<void>;
+  // Voix reçue d'un autre appareil, avec sa date d'origine
+  write(file: string, record: VoiceRecord): Promise<void>;
   // À l'ouverture de l'application : chaque voix enregistrée remplace la voix de synthèse
   applyAll(): Promise<void>;
 }
@@ -32,7 +35,8 @@ function request<T>(req: IDBRequest<T>): Promise<T> {
   });
 }
 
-export function createVoiceStore(): VoiceStore {
+// onLocalChange : une voix vient d'être enregistrée ou retirée sur cet appareil, elle est à envoyer
+export function createVoiceStore(onLocalChange: () => void = () => undefined): VoiceStore {
   let db: Promise<IDBDatabase> | null = null;
 
   function open(): Promise<IDBDatabase> {
@@ -69,15 +73,18 @@ export function createVoiceStore(): VoiceStore {
     },
 
     async put(file, wav) {
-      const record: VoiceRecord = { wav, at: Date.now() };
-      await request((await store("readwrite")).put(record, file));
-      setVoiceOverride(file, wav);
+      await this.write(file, { wav, at: Date.now() });
+      onLocalChange();
     },
 
     async remove(file) {
-      const record: VoiceRecord = { wav: null, at: Date.now() };
+      await this.write(file, { wav: null, at: Date.now() });
+      onLocalChange();
+    },
+
+    async write(file, record) {
       await request((await store("readwrite")).put(record, file));
-      setVoiceOverride(file, null);
+      setVoiceOverride(file, record.wav);
     },
 
     async applyAll() {

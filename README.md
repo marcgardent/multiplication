@@ -45,7 +45,12 @@ Application web progressive (PWA) d'apprentissage des tables de multiplication, 
    - Chaque calcul est repris 3, 6 puis 12 calculs plus tard (répétition espacée pendant l'écoute) ; l'écoute suivante commence par les calculs qui n'ont pas été entendus. Règles : [`docs/progression-et-recompenses.md`](docs/progression-et-recompenses.md#radio-et-brossage-de-dents).
    - Aucun point, aucune progression, même en mode guidé : écouter ne prouve pas que l'enfant sait.
 
-6. **PWA Mobile-First pour Android** :
+6. **Voix enregistrées** (accueil, derrière le code parent) :
+   - Félicitations et annonces, tableau des 100 multiplications, 42 réponses : chaque case ouvre une fenêtre où l'on **maintient** un bouton pour enregistrer, puis réécoute, recommence ou passe au suivant (file dans l'ordre 1, 10, 2, 5…).
+   - Les blancs avant et après sont retirés et le volume réglé sur l'appareil ([`src/voices/`](src/voices/)). Une voix enregistrée remplace la voix de synthèse partout, radio et brossage compris.
+   - Rangées dans IndexedDB ; avec la sauvegarde Drive, un fichier daté par voix, la plus récente l'emporte ([`docs/sauvegarde-et-fusion.md`](docs/sauvegarde-et-fusion.md)).
+
+7. **PWA Mobile-First pour Android** :
    - Pavé tactile virtuel ergonomique évitant les sursauts d'affichage du clavier virtuel Android.
    - Bouton in-app d'installation PWA (`beforeinstallprompt`).
    - Mode plein écran autonome (`display: standalone`).
