@@ -112,12 +112,14 @@
   @include lifted;
   display: flex;
   flex-direction: column;
+  // Pleine largeur comme les grands boutons, quel que soit le conteneur
+  width: 100%;
   padding: 4px 0;
 
   .parent-entry-head {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 14px;
     padding: 12px 16px 8px;
     background: none;
     border: none;
@@ -140,7 +142,7 @@
 .parent-feature-item {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   width: 100%;
   min-height: 48px;
   padding: 10px 16px;
@@ -166,8 +168,8 @@
   &::after {
     content: "";
     flex-shrink: 0;
-    width: 7px;
-    height: 7px;
+    width: 9px;
+    height: 9px;
     margin-right: 4px;
     border-top: 2px solid $ink-soft;
     border-right: 2px solid $ink-soft;
@@ -175,10 +177,12 @@
   }
 }
 
+/* Même colonne que les bulles des grands boutons : textes et flèches alignés d'une carte à l'autre */
 .parent-feature-icon {
   display: inline-flex;
+  flex-shrink: 0;
   justify-content: center;
-  width: 28px;
+  width: 48px;
   font-size: 1.25rem;
   line-height: 1;
 }
