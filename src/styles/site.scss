@@ -226,6 +226,43 @@ a {
   }
 }
 
+// L'affiche à imprimer : sa vignette, et de quoi la télécharger ; l'une sous l'autre sur téléphone
+.site-share {
+  @include card;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 20px;
+  max-width: 720px;
+  padding: 16px;
+
+  .site-share-poster {
+    flex: 0 0 160px;
+    display: block;
+    border: 1px solid $line;
+    border-radius: $radius-control;
+    overflow: hidden;
+
+    img {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+  }
+
+  .site-share-text {
+    flex: 1 1 260px;
+
+    p {
+      color: $ink-soft;
+    }
+
+    p + p {
+      margin-top: 12px;
+    }
+  }
+}
+
 /* --- Conditions et confidentialité --- */
 
 .site-document {

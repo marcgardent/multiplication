@@ -66,6 +66,7 @@ Application web progressive (PWA) d'apprentissage des tables de multiplication, 
 | Commande | Action |
 |---|---|
 | `make audio` | Génère les voix (questions, réponses, félicitations) dans `public/audio/` via `uv` ; seuls les fichiers absents ou dont la phrase a changé sont refaits |
+| `make affiche` | Régénère l'affiche A4 à imprimer, `public/affiche-multiplication.pdf`, et son aperçu `.png` pour la page d'accueil, depuis [`scripts/affiche/affiche.html`](scripts/affiche/affiche.html) : QR code de l'adresse du site, impression par Chrome sans fenêtre, aperçu par `pdftoppm` (poppler-utils) |
 | `make install` | Installe les dépendances npm |
 | `make dev` | Démarre le serveur de développement Vite |
 | `make build` | Compile TypeScript + SCSS + PWA pour la production (`dist/`) |
