@@ -9,3 +9,6 @@ scripts/.voices
 # IDE / Assistants
 .idea/
 .claude/
+
+# Page remplie le temps de `make affiche`
+scripts/affiche/affiche.build.html

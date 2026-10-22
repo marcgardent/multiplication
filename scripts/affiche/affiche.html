@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Affiche Multiplications Faciles</title>
+<!--
+  Affiche A4 à imprimer : source de public/affiche-multiplication.pdf et .png, régénérés par `make affiche`.
+  Trois niveaux de lecture : de loin le titre et le calcul, à un mètre les quatre points clés, de près le QR code.
+  {{QR_SIZE}} et {{QR_PATH}} sont remplis par scripts/build_affiche.py.
+-->
+<style>
+@font-face {
+  font-family: "Lexend";
+  src: url("../../node_modules/@fontsource-variable/lexend/files/lexend-latin-wght-normal.woff2") format("woff2");
+  font-weight: 100 900;
+}
+@font-face {
+  font-family: "Lexend";
+  src: url("../../node_modules/@fontsource-variable/lexend/files/lexend-latin-ext-wght-normal.woff2") format("woff2");
+  font-weight: 100 900;
+  unicode-range: U+0100-024F, U+1E00-1EFF, U+2020, U+20A0-20AB, U+20AD-20CF, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@page { size: A4; margin: 0; }
+:root {
+  --ink: #1b2437;
+  --ink-soft: #5a6478;
+  --accent: #4f46e5;
+  --accent-soft: #eef0fe;
+  --accent-line: #c9cdfb;
+  --operator: #8a91b0;
+  --right: #1f7a54;
+  --ground: #f4f5f8;
+  --line: #dfe3ea;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: #ffffff; }
+body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+.poster {
+  width: 794px;
+  height: 1123px;
+  padding: 52px 56px 44px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  color: var(--ink);
+  font-family: "Lexend", "Segoe UI", system-ui, sans-serif;
+}
+
+.brand { display: flex; align-items: center; gap: 14px; height: 52px; font-size: 24px; font-weight: 600; letter-spacing: -0.01em; }
+
+h1 { margin: 30px 0 0; font-size: 94px; font-weight: 800; line-height: 0.98; letter-spacing: -0.035em; }
+h1 span { color: var(--accent); }
+
+.lead { margin: 18px 0 0; font-size: 25px; font-weight: 500; line-height: 1.35; color: var(--ink-soft); }
+
+.equation {
+  margin-top: 28px;
+  height: 158px;
+  border-radius: 24px;
+  background: var(--accent-soft);
+  border: 3px solid var(--accent-line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  font-size: 104px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+.equation .operator { color: var(--operator); font-weight: 600; }
+.equation .answer { color: var(--right); }
+
+.features { margin-top: 30px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 28px; row-gap: 22px; }
+.feature { display: flex; gap: 14px; align-items: flex-start; }
+.feature-icon { flex-shrink: 0; width: 52px; height: 52px; border-radius: 16px; background: var(--accent-soft); display: flex; align-items: center; justify-content: center; }
+.feature-icon svg { width: 28px; height: 28px; fill: none; stroke: var(--accent); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.feature strong { display: block; white-space: nowrap; font-size: 22px; font-weight: 600; line-height: 1.2; }
+.feature span { display: block; margin-top: 4px; font-size: 16px; line-height: 1.4; color: var(--ink-soft); }
+
+.share { margin-top: auto; border-radius: 24px; background: var(--ground); padding: 18px; display: flex; align-items: center; gap: 26px; }
+.qr { flex-shrink: 0; width: 176px; height: 176px; border-radius: 14px; background: #ffffff; border: 2px solid var(--line); display: flex; align-items: center; justify-content: center; }
+.qr svg { width: 164px; height: 164px; }
+.share-text { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.share-title { font-size: 34px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; }
+.share-url { font-size: 19px; font-weight: 600; color: var(--accent); text-decoration: none; }
+.pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.pills span { font-size: 14px; font-weight: 600; padding: 5px 10px; border-radius: 999px; background: #ffffff; border: 1.5px solid var(--line); }
+.share-note { font-size: 14px; line-height: 1.4; color: var(--ink-soft); }
+</style>
+</head>
+<body>
+<div class="poster">
+
+  <div class="brand">
+    <svg width="52" height="52" viewBox="0 0 512 512" role="img" aria-label="Logo">
+      <rect width="512" height="512" rx="112" fill="#4f46e5"/>
+      <g fill="none" stroke="#ffffff" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M104 204 L146 164 L146 348" stroke-width="42"/>
+        <path d="M222 222 L290 290 M290 222 L222 290" stroke-width="34"/>
+        <path d="M366 204 L408 164 L408 348" stroke-width="42"/>
+      </g>
+    </svg>
+    Multiplications Faciles
+  </div>
+
+  <h1>Apprends<br>tes tables<br><span>en jouant.</span></h1>
+  <p class="lead">Quelques minutes par jour, sur le téléphone.</p>
+
+  <div class="equation">
+    <span>7</span><span class="operator">×</span><span>8</span><span class="operator">=</span><span class="answer">56</span>
+  </div>
+
+  <div class="features">
+    <div class="feature">
+      <div class="feature-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5"/><path d="M9.5 2.5h5"/></svg></div>
+      <div><strong>Un peu chaque jour</strong><span>Écoute, quiz, puis défi chrono.</span></div>
+    </div>
+    <div class="feature">
+      <div class="feature-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17"/><path d="M8 3v4M16 3v4"/><path d="M9 14.5l2 2 4-4"/></svg></div>
+      <div><strong>Révisions espacées</strong><span>Chaque calcul revient à J1, J3, J7 et J21.</span></div>
+    </div>
+    <div class="feature">
+      <div class="feature-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="2.5" width="6" height="11.5" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0"/><path d="M12 17.5v4M8.5 21.5h7"/></svg></div>
+      <div><strong>À voix haute</strong><span>Réponds en parlant, ou au clavier.</span></div>
+    </div>
+    <div class="feature">
+      <div class="feature-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7.5" width="18" height="13" rx="3"/><path d="M7 4l9 3.5"/><circle cx="9" cy="14" r="3"/><path d="M15.5 12h2.5M15.5 16h2.5"/></svg></div>
+      <div><strong>Radio et brossage</strong><span>Les tables à l'oreille, même écran éteint.</span></div>
+    </div>
+  </div>
+
+  <div class="share">
+    <div class="qr">
+      <svg viewBox="0 0 {{QR_SIZE}} {{QR_SIZE}}" shape-rendering="crispEdges" role="img" aria-label="QR code vers {{URL}}">
+        <rect width="{{QR_SIZE}}" height="{{QR_SIZE}}" fill="#ffffff"/>
+        <path fill="#1b2437" d="{{QR_PATH}}"/>
+      </svg>
+    </div>
+    <div class="share-text">
+      <span class="share-title">Scanne pour essayer</span>
+      <a class="share-url" href="{{URL}}">{{URL_SHORT}}</a>
+      <div class="pills"><span>Gratuit</span><span>Sans compte</span><span>Sans publicité</span><span>Hors ligne</span></div>
+      <span class="share-note">Les données restent sur le téléphone.</span>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
