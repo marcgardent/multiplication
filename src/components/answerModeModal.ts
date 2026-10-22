@@ -1,6 +1,5 @@
 import { AnswerPreferencesStore, AnswerPreset, PRESETS, presetOf } from "../services/answerPreferences";
-import { isSpeechSupported } from "../voices/speechListener";
-import { SPEECH_LOCKED_TEXT } from "./answerToggles";
+import { speechBlocker as blockerOf } from "./answerToggles";
 
 const CHOICES: { preset: AnswerPreset; icon: string; title: string; detail: string }[] = [
   { preset: "quiet", icon: "🤫", title: "En silence", detail: "Pas de son. Je tape au clavier." },
@@ -10,13 +9,10 @@ const CHOICES: { preset: AnswerPreset; icon: string; title: string; detail: stri
 
 // Juste avant une séance : comment l'enfant veut jouer. Le dernier choix est déjà coché
 export function openAnswerModeModal(options: { preferences: AnswerPreferencesStore; onConfirm(): void }): void {
-  // Le choix « Je parle » reste visible : grisé, il dit pourquoi
-  const speechBlocker = !isSpeechSupported()
-    ? "Pas possible sur ce téléphone."
-    : !options.preferences.isSpeechAllowed()
-      ? `🔒 ${SPEECH_LOCKED_TEXT}`
-      : null;
+  // Le choix « Je parle » reste visible : grisé, il dit pourquoi ; lent d'après le calibrage, il prévient
+  const speechBlocker = blockerOf(options.preferences);
   const canSpeak = speechBlocker === null;
+  const isSlow = options.preferences.speechCalibration()?.verdict === "slow";
   let selected = presetOf(options.preferences.get());
   if (selected === "speech" && !canSpeak) selected = "sound";
 
@@ -38,7 +34,11 @@ export function openAnswerModeModal(options: { preferences: AnswerPreferencesSto
               <span class="answer-mode-text">
                 <span class="answer-mode-title">${c.title}</span>
                 <span class="answer-mode-detail">${
-                  c.preset === "speech" && speechBlocker ? speechBlocker : c.detail
+                  c.preset === "speech" && speechBlocker
+                    ? speechBlocker
+                    : c.preset === "speech" && isSlow
+                      ? `${c.detail} 🐢 Un peu lent sur ce téléphone : attends le nombre avant de valider.`
+                      : c.detail
                 }</span>
               </span>
             </button>

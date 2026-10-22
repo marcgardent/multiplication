@@ -45,6 +45,7 @@ import { createAnswerPreferences } from "./services/answerPreferences";
 import { openAnswerModeModal } from "./components/answerModeModal";
 import { answerTogglesHtml, bindAnswerToggles } from "./components/answerToggles";
 import { openSpeechTestModal } from "./components/speechTestModal";
+import { calibrationSummary, openCalibrationModal } from "./components/calibrationModal";
 import { isSpeechSupported } from "./voices/speechListener";
 import { downloadVoiceModel, isVoiceModelBusy, onVoiceModelReady } from "./voices/voiceModel";
 import { MultiplicationItem, SessionConfig, UserProfile } from "./types";
@@ -1136,7 +1137,14 @@ export function createApp(): AppInstance {
       speech: {
         isAllowed: answerPreferences.isSpeechAllowed(),
         onChange: (allowed) => answerPreferences.setSpeechAllowed(allowed),
-        openTest: openSpeechTestModal
+        openTest: openSpeechTestModal,
+        calibrationText: () => {
+          const calibration = answerPreferences.speechCalibration();
+          if (!calibration) return null;
+          const day = new Date(calibration.at).toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
+          return `📏 Calibré le ${day} : ${calibrationSummary(calibration)}`;
+        },
+        openCalibration: (onDone) => openCalibrationModal({ preferences: answerPreferences, onDone })
       },
       onBack: () => {
         isParentAreaOpen = false;

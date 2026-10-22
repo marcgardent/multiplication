@@ -18,6 +18,9 @@ export interface ParentAreaOptions {
     onChange(allowed: boolean): void;
     // Essai, où le parent valide aussi les heuristiques
     openTest(): void;
+    // Calibrage : son dernier résultat sur cet appareil, et de quoi le refaire
+    calibrationText(): string | null;
+    openCalibration(onDone: () => void): void;
   };
 }
 
@@ -83,7 +86,11 @@ export function renderParentArea(container: HTMLElement, options: ParentAreaOpti
           ? "Vérification…"
           : "❌ Ce navigateur ne sait pas faire tourner la reconnaissance vocale : sur cet appareil, les enfants répondent au clavier."
       }</p>
-      <button type="button" class="btn-choice-helper" id="btn-parent-speech-test" ${isSpeechSupported() ? "" : "hidden"}>🎤 Essayer la reconnaissance</button>
+      <p id="parent-speech-calibration" ${isSpeechSupported() ? "" : "hidden"}></p>
+      <div class="parent-speech-actions" ${isSpeechSupported() ? "" : "hidden"}>
+        <button type="button" class="btn-choice-helper" id="btn-parent-speech-calibrate">📏 Calibrer ce téléphone</button>
+        <button type="button" class="btn-choice-helper" id="btn-parent-speech-test">🎤 Essayer la reconnaissance</button>
+      </div>
     </section>
 
     <section class="parent-card">
@@ -117,6 +124,14 @@ function bindSpeechCard(area: HTMLElement, speech: ParentAreaOptions["speech"]):
   };
 
   area.querySelector("#btn-parent-speech-test")?.addEventListener("click", speech.openTest);
+
+  // Le calibrage dit si la voix est utilisable sur ce téléphone ; sans lui, rien ne l'indique
+  const calibrationEl = area.querySelector("#parent-speech-calibration") as HTMLElement;
+  const showCalibration = () => {
+    calibrationEl.textContent = speech.calibrationText() ?? "📏 Pas encore calibré : le calibrage dit si la voix est utilisable sur ce téléphone.";
+  };
+  showCalibration();
+  area.querySelector("#btn-parent-speech-calibrate")?.addEventListener("click", () => speech.openCalibration(showCalibration));
 
   // Une seule phrase dit si la reconnaissance est prête sur cet appareil, d'après le stockage du navigateur.
   // Pas de bouton : activer l'installe, et une installation manquée se relance toute seule (ici, au lancement, au retour d'internet)

@@ -150,6 +150,15 @@
     animation: micBreath 1.6s ease-in-out infinite;
   }
 
+  /* Je réfléchis : la phrase est finie, la reconnaissance la traite */
+  &[data-state="thinking"] {
+    background: $accent-soft;
+    border-color: $accent;
+    border-style: dashed;
+    color: $accent;
+    animation: micThink 1s ease-in-out infinite;
+  }
+
   &[data-state="unclear"] {
     background: $status-review-soft;
     border-color: $status-review;
@@ -170,8 +179,17 @@
   }
 }
 
+@keyframes micThink {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .answer-mic[data-state="listen"] {
+  .answer-mic[data-state="listen"], .answer-mic[data-state="thinking"] {
     animation: none;
   }
 }
@@ -349,5 +367,154 @@
     height: 100%;
     background: $accent;
     transition: width 0.08s linear;
+  }
+}
+
+// Espace parent : calibrer et essayer, côte à côte
+.parent-speech-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+
+  &[hidden] {
+    display: none;
+  }
+
+  button {
+    flex: 1 1 200px;
+  }
+}
+
+/* Calibrage d'un téléphone : trois étapes, puis le verdict */
+.calibration-modal {
+  [hidden] {
+    display: none !important;
+  }
+
+  .calibration-help {
+    margin: 0;
+    font-size: $fs-small;
+    color: $ink-soft;
+  }
+
+  .calibration-steps {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+
+    li {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+
+    li > span:last-child {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+
+    strong {
+      font-size: $fs-body;
+      font-weight: 600;
+    }
+
+    small {
+      font-size: $fs-small;
+      color: $ink-soft;
+      line-height: 1.4;
+    }
+  }
+
+  .calibration-step-icon {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: $ground;
+    border: 2px solid $line;
+    font-size: $fs-small;
+    font-weight: 700;
+    color: $ink-soft;
+  }
+
+  li[data-state="running"] .calibration-step-icon {
+    background: $accent-soft;
+    border-color: $accent;
+    color: $accent;
+  }
+
+  li[data-state="done"] .calibration-step-icon {
+    background: $status-mastered-soft;
+    border-color: $status-mastered;
+    color: $status-mastered;
+  }
+
+  li[data-state="failed"] .calibration-step-icon {
+    background: $status-review-soft;
+    border-color: $status-review;
+    color: $status-review-ink;
+  }
+
+  .calibration-prompt {
+    @include card;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 16px;
+
+    .speech-test-level {
+      width: 100%;
+      height: 8px;
+      border-radius: $radius-pill;
+      background: $line;
+      overflow: hidden;
+
+      span {
+        display: block;
+        width: 0;
+        height: 100%;
+        background: $accent;
+        transition: width 0.08s linear;
+      }
+    }
+  }
+
+  .calibration-prompt-label {
+    font-size: $fs-small;
+    color: $ink-soft;
+  }
+
+  .calibration-prompt-text {
+    font-size: clamp(2.4rem, 12vw, 3.4rem);
+    font-weight: 700;
+    line-height: 1;
+    color: $ink;
+  }
+
+  .calibration-verdict {
+    margin: 0;
+    padding: 12px;
+    border-radius: $radius-control;
+    background: $ground;
+    font-size: $fs-body;
+    font-weight: 500;
+    line-height: 1.4;
+
+    &[data-verdict="fast"] {
+      background: $status-mastered-soft;
+    }
+
+    &[data-verdict="slow"], &[data-verdict="unusable"] {
+      background: $status-review-soft;
+    }
   }
 }

@@ -47,7 +47,8 @@ const FAMILY_BY_NAME: Record<string, KeyFamily> = {
   radio_players: "device",
   brushing_players: "device",
   // Son et voix dépendent du téléphone et de l'endroit où l'on joue
-  answer_preferences: "device"
+  answer_preferences: "device",
+  speech_calibration: "device"
 };
 
 // La clé complète porte l'espace de stockage devant : « mult_clean_v3:points_<joueur> »
