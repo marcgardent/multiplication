@@ -1,8 +1,10 @@
 // Écoute du micro par Vosk, traduite en réponses devinées.
 // Le son est capté hors du fil principal (AudioWorklet) puis reconnu dans le Web Worker de Vosk, sur l'appareil :
-// rien ne part sur internet. Vosk ne répond qu'avec les mots de ANSWER_GRAMMAR
+// rien ne part sur internet. Vosk ne répond qu'avec les mots de ANSWER_GRAMMAR, et ne reçoit que la parole,
+// découpée en phrases par speechSegmenter : un téléphone lent ne prend pas de retard pendant les silences
 import type { KaldiRecognizer } from "vosk-browser";
 import { ANSWER_GRAMMAR, interpretAlternatives, SpeechGuess, SpeechRule } from "./speechGuess";
+import { createSpeechSegmenter, DEFAULT_FLOOR, SegmentEvent } from "./speechSegmenter";
 import { loadVoiceModel } from "./voiceModel";
 
 export function isSpeechSupported(): boolean {
@@ -79,8 +81,12 @@ export function createSpeechListener(handlers: {
   // L'écoute ne peut pas marcher : il faut repasser au clavier
   onProblem(problem: SpeechProblem): void;
   onState?(state: ListenerState): void;
-  // Volume entendu, de 0 à 1, plusieurs fois par seconde pendant l'écoute
-  onLevel?(level: number): void;
+  // Volume entendu, de 0 à 1, plusieurs fois par seconde pendant l'écoute ; rms : la mesure brute, pour le calibrage
+  onLevel?(level: number, rms: number): void;
+  // Une phrase commence (l'enfant parle) ou finit (Vosk la traite : le résultat suit)
+  onSpeech?(event: SegmentEvent): void;
+  // Seuil le plus bas de la parole pour ce téléphone, fixé par le calibrage
+  floor?(): number | undefined;
 }): SpeechListener {
   let isWanted = false;
   let isReleased = false;
@@ -90,8 +96,8 @@ export function createSpeechListener(handlers: {
   // Correspondance entre le son donné à Vosk et l'horloge de la page : Vosk date les mots en secondes de son reçu,
   // et ce son a des trous (rien n'est donné pendant la question). Chaque reprise ouvre un tronçon continu
   let fedSamples = 0;
-  let isFeeding = false;
   const segments: { sample: number; wall: number }[] = [];
+  const segmenter = createSpeechSegmenter(() => handlers.floor?.() ?? DEFAULT_FLOOR);
 
   function wallTimeOf(seconds: number, sampleRate: number): number | undefined {
     const sample = seconds * sampleRate;
@@ -151,7 +157,11 @@ export function createSpeechListener(handlers: {
       recognizer.on("result", (message) => {
         if (message.event !== "result") return;
         lastPartial = "";
-        if (!message.result.text) return;
+        // Une phrase sans rien de reconnu est signalée aussi : l'enfant doit savoir qu'il faut redire
+        if (!message.result.text) {
+          heard("", true);
+          return;
+        }
         const lastWord = message.result.result?.[message.result.result.length - 1];
         heard(message.result.text, true, lastWord ? wallTimeOf(lastWord.end, context.sampleRate) : undefined);
       });
@@ -159,18 +169,19 @@ export function createSpeechListener(handlers: {
       const node = new AudioWorkletNode(context, "speech-capture");
       node.port.onmessage = (e: MessageEvent<{ samples: Float32Array; level: number }>) => {
         const { samples, level } = e.data;
-        if (!isWanted) {
-          isFeeding = false;
-          return;
+        if (!isWanted) return;
+        handlers.onLevel?.(Math.min(1, level / LOUD_LEVEL), level);
+        const durationMs = (samples.length / context.sampleRate) * 1000;
+        // Le paquet vient d'arriver : il a commencé à être enregistré sa propre durée plus tôt
+        const { feed, event } = segmenter.push({ samples, level, durationMs, wall: performance.now() - durationMs });
+        // Une phrase qui commence ouvre un tronçon continu de son donné à Vosk
+        if (event === "start" && feed.length > 0) segments.push({ sample: fedSamples, wall: feed[0].wall });
+        for (const chunk of feed) {
+          recognizer.acceptWaveformFloat(chunk.samples, context.sampleRate);
+          fedSamples += chunk.samples.length;
         }
-        handlers.onLevel?.(Math.min(1, level / LOUD_LEVEL));
-        if (!isFeeding) {
-          // Le paquet vient d'arriver : il a commencé à être enregistré sa propre durée plus tôt
-          segments.push({ sample: fedSamples, wall: performance.now() - (samples.length / context.sampleRate) * 1000 });
-          isFeeding = true;
-        }
-        recognizer.acceptWaveformFloat(samples, context.sampleRate);
-        fedSamples += samples.length;
+        if (event === "end") recognizer.retrieveFinalResult();
+        if (event) handlers.onSpeech?.(event);
       };
       // Relié à une sortie muette : sans sortie, certains navigateurs ne font pas tourner le nœud
       const mute = context.createGain();
@@ -214,12 +225,14 @@ export function createSpeechListener(handlers: {
       if (!isWanted) return;
       isWanted = false;
       // Vide ce que Vosk a entendu jusque-là : la prochaine réponse repart de zéro
-      capture?.recognizer.retrieveFinalResult();
+      if (segmenter.isSpeaking()) capture?.recognizer.retrieveFinalResult();
+      segmenter.reset();
     },
 
     release() {
       isWanted = false;
       isReleased = true;
+      segmenter.reset();
       close();
     }
   };

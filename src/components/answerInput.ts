@@ -13,7 +13,7 @@ export interface AnswerInputOptions extends KeypadOptions {
 }
 
 // Bandeau au-dessus du clavier quand l'enfant répond à la voix : où il en est, en une phrase
-type SpeechState = "loading" | "wait" | "question" | "listen" | "hearing" | "heard" | "unclear";
+type SpeechState = "loading" | "wait" | "question" | "listen" | "hearing" | "thinking" | "heard" | "unclear";
 
 const CUES: Record<SpeechState, { icon: string; text: string }> = {
   loading: { icon: "⏳", text: "Je prépare mes oreilles…" },
@@ -21,6 +21,7 @@ const CUES: Record<SpeechState, { icon: string; text: string }> = {
   question: { icon: "👂", text: "Écoute la question…" },
   listen: { icon: "🎤", text: "Dis la réponse, puis appuie sur Valider." },
   hearing: { icon: "👂", text: "Je t'entends…" },
+  thinking: { icon: "⏳", text: "Je réfléchis…" },
   heard: { icon: "✅", text: "Appuie sur Valider, ou redis la réponse." },
   unclear: { icon: "🤔", text: "Je n'ai pas compris. Redis la réponse." }
 };
@@ -35,9 +36,8 @@ const PROBLEM_NOTICES: Record<SpeechProblem, string> = {
 const MIC_IDLE_MS = 4000;
 // Après une commande dite, la même phrase ne compte pas deux fois
 const AFTER_COMMAND_MS = 800;
-// Volume (0 à 1) au-delà duquel l'enfant est en train de parler, et combien de temps « Je t'entends » reste affiché après
-const SPEAKING_LEVEL = 0.2;
-const HEARING_MS = 700;
+// Sans résultat après ce temps de réflexion, l'enfant est invité à redire
+const THINKING_MAX_MS = 8000;
 
 // Saisie d'une réponse : le clavier, toujours là, et la voix quand l'enfant l'a choisie.
 // Un nombre dit remplit la réponse comme s'il avait été tapé ; c'est Valider qui l'envoie.
@@ -67,7 +67,10 @@ export function createAnswerInput(options: AnswerInputOptions): KeypadComponent 
   let ignoreUntil = 0;
   let isUnclear = false;
   let isLoading = false;
-  let lastLoudAt = 0;
+  // L'enfant parle (une phrase est ouverte), puis Vosk la traite : sur un téléphone lent, ça se voit
+  let isHearing = false;
+  let isThinking = false;
+  let thinkingTimer: ReturnType<typeof setTimeout> | null = null;
   let idleTimer: ReturnType<typeof setTimeout> | null = null;
   let root: HTMLElement | null = null;
 
@@ -99,13 +102,38 @@ export function createAnswerInput(options: AnswerInputOptions): KeypadComponent 
       isLoading = listenerState === "loading";
       render();
     },
-    // Le micro du bandeau grossit avec la voix : l'enfant voit tout de suite qu'il est entendu
+    // Le micro de la case grossit avec la voix : l'enfant voit tout de suite qu'il est entendu
     onLevel(level) {
       mic.style.setProperty("--level", level.toFixed(2));
-      if (level >= SPEAKING_LEVEL) lastLoudAt = performance.now();
       render();
-    }
+    },
+    onSpeech(event) {
+      if (!isListening()) return;
+      if (event === "start") {
+        isHearing = true;
+        isUnclear = false;
+      } else {
+        isHearing = false;
+        setThinking(true);
+      }
+      render();
+    },
+    floor: () => preferences.speechCalibration()?.floor
   });
+
+  function setThinking(thinking: boolean) {
+    isThinking = thinking;
+    if (thinkingTimer) clearTimeout(thinkingTimer);
+    thinkingTimer = null;
+    if (!thinking) return;
+    thinkingTimer = setTimeout(() => {
+      thinkingTimer = null;
+      if (!isThinking) return;
+      isThinking = false;
+      isUnclear = !spoken;
+      render();
+    }, THINKING_MAX_MS);
+  }
 
   function isListening() {
     return isSpeechMode && isEnabled && !audio.isSpeaking();
@@ -115,8 +143,9 @@ export function createAnswerInput(options: AnswerInputOptions): KeypadComponent 
     if (isLoading) return "loading";
     if (!isEnabled) return "wait";
     if (audio.isSpeaking()) return "question";
+    if (isHearing) return "hearing";
+    if (isThinking && !spoken) return "thinking";
     if (spoken) return "heard";
-    if (performance.now() - lastLoudAt < HEARING_MS) return "hearing";
     return isUnclear ? "unclear" : "listen";
   }
 
@@ -157,6 +186,8 @@ export function createAnswerInput(options: AnswerInputOptions): KeypadComponent 
     } else if (isListening()) {
       listener.start();
     } else {
+      isHearing = false;
+      setThinking(false);
       listener.stop();
       if (!isEnabled) idleTimer = setTimeout(() => listener.release(), MIC_IDLE_MS);
     }
@@ -165,6 +196,7 @@ export function createAnswerInput(options: AnswerInputOptions): KeypadComponent 
   function handleHeard(heard: HeardSpeech) {
     if (!isListening() || performance.now() < ignoreUntil) return;
     const { guess, isFinal } = heard;
+    if (isFinal) setThinking(false);
 
     if (guess?.kind === "number") {
       // Comme tapé au clavier, dès que le nombre est entendu, sans attendre la fin de la phrase : la réponse s'affiche,
@@ -224,6 +256,7 @@ export function createAnswerInput(options: AnswerInputOptions): KeypadComponent 
       unsubscribePreferences();
       unsubscribeSpeaking();
       if (idleTimer) clearTimeout(idleTimer);
+      setThinking(false);
       listener.release();
       keypad.destroy();
       strip.remove();

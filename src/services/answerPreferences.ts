@@ -20,6 +20,26 @@ export const ANSWER_PREFERENCES_KEY = "answer_preferences";
 export const SPEECH_ALLOWED_KEY = "speech_answers_allowed";
 // Le modèle vocal a servi sur un appareil de la famille : partagé par la sauvegarde, un nouveau téléphone le télécharge tout seul
 export const SPEECH_MODEL_WANTED_KEY = "speech_model_wanted";
+// Résultat du calibrage : propre à chaque appareil, la vitesse et le micro changent d'un téléphone à l'autre
+export const SPEECH_CALIBRATION_KEY = "speech_calibration";
+
+export type CalibrationVerdict = "fast" | "slow" | "unusable";
+
+export interface SpeechCalibration {
+  at: number;
+  // Secondes de calcul pour une seconde de parole
+  realTimeFactor: number;
+  // Attente mesurée entre la fin d'une réponse dite et le nombre compris
+  latencyMs: number | null;
+  // Volumes (moyenne quadratique) de la pièce et de la voix
+  noise: number;
+  voice: number | null;
+  // Seuil le plus bas de la parole sur cet appareil
+  floor: number;
+  correct: number;
+  total: number;
+  verdict: CalibrationVerdict;
+}
 const DEFAULT_PREFERENCES = PRESETS.sound;
 
 // Préréglage correspondant ; la voix sans le son est rangée avec la voix
@@ -36,6 +56,8 @@ export interface AnswerPreferencesStore {
   setSpeechAllowed(allowed: boolean): void;
   isSpeechModelWanted(): boolean;
   markSpeechModelWanted(): void;
+  speechCalibration(): SpeechCalibration | null;
+  setSpeechCalibration(calibration: SpeechCalibration): void;
   // Prévient à chaque changement ; renvoie de quoi se désabonner
   subscribe(listener: (preferences: AnswerPreferences) => void): () => void;
 }
@@ -68,6 +90,13 @@ export function createAnswerPreferences(storage: StorageService): AnswerPreferen
     },
 
     isSpeechModelWanted: () => storage.get<boolean>(SPEECH_MODEL_WANTED_KEY, false),
+
+    speechCalibration: () => storage.get<SpeechCalibration | null>(SPEECH_CALIBRATION_KEY, null),
+
+    setSpeechCalibration(calibration) {
+      storage.set(SPEECH_CALIBRATION_KEY, calibration);
+      notify();
+    },
 
     // Écrit une seule fois : chaque écriture part dans la sauvegarde
     markSpeechModelWanted() {
