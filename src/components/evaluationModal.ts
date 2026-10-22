@@ -74,6 +74,10 @@ export function startEvaluationModal(
         <div class="feedback-cue" id="eval-cue">Calcule et tape le résultat</div>
       </div>
 
+      <div class="action-bar-secondary">
+        <button type="button" class="btn-help-inline" id="btn-eval-dontknow">🤷 Je ne sais pas</button>
+      </div>
+
       <!-- Emplacement Keypad (MOITIÉ INFÉRIEURE DE L'ÉCRAN) -->
       <div class="keypad-mount-point giant-keypad-mount giant-keypad-zone" id="eval-keypad"></div>
     </div>
@@ -310,6 +314,7 @@ export function startEvaluationModal(
     }
   });
   keypad.mount(keypadMount);
+  modalEl.querySelector("#btn-eval-dontknow")?.addEventListener("click", handleDontKnow);
 
   function showQuestion() {
     if (!isRunning) return;
@@ -356,6 +361,40 @@ export function startEvaluationModal(
     audioService.playQuestion(item.a, item.b);
   }
 
+  async function handleDontKnow() {
+    if (!isRunning || isPaused || isCheckingAnswer) return;
+    isCheckingAnswer = true;
+    const item = pool[currentIndex];
+    const timeMs = answerTimeMs(questionStartTime);
+    times.push(timeMs);
+
+    keypad?.setEnabled(false);
+
+    const cardEl = modalEl.querySelector("#eval-card");
+    const cueEl = modalEl.querySelector("#eval-cue");
+    const inputEl = modalEl.querySelector("#eval-input");
+
+    matrixStore.recordAttempt(item.a, item.b, "evaluation", false, timeMs);
+    wrongItems.push(item);
+
+    cardEl?.classList.add("card-hint");
+    if (cueEl) cueEl.textContent = `C'est noté ! ${item.a} × ${item.b} = ${item.result}`;
+    if (inputEl) {
+      inputEl.textContent = item.result.toString();
+      inputEl.classList.add("revealed");
+    }
+    fitOperation(cardEl);
+    await audioService.playAnswer(item.result);
+
+    const ok = await waitWithPauseCheck(1000);
+    isCheckingAnswer = false;
+    if (!ok) return;
+
+    currentIndex++;
+    if (isRunning) {
+      showQuestion();
+    }
+  }
   async function checkCurrentAnswer(valStr: string) {
     if (!isRunning || isPaused || isCheckingAnswer) return;
     isCheckingAnswer = true;

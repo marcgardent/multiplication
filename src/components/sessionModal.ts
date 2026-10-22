@@ -85,6 +85,11 @@ export function startSessionModal(
           <button type="button" class="btn-repeat-audio" id="btn-modal-repeat" aria-label="Répéter la question">🔊</button>
         </div>
 
+        <!-- Barre du défi chrono (Atelier 3 uniquement) -->
+        <div class="action-bar-secondary" id="modal-timeattack-actions" style="display: none;">
+          <button type="button" class="btn-help-inline" id="btn-modal-dontknow">🤷 Je ne sais pas</button>
+        </div>
+
         <!-- Emplacement Keypad (MOITIÉ INFÉRIEURE DE L'ÉCRAN) -->
         <div class="keypad-mount-point giant-keypad-mount giant-keypad-zone" id="modal-keypad-mount"></div>
       </div>
@@ -615,7 +620,38 @@ export function startSessionModal(
   }
 
   // --- ATELIER 3 : TIME-ATTACK ---
+  async function handleTimeAttackDontKnow() {
+    if (!currentItem || isPaused || isCheckingAnswer || currentWorkshopIndex !== 2) return;
+    isCheckingAnswer = true;
+    const timeMs = answerTimeMs(questionStartTime);
+    const item = currentItem;
+
+    keypad?.setEnabled(false);
+    const cardEl = modalEl.querySelector("#modal-card");
+    const cueEl = modalEl.querySelector("#modal-cue");
+    const answerEl = modalEl.querySelector("#modal-answer");
+
+    engine.registerResult(item, "time-attack", false, timeMs);
+
+    cardEl?.classList.add("card-hint");
+    if (cueEl) cueEl.textContent = `C'est noté ! ${item.a} × ${item.b} = ${item.result}`;
+    if (answerEl) {
+      answerEl.textContent = item.result.toString();
+      answerEl.classList.add("revealed");
+    }
+    fitOperation(cardEl);
+    await audioService.playAnswer(item.result);
+
+    const ok = await waitWithPauseCheck(1000);
+    isCheckingAnswer = false;
+    if (ok && currentWorkshopIndex === 2) nextTimeAttackQuestion();
+  }
+
   function setupTimeAttackWorkshop() {
+    const actionsEl = modalEl.querySelector("#modal-timeattack-actions") as HTMLElement;
+    if (actionsEl) actionsEl.style.display = "flex";
+    modalEl.querySelector("#btn-modal-dontknow")?.addEventListener("click", handleTimeAttackDontKnow);
+
     const keypadMount = modalEl.querySelector("#modal-keypad-mount") as HTMLElement;
     keypad = createKeypad({
       onSubmit: (value) => checkTimeAttackAnswer(value),
