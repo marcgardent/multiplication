@@ -101,7 +101,7 @@ Avant chaque séance (révision guidée ou révision des tables), l'enfant chois
 - L'essai de l'espace parent affiche, pour chaque réponse, la supposition qui a servi.
 - « Je passe », « réponse » ou « je ne sais pas » font la même chose que le bouton « Je ne sais pas » (« Donner la réponse » dans le Quiz) : la réponse est donnée et le calcul compte comme un échec.
 - Si le micro est refusé ou ne marche pas, l'enfant revient au clavier, avec un message qui le lui dit.
-- L'espace parent peut désactiver la réponse à voix haute (réglage partagé par la sauvegarde). « Je parle » et 🎤 restent alors visibles mais grisés, avec « À activer dans l'espace parent ».
+- La réponse à voix haute est désactivée par défaut : un parent l'active dans l'espace parent, et cette activation télécharge le modèle vocal. Le réglage est partagé par la sauvegarde : un autre appareil où elle est activée télécharge le modèle tout seul. Tant qu'elle est désactivée, « Je parle » et 🎤 restent visibles mais grisés, avec « À activer dans l'espace parent ». Une famille qui avait déjà utilisé la voix en 1.7.0 la garde activée.
 - La voix est reconnue sur l'appareil par Vosk (petit modèle français, 42 Mo, licence Apache 2.0) : rien ne part sur internet. Le modèle est téléchargé depuis le site une seule fois, au premier « Je parle » ou depuis l'espace parent, puis gardé par le navigateur. La reconnaissance du navigateur (Google pour Chrome) a été essayée d'abord : elle ne rendait rien pour un nombre dit seul, trop court pour elle.
 
 ## Quels calculs entrent dans une séance

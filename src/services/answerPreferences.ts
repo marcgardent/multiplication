@@ -43,8 +43,11 @@ export interface AnswerPreferencesStore {
 export function createAnswerPreferences(storage: StorageService): AnswerPreferencesStore {
   let current: AnswerPreferences = { ...DEFAULT_PREFERENCES, ...storage.get<Partial<AnswerPreferences>>(ANSWER_PREFERENCES_KEY, {}) };
   const listeners = new Set<(preferences: AnswerPreferences) => void>();
-  // Relu à chaque fois : une fusion avec un autre appareil a pu le changer
-  const isSpeechAllowed = () => storage.get<boolean>(SPEECH_ALLOWED_KEY, true);
+  // Relu à chaque fois : une fusion avec un autre appareil a pu le changer.
+  // Désactivée tant qu'un parent ne l'a pas activée, puisque l'activer télécharge le modèle vocal ;
+  // sauf pour une famille qui s'en servait déjà (modèle utilisé avant que ce réglage existe)
+  const isSpeechAllowed = () =>
+    storage.get<boolean>(SPEECH_ALLOWED_KEY, storage.get<boolean>(SPEECH_MODEL_WANTED_KEY, false));
   const effective = (): AnswerPreferences => ({ ...current, speech: current.speech && isSpeechAllowed() });
   const notify = () => listeners.forEach((listener) => listener(effective()));
 
