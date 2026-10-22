@@ -45,7 +45,7 @@ Application web progressive (PWA) d'apprentissage des tables de multiplication, 
    - Chaque calcul est repris 3, 6 puis 12 calculs plus tard (répétition espacée pendant l'écoute) ; l'écoute suivante commence par les calculs qui n'ont pas été entendus. Règles : [`docs/progression-et-recompenses.md`](docs/progression-et-recompenses.md#radio-et-brossage-de-dents).
    - Aucun point, aucune progression, même en mode guidé : écouter ne prouve pas que l'enfant sait.
 
-6. **Voix enregistrées** (accueil, derrière le code parent) :
+6. **Enregistrer votre voix** (espace parent) :
    - Félicitations et annonces, tableau des 100 multiplications, 42 réponses : chaque case ouvre une fenêtre où l'on **maintient** un bouton pour enregistrer, puis réécoute, recommence ou passe au suivant (file dans l'ordre 1, 10, 2, 5…).
    - Les blancs avant et après sont retirés et le volume réglé sur l'appareil ([`src/voices/`](src/voices/)). Une voix enregistrée remplace la voix de synthèse partout, radio et brossage compris.
    - Rangées dans IndexedDB ; avec la sauvegarde Drive, un fichier daté par voix, la plus récente l'emporte ([`docs/sauvegarde-et-fusion.md`](docs/sauvegarde-et-fusion.md)).
@@ -86,7 +86,7 @@ Le site compte quatre pages, construites ensemble par Vite :
 
 ### Espace parent
 
-Sur l'écran des joueurs, l'entrée « Espace parent » regroupe ce qui ne regarde pas les enfants : la sauvegarde et la suppression d'un joueur. Le bouton ☁️ de l'en-tête y mène aussi.
+Une carte « Espace parent » est affichée sur l'écran des joueurs **et** sur l'accueil de chaque joueur, avec la liste de ce qu'on y trouve : réponse à voix haute, enregistrer votre voix, joueurs, sauvegarde, code parent. Une famille avec un seul enfant ne revient jamais à l'écran des joueurs : elle voit tout depuis l'accueil, comme les raccourcis Brossage et Radio. Chaque ligne demande le code puis ouvre sa fonction ; le hub (la même liste) reste dessous, et chaque fonction a sa propre fenêtre ([`src/components/parentArea.ts`](src/components/parentArea.ts)). Le bouton ☁️ de l'en-tête mène à la sauvegarde.
 
 - Il est protégé par un **code à 4 chiffres** choisi à la première entrée ([`src/components/parentGate.ts`](src/components/parentGate.ts)). Seule l'empreinte du code est enregistrée, sur l'appareil, hors de la sauvegarde. Trois codes faux bloquent le clavier 30 secondes.
 - Code oublié : un calcul hors de portée d'un enfant, comme 47 × 68, permet d'en choisir un nouveau.
