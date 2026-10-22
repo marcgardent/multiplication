@@ -29,6 +29,8 @@ import { ListeningMode, ListeningSelection } from "./radio/listeningPlayer";
 import { calculationsOf } from "./radio/program";
 import { calculationId, manualRounds } from "./radio/spacedSchedule";
 import { guidedLabel, guidedPool, guidedRounds, readPlayerProgress } from "./radio/guidedPool";
+import { renderVoiceStudio } from "./components/voiceStudio";
+import { createVoiceStore } from "./voices/voiceStore";
 import { MultiplicationItem, SessionConfig, UserProfile } from "./types";
 
 export interface AppInstance {
@@ -72,6 +74,8 @@ export function createApp(): AppInstance {
   // Espace parent : sauvegarde et suppression de joueurs, derrière un code que l'appareil garde pour lui
   const parentCode = createParentCodeService(createStorageService("mult_parent"), sha256Hex);
   let isParentAreaOpen = false;
+  let isVoiceStudioOpen = false;
+  const voiceStore = createVoiceStore();
   const profileService: ProfileService = createProfileService(storage);
 
   // Les décors déjà débloqués avec d'anciens seuils restent acquis
@@ -226,11 +230,30 @@ export function createApp(): AppInstance {
             <span class="btn-subtitle">Sauvegarde et joueurs</span>
           </div>
         </button>
+
+        <button type="button" class="kids-main-btn" id="btn-open-voices">
+          <div class="btn-bubble">🎙️</div>
+          <div class="btn-text-block">
+            <span class="btn-title">Voix enregistrées</span>
+            <span class="btn-subtitle">Votre voix à la place de la voix de synthèse</span>
+          </div>
+        </button>
       </div>
     `;
 
     loginEl.querySelector("#btn-open-parent")?.addEventListener("click", () => {
       openParentArea();
+    });
+
+    // Enregistrer des voix demande le micro : réservé aux adultes, derrière le même code
+    loginEl.querySelector("#btn-open-voices")?.addEventListener("click", () => {
+      openParentGate({
+        parentCode,
+        onGranted: () => {
+          isVoiceStudioOpen = true;
+          renderApp();
+        }
+      });
     });
 
     loginEl.querySelector("#btn-launch-radio")?.addEventListener("click", () => {
@@ -1189,6 +1212,17 @@ export function createApp(): AppInstance {
       return;
     }
 
+    if (isVoiceStudioOpen) {
+      renderVoiceStudio(content, {
+        store: voiceStore,
+        onBack: () => {
+          isVoiceStudioOpen = false;
+          renderApp();
+        }
+      });
+      return;
+    }
+
     // Si aucun joueur n'est connecté -> Afficher l'écran de Login avec (+)
     if (!activeProfile) {
       renderLoginScreen(content);
@@ -1219,6 +1253,7 @@ export function createApp(): AppInstance {
       if (!target) throw new Error(`Élément racine introuvable : ${rootSelector}`);
       rootElement = target as HTMLElement;
       audio.init();
+      voiceStore.applyAll().catch((err) => console.warn("Voix enregistrées indisponibles", err));
       renderApp();
       cloudSync.start();
     }

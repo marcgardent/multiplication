@@ -5,7 +5,19 @@ export interface AudioManifest {
   phrases?: Record<string, { file: string; text: string }>;
 }
 
+// Voix enregistrées par un parent : elles remplacent la voix de synthèse du même chemin
+const voiceOverrides = new Map<string, string>();
+
+export function setVoiceOverride(path: string, blob: Blob | null): void {
+  const previous = voiceOverrides.get(path);
+  if (previous) URL.revokeObjectURL(previous);
+  if (blob) voiceOverrides.set(path, URL.createObjectURL(blob));
+  else voiceOverrides.delete(path);
+}
+
 export function resolveAudioUrl(path: string): string {
+  const recorded = voiceOverrides.get(path);
+  if (recorded) return recorded;
   if (path.startsWith("/")) {
     return `${import.meta.env.BASE_URL}${path.slice(1)}`;
   }

@@ -1,0 +1,210 @@
+@use "variables" as *;
+@use "mixins" as *;
+
+/* Menu « Voix enregistrées » */
+.voice-studio {
+  .voice-loading, .voice-all-done {
+    color: $ink-soft;
+    font-size: $fs-small;
+  }
+
+  .voice-intro p {
+    font-size: $fs-small;
+    color: $ink-soft;
+    line-height: 1.4;
+  }
+
+  .voice-progress {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: $fs-small;
+    font-weight: 500;
+    color: $ink-soft;
+
+    .progress-bar-container {
+      flex: 1;
+      height: 8px;
+      background: $line;
+      border-radius: $radius-pill;
+      overflow: hidden;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background: $status-mastered;
+    }
+  }
+
+  /* Une case par voix : grise tant que c'est la voix de synthèse, verte une fois enregistrée */
+  .voice-cell {
+    @include selectable;
+    min-height: 36px;
+    padding: 4px 2px;
+    border-width: 1px;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+
+    &.is-recorded {
+      background: $status-mastered-soft;
+      border-color: $status-mastered;
+      color: $status-mastered;
+      font-weight: 600;
+    }
+  }
+
+  .voice-message-list {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+
+    .voice-cell {
+      min-height: 40px;
+      padding: 6px 8px;
+      font-size: $fs-small;
+      white-space: normal;
+      text-align: left;
+    }
+  }
+
+  .voice-table {
+    display: grid;
+    grid-template-columns: repeat(10, 1fr);
+    gap: 3px;
+
+    .voice-cell {
+      min-width: 0;
+      font-size: clamp(0.56rem, 2.4vw, 0.75rem);
+      letter-spacing: -0.02em;
+    }
+  }
+
+  .voice-answers {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+  }
+
+  .voice-key {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-size: $fs-small;
+    color: $ink-soft;
+  }
+
+  .voice-key-swatch {
+    width: 14px;
+    height: 14px;
+    border: 1px solid $line;
+    border-radius: 4px;
+    background: $surface;
+
+    &.is-recorded {
+      background: $status-mastered-soft;
+      border-color: $status-mastered;
+    }
+
+    & ~ .voice-key-swatch {
+      margin-left: 10px;
+    }
+  }
+}
+
+/* Fenêtre d'enregistrement d'une voix */
+.voice-record-modal {
+  [hidden] {
+    display: none !important;
+  }
+
+  .voice-remaining {
+    margin: 0;
+    font-size: $fs-small;
+    color: $ink-soft;
+  }
+
+  .voice-say-card {
+    @include card;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 18px 12px;
+
+    .voice-say-label {
+      font-size: $fs-small;
+      color: $ink-soft;
+    }
+
+    .voice-say-text {
+      font-size: clamp(1.4rem, 6vw, 2rem);
+      font-weight: 600;
+      text-align: center;
+      color: $ink;
+    }
+  }
+
+  /* Bouton à maintenir : grand, sans sélection de texte ni menu d'appui long */
+  .voice-hold-btn {
+    @include btn-primary;
+    min-height: 72px;
+    font-size: 1.125rem;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    touch-action: none;
+
+    &.is-recording {
+      background: $danger;
+      border-color: $danger;
+      transform: scale(0.98);
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+
+  .voice-legend {
+    margin: 0;
+    min-height: 2.8em;
+    font-size: $fs-small;
+    line-height: 1.4;
+    text-align: center;
+    color: $ink-soft;
+
+    &.is-warning {
+      color: $status-review-ink;
+    }
+  }
+
+  .voice-actions {
+    display: flex;
+    gap: 8px;
+
+    .btn-confirm-launch, .btn-choice-helper:last-child {
+      flex: 1;
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+
+  .voice-delete {
+    align-self: center;
+    background: none;
+    border: none;
+    padding: 6px;
+    font-size: $fs-small;
+    color: $ink-soft;
+    text-decoration: underline;
+    cursor: pointer;
+  }
+}
