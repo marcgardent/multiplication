@@ -307,6 +307,7 @@ export function startEvaluationModal(
     audio: audioService,
     preferences,
     onDontKnow: () => handleDontKnow(),
+    answerSlot: () => modalEl.querySelector("#eval-input"),
     onSubmit: (value, spokenAt) => checkCurrentAnswer(value, spokenAt),
     onInput: (_digit, fullVal) => {
       if (isPaused || !isRunning) return;

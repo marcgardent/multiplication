@@ -526,6 +526,7 @@ export function startSessionModal(
       audio: audioService,
       preferences,
       onDontKnow: revealPracticeAnswer,
+      answerSlot: () => modalEl.querySelector("#modal-answer"),
       onSubmit: (value, spokenAt) => checkPracticeAnswer(value, spokenAt),
       onInput: (_d, fullVal) => {
         if (isPaused) return;
@@ -675,6 +676,7 @@ export function startSessionModal(
       audio: audioService,
       preferences,
       onDontKnow: handleTimeAttackDontKnow,
+      answerSlot: () => modalEl.querySelector("#modal-answer"),
       onSubmit: (value, spokenAt) => checkTimeAttackAnswer(value, spokenAt),
       onInput: (_d, fullVal) => {
         if (isPaused) return;

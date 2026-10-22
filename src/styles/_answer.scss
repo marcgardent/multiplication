@@ -66,7 +66,7 @@
   }
 }
 
-/* Saisie de la réponse : le clavier, toujours là ; à la voix, un bandeau au-dessus dit à l'enfant où il en est */
+/* Saisie de la réponse : le clavier, toujours là ; à la voix, une ligne au-dessus dit à l'enfant quoi faire */
 .answer-input {
   .speech-strip {
     display: none;
@@ -92,36 +92,15 @@
   }
 }
 
+// Une ligne au-dessus du clavier : ce qu'il faut faire
 .speech-strip {
-  @include card;
+  flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: 2px;
   width: 100%;
   max-width: 480px;
   margin: 0 auto 8px;
-  padding: 8px 12px;
-
-  .speech-mic {
-    display: flex;
-    flex-shrink: 0;
-    align-items: center;
-    justify-content: center;
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    background: $ground;
-    border: 2px solid $line;
-    font-size: 1.4rem;
-    line-height: 1;
-    transition: background 0.2s, border-color 0.2s;
-  }
-
-  .speech-texts {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
-  }
+  text-align: center;
 
   .speech-cue {
     font-size: $fs-body;
@@ -133,25 +112,51 @@
     font-size: $fs-caption;
     color: $ink-soft;
   }
+}
 
-  /* À toi : le micro s'allume et respire */
-  &[data-state="listen"] .speech-mic {
+// Le micro dans la case de la réponse, à la taille des chiffres du calcul
+.answer-mic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 0.9em;
+  height: 0.9em;
+  border-radius: 50%;
+  border: 0.06em solid $line;
+  background: $ground;
+  color: $ink-soft;
+  // --level (0 à 1) vient du micro : un anneau qui grandit avec la voix
+  box-shadow: 0 0 0 calc(var(--level, 0) * 0.4em) rgba($accent, 0.3);
+  transition: background 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.08s linear;
+
+  svg {
+    width: 0.52em;
+    height: 0.52em;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  /* À toi : le micro s'allume et respire ; quand l'enfant parle, il s'anime avec sa voix */
+  &[data-state="listen"], &[data-state="hearing"] {
     background: $accent-soft;
     border-color: $accent;
+    color: $accent;
+  }
+
+  &[data-state="listen"] {
     animation: micBreath 1.6s ease-in-out infinite;
   }
 
-  &[data-state="heard"] .speech-mic {
-    background: $status-mastered-soft;
-    border-color: $status-mastered;
-  }
-
-  &[data-state="unclear"] .speech-mic {
+  &[data-state="unclear"] {
     background: $status-review-soft;
     border-color: $status-review;
+    color: $status-review-ink;
   }
 
-  &[data-state="wait"] .speech-mic, &[data-state="loading"] .speech-mic {
+  &[data-state="wait"], &[data-state="loading"], &[data-state="question"] {
     opacity: 0.5;
   }
 }
@@ -166,7 +171,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .speech-strip[data-state="listen"] .speech-mic {
+  .answer-mic[data-state="listen"] {
     animation: none;
   }
 }
@@ -328,5 +333,21 @@
     margin-top: -2px;
     font-size: $fs-caption;
     color: $accent-ink;
+  }
+}
+
+// Volume capté par le micro pendant l'essai
+.speech-test-modal .speech-test-level {
+  height: 8px;
+  border-radius: $radius-pill;
+  background: $line;
+  overflow: hidden;
+
+  span {
+    display: block;
+    width: 0;
+    height: 100%;
+    background: $accent;
+    transition: width 0.08s linear;
   }
 }

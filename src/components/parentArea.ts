@@ -80,10 +80,9 @@ export function renderParentArea(container: HTMLElement, options: ParentAreaOpti
       </label>
       <p id="parent-speech-model">${
         isSpeechSupported()
-          ? "Vérification du modèle vocal…"
+          ? "Vérification…"
           : "❌ Ce navigateur ne sait pas faire tourner la reconnaissance vocale : sur cet appareil, les enfants répondent au clavier."
       }</p>
-      <button type="button" class="btn-choice-helper" id="btn-parent-speech-download" hidden>Réessayer le téléchargement</button>
       <button type="button" class="btn-choice-helper" id="btn-parent-speech-test" ${isSpeechSupported() ? "" : "hidden"}>🎤 Essayer la reconnaissance</button>
     </section>
 
@@ -119,56 +118,45 @@ function bindSpeechCard(area: HTMLElement, speech: ParentAreaOptions["speech"]):
 
   area.querySelector("#btn-parent-speech-test")?.addEventListener("click", speech.openTest);
 
-  // État réel du modèle sur cet appareil, relu dans le stockage du navigateur à chaque affichage et après chaque téléchargement.
-  // Activer la réponse à voix haute le télécharge ; un autre appareil le télécharge aussi tout seul, la sauvegarde lui disant qu'elle est activée
+  // Une seule phrase dit si la reconnaissance est prête sur cet appareil, d'après le stockage du navigateur.
+  // Pas de bouton : activer l'installe, et une installation manquée se relance toute seule (ici, au lancement, au retour d'internet)
   const modelEl = area.querySelector("#parent-speech-model") as HTMLElement;
-  const downloadBtn = area.querySelector("#btn-parent-speech-download") as HTMLButtonElement;
-  const label = "Réessayer le téléchargement";
 
-  const showDownloading = () => {
-    modelEl.textContent = `⏳ Téléchargement et installation du modèle vocal (${MODEL_SIZE_MB} Mo)…`;
-    downloadBtn.hidden = false;
-    downloadBtn.disabled = true;
-    downloadBtn.textContent = "Téléchargement en cours…";
-  };
-  const refresh = async (problem = "") => {
-    if (isVoiceModelBusy()) {
-      showDownloading();
+  const refresh = async (hasFailed = false) => {
+    if (!checkbox.checked) {
+      modelEl.textContent = `L'activer installe la reconnaissance vocale sur cet appareil (${MODEL_SIZE_MB} Mo, une seule fois).`;
       return;
     }
-    const isDownloaded = await isVoiceModelDownloaded();
-    modelEl.textContent = isDownloaded
-      ? "✅ Modèle vocal installé sur cet appareil : la reconnaissance marche sans internet, et la voix ne quitte jamais l'appareil."
-      : checkbox.checked
-        ? `${problem}📦 Modèle vocal pas encore installé sur cet appareil (${MODEL_SIZE_MB} Mo, avec internet).`
-        : `L'activer télécharge une fois le modèle vocal (${MODEL_SIZE_MB} Mo, avec internet). Ensuite, la reconnaissance marche sans internet, et la voix ne quitte jamais l'appareil.`;
-    // Le téléchargement suit l'activation : le bouton ne sert qu'à réessayer après un échec
-    downloadBtn.hidden = isDownloaded || !checkbox.checked;
-    downloadBtn.disabled = false;
-    downloadBtn.textContent = label;
+    if (isVoiceModelBusy()) {
+      install();
+      return;
+    }
+    if (await isVoiceModelDownloaded()) {
+      modelEl.textContent = "✅ Prête sur cet appareil, même sans internet.";
+    } else if (!hasFailed && navigator.onLine) {
+      install();
+    } else {
+      modelEl.textContent = "⚠️ Pas encore installée : il faut internet. Elle s'installera toute seule dès que l'appareil sera connecté.";
+    }
   };
-  // Attend la fin d'un téléchargement, lancé ici ou ailleurs, puis relit l'état réel
-  const follow = () => {
-    showDownloading();
+  // Lance l'installation, ou suit celle déjà en cours, puis relit l'état réel
+  const install = () => {
+    modelEl.textContent = `⏳ Installation sur cet appareil (${MODEL_SIZE_MB} Mo)…`;
     downloadVoiceModel().then(
       () => refresh(),
-      () => refresh("⚠️ Le téléchargement n'a pas abouti : vérifiez la connexion. ")
+      () => refresh(true)
     );
   };
 
-  downloadBtn.addEventListener("click", follow);
-  if (isSpeechSupported()) {
-    if (isVoiceModelBusy()) follow();
-    else refresh();
-  }
+  if (isSpeechSupported()) refresh();
 
   checkbox.addEventListener("change", () => {
     speech.onChange(checkbox.checked);
     showAllowed();
+    // Activer, c'est installer : « Je parle » marche dès la prochaine séance
     if (!isSpeechSupported()) return;
-    // Activer, c'est télécharger : « Je parle » marche dès la prochaine séance
-    if (checkbox.checked) follow();
-    else refresh();
+    if (checkbox.checked) modelEl.textContent = "Vérification…";
+    refresh();
   });
   showAllowed();
 }
