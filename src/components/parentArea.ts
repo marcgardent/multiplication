@@ -83,7 +83,7 @@ export function renderParentArea(container: HTMLElement, options: ParentAreaOpti
           ? "Vérification du modèle vocal…"
           : "❌ Ce navigateur ne sait pas faire tourner la reconnaissance vocale : sur cet appareil, les enfants répondent au clavier."
       }</p>
-      <button type="button" class="btn-choice-helper" id="btn-parent-speech-download" hidden>Télécharger le modèle vocal (${MODEL_SIZE_MB} Mo)</button>
+      <button type="button" class="btn-choice-helper" id="btn-parent-speech-download" hidden>Réessayer le téléchargement</button>
       <button type="button" class="btn-choice-helper" id="btn-parent-speech-test" ${isSpeechSupported() ? "" : "hidden"}>🎤 Essayer la reconnaissance</button>
     </section>
 
@@ -120,10 +120,10 @@ function bindSpeechCard(area: HTMLElement, speech: ParentAreaOptions["speech"]):
   area.querySelector("#btn-parent-speech-test")?.addEventListener("click", speech.openTest);
 
   // État réel du modèle sur cet appareil, relu dans le stockage du navigateur à chaque affichage et après chaque téléchargement.
-  // Il se télécharge aussi tout seul : au premier « Je parle », et sur un nouveau téléphone dont la sauvegarde dit qu'il a servi
+  // Activer la réponse à voix haute le télécharge ; un autre appareil le télécharge aussi tout seul, la sauvegarde lui disant qu'elle est activée
   const modelEl = area.querySelector("#parent-speech-model") as HTMLElement;
   const downloadBtn = area.querySelector("#btn-parent-speech-download") as HTMLButtonElement;
-  const label = `Télécharger le modèle vocal (${MODEL_SIZE_MB} Mo)`;
+  const label = "Réessayer le téléchargement";
 
   const showDownloading = () => {
     modelEl.textContent = `⏳ Téléchargement et installation du modèle vocal (${MODEL_SIZE_MB} Mo)…`;
@@ -139,8 +139,11 @@ function bindSpeechCard(area: HTMLElement, speech: ParentAreaOptions["speech"]):
     const isDownloaded = await isVoiceModelDownloaded();
     modelEl.textContent = isDownloaded
       ? "✅ Modèle vocal installé sur cet appareil : la reconnaissance marche sans internet, et la voix ne quitte jamais l'appareil."
-      : `${problem}📦 Modèle vocal à télécharger une fois (${MODEL_SIZE_MB} Mo, avec internet). Ensuite, la reconnaissance marche sans internet, et la voix ne quitte jamais l'appareil.`;
-    downloadBtn.hidden = isDownloaded;
+      : checkbox.checked
+        ? `${problem}📦 Modèle vocal pas encore installé sur cet appareil (${MODEL_SIZE_MB} Mo, avec internet).`
+        : `L'activer télécharge une fois le modèle vocal (${MODEL_SIZE_MB} Mo, avec internet). Ensuite, la reconnaissance marche sans internet, et la voix ne quitte jamais l'appareil.`;
+    // Le téléchargement suit l'activation : le bouton ne sert qu'à réessayer après un échec
+    downloadBtn.hidden = isDownloaded || !checkbox.checked;
     downloadBtn.disabled = false;
     downloadBtn.textContent = label;
   };
@@ -162,6 +165,10 @@ function bindSpeechCard(area: HTMLElement, speech: ParentAreaOptions["speech"]):
   checkbox.addEventListener("change", () => {
     speech.onChange(checkbox.checked);
     showAllowed();
+    if (!isSpeechSupported()) return;
+    // Activer, c'est télécharger : « Je parle » marche dès la prochaine séance
+    if (checkbox.checked) follow();
+    else refresh();
   });
   showAllowed();
 }

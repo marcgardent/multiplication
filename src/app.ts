@@ -62,9 +62,9 @@ export function createApp(): AppInstance {
   answerPreferences.subscribe((p) => audio.setMuted(!p.sound));
   // Modèle vocal installé ici : la sauvegarde le dira aux autres appareils
   onVoiceModelReady(() => answerPreferences.markSpeechModelWanted());
-  // Nouveau téléphone d'une famille qui répond à voix haute : le modèle se télécharge tout seul, en arrière-plan
+  // Réponse à voix haute activée (ici, ou sur un autre appareil via la sauvegarde) : le modèle se télécharge tout seul
   function downloadVoiceModelIfWanted() {
-    if (!answerPreferences.isSpeechModelWanted() || !answerPreferences.isSpeechAllowed()) return;
+    if (!answerPreferences.isSpeechAllowed()) return;
     if (!isSpeechSupported() || !navigator.onLine || isVoiceModelBusy()) return;
     downloadVoiceModel().catch((err) => console.warn("Téléchargement automatique du modèle vocal", err));
   }

@@ -8,6 +8,13 @@ describe("Façon de jouer", () => {
     expect(createAnswerPreferences(createMemoryStorage()).get()).toEqual({ sound: true, speech: false });
   });
 
+  it("la réponse à voix haute attend l'accord du parent, sauf pour une famille qui s'en servait déjà", () => {
+    expect(createAnswerPreferences(createMemoryStorage()).isSpeechAllowed()).toBe(false);
+    const storage = createMemoryStorage();
+    createAnswerPreferences(storage).markSpeechModelWanted();
+    expect(createAnswerPreferences(storage).isSpeechAllowed()).toBe(true);
+  });
+
   it("chaque préréglage se retrouve à partir de ses réglages", () => {
     for (const preset of ["quiet", "sound", "speech"] as const) expect(presetOf(PRESETS[preset])).toBe(preset);
     expect(presetOf({ sound: false, speech: true })).toBe("speech");
@@ -17,6 +24,7 @@ describe("Façon de jouer", () => {
     const storage = createMemoryStorage();
     const seen: boolean[] = [];
     const preferences = createAnswerPreferences(storage);
+    preferences.setSpeechAllowed(true);
     preferences.subscribe((p) => seen.push(p.speech));
     preferences.set(PRESETS.speech);
     preferences.set({ sound: false });
@@ -27,6 +35,7 @@ describe("Façon de jouer", () => {
   it("sans l'accord du parent, la voix reste éteinte, et revient comme elle était quand il la réautorise", () => {
     const storage = createMemoryStorage();
     const preferences = createAnswerPreferences(storage);
+    preferences.setSpeechAllowed(true);
     preferences.set(PRESETS.speech);
     preferences.setSpeechAllowed(false);
     expect(preferences.get()).toEqual({ sound: true, speech: false });
