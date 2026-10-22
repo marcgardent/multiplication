@@ -122,6 +122,7 @@ Dans l'application installée, le bouton retour du téléphone fermait l'applica
 - La version affichée en bas des écrans d'accueil est celle de `package.json` : la changer avec `npm version <x.y.z> --no-git-tag-version` avant de publier.
 - Une application installée reste en mémoire des jours et ne recharge jamais sa page : le navigateur ne cherchait donc pas de nouvelle version. [`src/services/updateService.ts`](src/services/updateService.ts) la cherche à chaque retour au premier plan et toutes les 30 minutes. Une fois téléchargée, elle s'installe par un rechargement dès qu'aucune fenêtre n'est ouverte : jamais au milieu d'une séance, de la radio ou du brossage.
 
+**Nouveautés.** Les textes, écrits pour les familles, sont dans [`src/core/releaseNotes.ts`](src/core/releaseNotes.ts) : `VERSION_HISTORY`, une ligne par version, que la page d'accueil du site affiche dans « Historique des versions » ; `RELEASE_NOTES`, les versions majeures seulement (une par série 1.x), qu'une fenêtre « Quoi de neuf ? » montre à la première ouverture d'une nouvelle série (la mention « Version … · Nouveautés » de l'accueil les rouvre toutes). **En montant la version, on ajoute sa ligne, et pour une nouvelle série sa note** : sinon les tests échouent.
 
 ## 🧪 Tests et scénarios
 

@@ -649,3 +649,32 @@
     gap: 10px;
   }
 }
+
+/* Nouveautés : une ligne par version majeure, la plus récente en haut */
+.release-notes-modal {
+  .release-notes-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-height: 60vh;
+    overflow-y: auto;
+  }
+
+  .release-note {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+
+    strong {
+      font-size: $fs-title;
+      font-weight: 600;
+      color: $ink;
+    }
+
+    span {
+      font-size: $fs-small;
+      color: $ink-soft;
+    }
+  }
+}

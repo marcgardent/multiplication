@@ -263,6 +263,47 @@ a {
   }
 }
 
+// Historique des versions : replié, puis un tableau qui défile sur téléphone plutôt que de déborder
+.site-history {
+  @include card;
+  max-width: 720px;
+  padding: 12px 16px;
+
+  summary {
+    cursor: pointer;
+    font-weight: 600;
+  }
+
+  table {
+    display: block;
+    overflow-x: auto;
+    margin-top: 12px;
+    border-collapse: collapse;
+    font-size: $fs-small;
+  }
+
+  th, td {
+    padding: 8px 10px;
+    border-bottom: 1px solid $line;
+    text-align: left;
+    vertical-align: top;
+  }
+
+  th {
+    color: $ink-soft;
+    font-weight: 600;
+  }
+
+  td:first-child, td:nth-child(2) {
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+
+  td:nth-child(2) {
+    color: $ink-soft;
+  }
+}
+
 /* --- Conditions et confidentialité --- */
 
 .site-document {

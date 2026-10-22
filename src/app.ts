@@ -46,9 +46,14 @@ import { openAnswerModeModal } from "./components/answerModeModal";
 import { answerTogglesHtml, bindAnswerToggles } from "./components/answerToggles";
 import { openSpeechTestModal } from "./components/speechTestModal";
 import { calibrationSummary, openCalibrationModal } from "./components/calibrationModal";
+import { notesToShow, notesUpTo } from "./core/releaseNotes";
+import { openReleaseNotesModal } from "./components/releaseNotesModal";
 import { isSpeechSupported } from "./voices/speechListener";
 import { downloadVoiceModel, isVoiceModelBusy, onVoiceModelReady } from "./voices/voiceModel";
 import { MultiplicationItem, SessionConfig, UserProfile } from "./types";
+
+// Dernière version dont les nouveautés ont été montrées sur cet appareil
+const LAST_SEEN_VERSION_KEY = "last_seen_version";
 
 export interface AppInstance {
   mount(rootSelector: string): void;
@@ -1234,14 +1239,24 @@ export function createApp(): AppInstance {
     container.appendChild(linksEl);
   }
 
-  // Bas des deux écrans d'accueil : la version installée
+  // Bas des deux écrans d'accueil : la version installée ; un appui montre toutes les nouveautés
   function renderVersion(container: HTMLElement) {
-    const versionEl = document.createElement("p");
+    const versionEl = document.createElement("button");
+    versionEl.type = "button";
     versionEl.className = "app-version";
-    versionEl.textContent = `Version ${__APP_VERSION__}`;
+    versionEl.textContent = `Version ${__APP_VERSION__} · Nouveautés`;
+    versionEl.addEventListener("click", () => openReleaseNotesModal(notesUpTo(__APP_VERSION__), "🎉 Nouveautés"));
     container.appendChild(versionEl);
   }
 
+  // Première ouverture après une mise à jour : ce qui a changé depuis la dernière version vue sur cet appareil
+  function showReleaseNotesOnce() {
+    const lastSeen = storage.get<string | null>(LAST_SEEN_VERSION_KEY, null);
+    if (lastSeen === __APP_VERSION__) return;
+    const notes = notesToShow(lastSeen, __APP_VERSION__, profileService.getProfiles().length > 0);
+    storage.set(LAST_SEEN_VERSION_KEY, __APP_VERSION__);
+    openReleaseNotesModal(notes);
+  }
 
   function renderApp() {
     if (!rootElement) return;
@@ -1339,6 +1354,7 @@ export function createApp(): AppInstance {
       renderApp();
       cloudSync.start();
       downloadVoiceModelIfWanted();
+      showReleaseNotesOnce();
     }
   };
 }
