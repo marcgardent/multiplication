@@ -1,6 +1,6 @@
 // Calibrage d'un téléphone pour la réponse à voix haute : est-il assez rapide, et à partir de quel volume la voix est-elle de la parole ?
 import type { CalibrationVerdict } from "../services/answerPreferences";
-import { ANSWER_GRAMMAR } from "./speechGuess";
+import { ANSWER_GRAMMAR, guessSpeech } from "./speechGuess";
 import { DEFAULT_FLOOR } from "./speechSegmenter";
 import { loadVoiceModel } from "./voiceModel";
 
@@ -12,8 +12,10 @@ export const CALIBRATION_TARGETS = [7, 56, 81];
 export const FAST_MS = 1000;
 export const SLOW_MS = 2500;
 
-// Réponses de l'application décodées pour mesurer la vitesse : environ 10 secondes de parole
+// Réponses de l'application décodées pour mesurer la vitesse : environ 10 secondes de parole.
+// La dernière n'apparaît qu'une fois : quand Vosk la rend, tout l'échantillon est traité
 const SPEED_SAMPLE = [7, 56, 81, 42, 36, 24, 63, 100];
+const SPEED_LAST = SPEED_SAMPLE[SPEED_SAMPLE.length - 1];
 const SPEED_RATE = 16000;
 const SPEED_GAP_S = 0.3;
 // Sans résultat pendant ce temps, le téléphone n'y arrive pas
@@ -24,6 +26,19 @@ export function calibrationVerdict(result: { latencyMs: number | null; correct: 
   if (result.latencyMs === null || result.correct < Math.ceil((result.total * 2) / 3)) return "unusable";
   if (result.latencyMs <= FAST_MS) return "fast";
   return result.latencyMs <= SLOW_MS ? "slow" : "unusable";
+}
+
+// Niveau du test, de 1 à 5, pour la jauge du bilan : 4 et 5 « conseillé », 3 « praticable », 1 et 2 « non conseillé ».
+// Il suit le verdict, et le nuance par l'attente
+export const LEVEL_COUNT = 5;
+const GREAT_MS = 600;
+
+export function calibrationLevel(result: { latencyMs: number | null; correct: number; total: number }): number {
+  const verdict = calibrationVerdict(result);
+  if (verdict === "fast") return result.latencyMs !== null && result.latencyMs <= GREAT_MS ? 5 : 4;
+  if (verdict === "slow") return 3;
+  // Mal compris : le plus bas ; compris mais trop lent : juste au-dessous de « praticable »
+  return result.latencyMs !== null && result.correct >= Math.ceil((result.total * 2) / 3) ? 2 : 1;
 }
 
 // Seuil le plus bas qu'un calibrage peut fixer : une pièce mesurée parfaitement silencieuse ne rend pas tout bruit « parole »
@@ -65,24 +80,27 @@ export async function measureSpeed(): Promise<{ realTimeFactor: number | null; l
   const recognizer = new model.KaldiRecognizer(SPEED_RATE, JSON.stringify(ANSWER_GRAMMAR));
   let lastResultAt = 0;
   let results = 0;
-  recognizer.on("result", () => {
+  let isLastHeard = false;
+  recognizer.on("result", (message) => {
     lastResultAt = performance.now();
     results++;
+    // Le dernier nombre, seul ou à la fin d'un résultat qui en regroupe plusieurs (la supposition garde le dernier dit)
+    const guess = message.event === "result" ? guessSpeech(message.result.text) : null;
+    if (guess?.kind === "number" && guess.value === SPEED_LAST) isLastHeard = true;
   });
   const start = performance.now();
   const chunk = SPEED_RATE / 25;
   for (let i = 0; i < audio.length; i += chunk) recognizer.acceptWaveformFloat(audio.slice(i, i + chunk), SPEED_RATE);
   recognizer.retrieveFinalResult();
 
-  // Fini quand plus rien n'arrive depuis un moment ; le temps d'attente n'est pas compté
+  // Fini quand Vosk rend le dernier nombre de l'échantillon, quel que soit le temps que ça prenne.
+  // Attendre seulement un moment sans résultat était faux : sur un téléphone lent, chaque nombre prend plus que ce moment
   await new Promise<void>((resolve) => {
     const check = () => {
-      const now = performance.now();
-      const isSettled = results > 0 && now - lastResultAt > 1500;
-      if (isSettled || now - start > SPEED_TIMEOUT_MS) resolve();
-      else setTimeout(check, 250);
+      if (isLastHeard || performance.now() - start > SPEED_TIMEOUT_MS) resolve();
+      else setTimeout(check, 100);
     };
-    setTimeout(check, 250);
+    setTimeout(check, 100);
   });
   recognizer.remove();
 

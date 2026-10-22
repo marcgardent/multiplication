@@ -1,3 +1,4 @@
+import type { ListenMode } from "../voices/speechListener";
 import { StorageService } from "./storageService";
 
 // Comment l'enfant joue sur cet appareil : avec ou sans le son, au clavier ou à la voix
@@ -22,6 +23,8 @@ export const SPEECH_ALLOWED_KEY = "speech_answers_allowed";
 export const SPEECH_MODEL_WANTED_KEY = "speech_model_wanted";
 // Résultat du calibrage : propre à chaque appareil, la vitesse et le micro changent d'un téléphone à l'autre
 export const SPEECH_CALIBRATION_KEY = "speech_calibration";
+// Façon d'écouter sur cet appareil : bouton à maintenir (par défaut) ou repérage automatique de la parole
+export const SPEECH_LISTEN_MODE_KEY = "speech_listen_mode";
 
 export type CalibrationVerdict = "fast" | "slow" | "unusable";
 
@@ -57,6 +60,8 @@ export interface AnswerPreferencesStore {
   isSpeechModelWanted(): boolean;
   markSpeechModelWanted(): void;
   speechCalibration(): SpeechCalibration | null;
+  listenMode(): ListenMode;
+  setListenMode(mode: ListenMode): void;
   setSpeechCalibration(calibration: SpeechCalibration): void;
   // Prévient à chaque changement ; renvoie de quoi se désabonner
   subscribe(listener: (preferences: AnswerPreferences) => void): () => void;
@@ -92,6 +97,13 @@ export function createAnswerPreferences(storage: StorageService): AnswerPreferen
     isSpeechModelWanted: () => storage.get<boolean>(SPEECH_MODEL_WANTED_KEY, false),
 
     speechCalibration: () => storage.get<SpeechCalibration | null>(SPEECH_CALIBRATION_KEY, null),
+
+    listenMode: () => storage.get<ListenMode>(SPEECH_LISTEN_MODE_KEY, "hold"),
+
+    setListenMode(mode) {
+      storage.set(SPEECH_LISTEN_MODE_KEY, mode);
+      notify();
+    },
 
     setSpeechCalibration(calibration) {
       storage.set(SPEECH_CALIBRATION_KEY, calibration);

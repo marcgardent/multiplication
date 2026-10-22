@@ -92,6 +92,41 @@
   }
 }
 
+// Le bouton à maintenir pour parler : grand, sans sélection de texte ni menu d'appui long
+.speech-strip .speech-hold {
+  @include btn-primary;
+  display: none;
+  width: 100%;
+  min-height: 60px;
+  gap: 10px;
+  font-size: 1.125rem;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: none;
+
+  .speech-hold-icon {
+    font-size: 1.4rem;
+    line-height: 1;
+  }
+
+  // Enfoncé : on enregistre, comme le bouton des voix enregistrées
+  &[data-state="hearing"] {
+    background: $danger;
+    border-color: $danger;
+    transform: scale(0.98);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.speech-strip.is-hold-mode .speech-hold {
+  display: inline-flex;
+}
+
 // Une ligne au-dessus du clavier : ce qu'il faut faire
 .speech-strip {
   flex-direction: column;
@@ -218,22 +253,6 @@
   animation: fadeIn 0.2s ease;
 }
 
-/* Case à cocher d'un réglage de l'espace parent */
-.parent-switch {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: $fs-body;
-  font-weight: 500;
-  color: $ink;
-  cursor: pointer;
-
-  input {
-    width: 22px;
-    height: 22px;
-    accent-color: $accent;
-  }
-}
 
 /* Espace parent : essai de la réponse à voix haute */
 .speech-test-modal {
@@ -385,136 +404,248 @@
   }
 }
 
-/* Calibrage d'un téléphone : trois étapes, puis le verdict */
+/* Test du téléphone : un écran par étape, presque sans texte, puis une jauge */
 .calibration-modal {
   [hidden] {
     display: none !important;
   }
 
-  .calibration-help {
-    margin: 0;
-    font-size: $fs-small;
-    color: $ink-soft;
+  .calibration-actions {
+    display: flex;
+    gap: 8px;
+
+    &:empty {
+      display: none;
+    }
+
+    button {
+      flex: 1;
+    }
   }
 
-  .calibration-steps {
-    margin: 0;
-    padding: 0;
-    list-style: none;
+  .calibration-loader {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-
-    li {
-      display: flex;
-      gap: 12px;
-      align-items: flex-start;
-    }
-
-    li > span:last-child {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-      min-width: 0;
-    }
-
-    strong {
-      font-size: $fs-body;
-      font-weight: 600;
-    }
-
-    small {
-      font-size: $fs-small;
-      color: $ink-soft;
-      line-height: 1.4;
-    }
+    align-items: center;
+    gap: 18px;
+    padding: 36px 0;
+    font-size: $fs-title;
+    font-weight: 600;
+    color: $ink;
   }
 
-  .calibration-step-icon {
-    flex-shrink: 0;
-    width: 28px;
-    height: 28px;
+  .calibration-spinner {
+    width: 56px;
+    height: 56px;
     border-radius: 50%;
+    border: 6px solid $accent-soft;
+    border-top-color: $accent;
+    animation: calibrationSpin 0.9s linear infinite;
+  }
+
+  .calibration-big {
+    font-size: 6rem;
+    line-height: 1;
+    text-align: center;
+    padding: 12px 0;
+  }
+
+  .calibration-progress {
+    height: 12px;
+    border-radius: $radius-pill;
+    background: $line;
+    overflow: hidden;
+
+    span {
+      display: block;
+      width: 0;
+      height: 100%;
+      background: $accent;
+      transition-property: width;
+      transition-timing-function: linear;
+    }
+  }
+
+  .calibration-dots {
     display: flex;
-    align-items: center;
     justify-content: center;
-    background: $ground;
-    border: 2px solid $line;
-    font-size: $fs-small;
-    font-weight: 700;
-    color: $ink-soft;
-  }
+    gap: 8px;
 
-  li[data-state="running"] .calibration-step-icon {
-    background: $accent-soft;
-    border-color: $accent;
-    color: $accent;
-  }
-
-  li[data-state="done"] .calibration-step-icon {
-    background: $status-mastered-soft;
-    border-color: $status-mastered;
-    color: $status-mastered;
-  }
-
-  li[data-state="failed"] .calibration-step-icon {
-    background: $status-review-soft;
-    border-color: $status-review;
-    color: $status-review-ink;
-  }
-
-  .calibration-prompt {
-    @include card;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 6px;
-    padding: 16px;
-
-    .speech-test-level {
-      width: 100%;
-      height: 8px;
-      border-radius: $radius-pill;
+    span {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
       background: $line;
-      overflow: hidden;
 
-      span {
-        display: block;
-        width: 0;
-        height: 100%;
+      &.is-on {
         background: $accent;
-        transition: width 0.08s linear;
       }
     }
   }
 
-  .calibration-prompt-label {
-    font-size: $fs-small;
-    color: $ink-soft;
+  // Le nombre est le bouton : on appuie longtemps dessus en le disant
+  .calibration-number {
+    align-self: center;
+    width: 180px;
+    height: 180px;
+    border-radius: 36px;
+    border: 4px solid $accent;
+    background: $accent-soft;
+    color: $ink;
+    font-family: inherit;
+    font-size: 5rem;
+    font-weight: 800;
+    line-height: 1;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    touch-action: none;
+    transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.15s;
+
+    &[data-state="listening"] {
+      background: $danger;
+      border-color: $danger;
+      transform: scale(0.97);
+    }
+
+    &[data-state="thinking"] {
+      opacity: 0.6;
+      cursor: wait;
+    }
+
+    &[data-state="right"] {
+      background: $status-mastered-soft;
+      border-color: $status-mastered;
+      color: $status-mastered;
+    }
+
+    &[data-state="wrong"] {
+      background: $status-review-soft;
+      border-color: $danger;
+      color: $danger;
+    }
   }
 
-  .calibration-prompt-text {
-    font-size: clamp(2.4rem, 12vw, 3.4rem);
-    font-weight: 700;
-    line-height: 1;
+  // La jauge du bilan : rouge, puis orange, puis vert ; les cases éteintes restent grises
+  .calibration-gauge {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 6px;
+    padding-top: 8px;
+
+    span {
+      height: 22px;
+      border-radius: 6px;
+      background: $line;
+    }
+
+    span.is-on:nth-child(-n + 2) {
+      background: $danger;
+    }
+
+    span.is-on:nth-child(3) {
+      background: $status-review;
+    }
+
+    span.is-on:nth-child(n + 4) {
+      background: $status-mastered;
+    }
+  }
+
+  .calibration-label {
+    margin: 0;
+    font-size: 2rem;
+    font-weight: 800;
+    text-align: center;
+
+    &[data-verdict="fast"] {
+      color: $status-mastered;
+    }
+
+    &[data-verdict="slow"] {
+      color: $status-review-ink;
+    }
+
+    &[data-verdict="unusable"] {
+      color: $danger;
+    }
+  }
+
+  .calibration-sentence {
+    margin: 0;
+    font-size: $fs-body;
+    color: $ink-soft;
+    text-align: center;
+    line-height: 1.45;
+  }
+}
+
+@keyframes calibrationSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// Espace parent : la façon d'écouter sur ce téléphone
+.parent-listen-mode {
+  margin: 0;
+  padding: 0;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  &[hidden] {
+    display: none;
+  }
+
+  legend {
+    margin-bottom: 4px;
+    font-size: $fs-small;
+    font-weight: 600;
     color: $ink;
   }
 
-  .calibration-verdict {
-    margin: 0;
-    padding: 12px;
-    border-radius: $radius-control;
-    background: $ground;
-    font-size: $fs-body;
-    font-weight: 500;
-    line-height: 1.4;
+  label {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: $fs-small;
+    color: $ink;
+    cursor: pointer;
+  }
 
-    &[data-verdict="fast"] {
-      background: $status-mastered-soft;
-    }
+  input {
+    margin-top: 2px;
+    accent-color: $accent;
+  }
 
-    &[data-verdict="slow"], &[data-verdict="unusable"] {
-      background: $status-review-soft;
-    }
+  // Repérage automatique sur un téléphone lent : possible, mais présenté comme déconseillé
+  .is-discouraged {
+    color: $status-review-ink;
+  }
+}
+
+// Espace parent : une ligne d'état bien lisible, et les options repliées
+.parent-area .parent-card .parent-speech-state {
+  font-size: $fs-body;
+  font-weight: 500;
+  color: $ink;
+}
+
+.parent-speech-more {
+  font-size: $fs-small;
+  color: $ink-soft;
+
+  summary {
+    cursor: pointer;
+    padding: 4px 0;
+  }
+
+  &[open] {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
   }
 }

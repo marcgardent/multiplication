@@ -15,6 +15,20 @@ export interface AnswerInputOptions extends KeypadOptions {
 // Bandeau au-dessus du clavier quand l'enfant répond à la voix : où il en est, en une phrase
 type SpeechState = "loading" | "wait" | "question" | "listen" | "hearing" | "thinking" | "heard" | "unclear";
 
+// Avec le bouton à maintenir, ce qu'il faut faire se dit autrement
+const HOLD_CUES: Partial<Record<SpeechState, string>> = {
+  listen: "Maintiens le bouton et dis la réponse.",
+  hearing: "Je t'écoute… Relâche quand tu as fini.",
+  unclear: "Je n'ai pas compris. Maintiens le bouton et redis."
+};
+const HOLD_LABELS: Partial<Record<SpeechState, string>> = {
+  hearing: "Relâche quand tu as fini",
+  thinking: "Je réfléchis…"
+};
+const HOLD_LABEL = "Maintiens et parle";
+// Un appui plus bref ne contient pas une réponse
+const MIN_HOLD_MS = 250;
+
 const CUES: Record<SpeechState, { icon: string; text: string }> = {
   loading: { icon: "⏳", text: "Je prépare mes oreilles…" },
   wait: { icon: "✋", text: "Attends…" },
@@ -74,14 +88,20 @@ export function createAnswerInput(options: AnswerInputOptions): KeypadComponent 
   let idleTimer: ReturnType<typeof setTimeout> | null = null;
   let root: HTMLElement | null = null;
 
-  // Une ligne au-dessus du clavier : ce qu'il faut faire
+  // Au-dessus du clavier : le bouton à maintenir (mode par défaut), et une ligne qui dit quoi faire
   const strip = document.createElement("div");
   strip.className = "speech-strip";
   strip.innerHTML = `
+    <button type="button" class="speech-hold"><span class="speech-hold-icon" aria-hidden="true">🎤</span><span class="speech-hold-label"></span></button>
     <span class="speech-cue" aria-live="polite"></span>
     <span class="speech-tips">Tu peux aussi dire « je passe » ou « je ne sais pas ».</span>
   `;
   const cueEl = strip.querySelector(".speech-cue") as HTMLElement;
+  const holdBtn = strip.querySelector(".speech-hold") as HTMLButtonElement;
+  const holdLabelEl = strip.querySelector(".speech-hold-label") as HTMLElement;
+  let pressedAt = 0;
+  let isTooShort = false;
+  const isHoldMode = () => preferences.listenMode() === "hold";
   // Le micro, à la place de la réponse dans le grand calcul : il respire quand c'est à l'enfant, grossit avec sa voix
   const mic = document.createElement("span");
   mic.className = "answer-mic";
@@ -118,8 +138,34 @@ export function createAnswerInput(options: AnswerInputOptions): KeypadComponent 
       }
       render();
     },
-    floor: () => preferences.speechCalibration()?.floor
+    floor: () => preferences.speechCalibration()?.floor,
+    mode: () => preferences.listenMode()
   });
+
+  // Maintenir pour parler, au doigt comme à la souris ; le relâchement arrête, même hors du bouton
+  holdBtn.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    if (holdBtn.disabled || !listener.isReady()) return;
+    try {
+      holdBtn.setPointerCapture(e.pointerId);
+    } catch {
+      // Pointeur déjà relâché : l'appui s'arrêtera sur pointerup
+    }
+    pressedAt = performance.now();
+    isTooShort = false;
+    navigator.vibrate?.(20);
+    listener.holdStart();
+  });
+  const release = () => {
+    if (pressedAt === 0) return;
+    isTooShort = performance.now() - pressedAt < MIN_HOLD_MS;
+    pressedAt = 0;
+    listener.holdEnd();
+  };
+  holdBtn.addEventListener("pointerup", release);
+  holdBtn.addEventListener("pointercancel", release);
+  // Un appui long ouvrirait sinon le menu du navigateur
+  holdBtn.addEventListener("contextmenu", (e) => e.preventDefault());
 
   function setThinking(thinking: boolean) {
     isThinking = thinking;
@@ -155,8 +201,16 @@ export function createAnswerInput(options: AnswerInputOptions): KeypadComponent 
     const current = state();
     strip.dataset.state = current;
     mic.dataset.state = current;
-    const text = current === "heard" && spoken ? `J'ai compris ${spoken.value} : appuie sur Valider.` : CUES[current].text;
+    const isHold = isHoldMode();
+    const holdText = isTooShort && current === "unclear" ? "Trop court : garde le doigt appuyé pendant que tu parles." : HOLD_CUES[current];
+    const text =
+      current === "heard" && spoken ? `J'ai compris ${spoken.value} : appuie sur Valider.` : (isHold && holdText) || CUES[current].text;
     cueEl.textContent = `${CUES[current].icon} ${text}`;
+    strip.classList.toggle("is-hold-mode", isHold);
+    holdBtn.dataset.state = current;
+    holdLabelEl.textContent = HOLD_LABELS[current] ?? HOLD_LABEL;
+    // Le bouton ne sert que quand une réponse est attendue et que la reconnaissance est prête ; enfoncé, il le reste
+    holdBtn.disabled = pressedAt === 0 && (!isListening() || current === "loading" || !listener.isReady());
     if (!isListening()) mic.style.setProperty("--level", "0");
     renderSlot();
   }
@@ -230,6 +284,7 @@ export function createAnswerInput(options: AnswerInputOptions): KeypadComponent 
   }
 
   const unsubscribePreferences = preferences.subscribe((p) => {
+    render();
     if (p.speech === isSpeechMode) return;
     isSpeechMode = p.speech;
     isUnclear = false;

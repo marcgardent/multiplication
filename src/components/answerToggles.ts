@@ -10,8 +10,8 @@ export function answerTogglesHtml(): string {
 }
 
 export const SPEECH_LOCKED_TEXT = "À activer dans l'espace parent.";
-export const SPEECH_TOO_SLOW_TEXT = "Trop lent sur ce téléphone (voir le calibrage dans l'espace parent).";
-export const SPEECH_MISHEARD_TEXT = "La voix est mal comprise sur ce téléphone (voir le calibrage dans l'espace parent).";
+export const SPEECH_TOO_SLOW_TEXT = "Non conseillé sur ce téléphone (voir le test dans l'espace parent).";
+export const SPEECH_MISHEARD_TEXT = "La voix est mal comprise sur ce téléphone (voir le test dans l'espace parent).";
 
 // Pourquoi l'enfant ne peut pas répondre à voix haute sur cet appareil ; nul s'il le peut
 export function speechBlocker(preferences: AnswerPreferencesStore): string | null {

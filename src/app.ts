@@ -1140,11 +1140,15 @@ export function createApp(): AppInstance {
         openTest: openSpeechTestModal,
         calibrationText: () => {
           const calibration = answerPreferences.speechCalibration();
-          if (!calibration) return null;
-          const day = new Date(calibration.at).toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
-          return `📏 Calibré le ${day} : ${calibrationSummary(calibration)}`;
+          return calibration ? calibrationSummary(calibration) : null;
         },
-        openCalibration: (onDone) => openCalibrationModal({ preferences: answerPreferences, onDone })
+        openCalibration: (onDone) => openCalibrationModal({ preferences: answerPreferences, onDone }),
+        listenMode: answerPreferences.listenMode(),
+        isPhoneSlow: () => {
+          const verdict = answerPreferences.speechCalibration()?.verdict;
+          return verdict === "slow" || verdict === "unusable";
+        },
+        onListenMode: (mode) => answerPreferences.setListenMode(mode)
       },
       onBack: () => {
         isParentAreaOpen = false;
@@ -1237,6 +1241,7 @@ export function createApp(): AppInstance {
     versionEl.textContent = `Version ${__APP_VERSION__}`;
     container.appendChild(versionEl);
   }
+
 
   function renderApp() {
     if (!rootElement) return;
