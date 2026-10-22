@@ -1,8 +1,10 @@
 import { ReleaseNote } from "../core/releaseNotes";
 
-// « Quoi de neuf ? » : après une mise à jour, ou tout l'historique depuis la mention « Version » de l'accueil
-export function openReleaseNotesModal(notes: ReleaseNote[], title = "🎉 Quoi de neuf ?"): void {
+// Après une mise à jour : « Application mise à jour », puis quoi de neuf.
+// Depuis la mention « Version » de l'accueil : tout l'historique, sans annonce
+export function openReleaseNotesModal(notes: ReleaseNote[], options: { updatedTo?: string } = {}): void {
   if (notes.length === 0) return;
+  const title = options.updatedTo ? "✅ Application mise à jour" : "🎉 Nouveautés";
   const modal = document.createElement("div");
   modal.className = "session-modal-overlay";
   modal.innerHTML = `
@@ -11,6 +13,7 @@ export function openReleaseNotesModal(notes: ReleaseNote[], title = "🎉 Quoi d
         <h3>${title}</h3>
         <button type="button" class="btn-modal-close" data-action="close" aria-label="Fermer">✕</button>
       </div>
+      ${options.updatedTo ? `<p class="release-notes-intro">Version ${options.updatedTo}. Quoi de neuf ?</p>` : ""}
       <div class="release-notes-list">
         ${notes
           .map(

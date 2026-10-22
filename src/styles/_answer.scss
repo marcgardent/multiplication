@@ -628,7 +628,7 @@
 }
 
 // Espace parent : une ligne d'état bien lisible, et les options repliées
-.parent-area .parent-card .parent-speech-state {
+.parent-feature-body .parent-speech-state {
   font-size: $fs-body;
   font-weight: 500;
   color: $ink;
@@ -652,6 +652,12 @@
 
 /* Nouveautés : une ligne par version majeure, la plus récente en haut */
 .release-notes-modal {
+  .release-notes-intro {
+    margin: 0;
+    font-size: $fs-body;
+    color: $ink-soft;
+  }
+
   .release-notes-list {
     display: flex;
     flex-direction: column;

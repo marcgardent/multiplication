@@ -16,7 +16,7 @@ import { createCloudSync, sha256Hex } from "./services/cloudSyncService";
 import { createGoogleAuth } from "./services/googleAuthService";
 import { createParentCodeService } from "./services/parentCodeService";
 import { openParentGate } from "./components/parentGate";
-import { renderParentArea } from "./components/parentArea";
+import { openParentHub, openPlayersModal, openSpeechModal, ParentFeature, ParentFeatureState, renderParentEntry } from "./components/parentArea";
 import {
   downloadDriveBackup,
   downloadDriveVoice,
@@ -38,7 +38,7 @@ import { ListeningMode, ListeningSelection } from "./radio/listeningPlayer";
 import { calculationsOf } from "./radio/program";
 import { calculationId, manualRounds } from "./radio/spacedSchedule";
 import { guidedLabel, guidedPool, guidedRounds, readPlayerProgress } from "./radio/guidedPool";
-import { renderVoiceStudio } from "./components/voiceStudio";
+import { openVoiceStudio } from "./components/voiceStudio";
 import { createVoiceStore } from "./voices/voiceStore";
 import { createVoiceSync } from "./voices/voiceSync";
 import { createAnswerPreferences } from "./services/answerPreferences";
@@ -131,8 +131,6 @@ export function createApp(): AppInstance {
 
   // Espace parent : sauvegarde et suppression de joueurs, derrière un code que l'appareil garde pour lui
   const parentCode = createParentCodeService(createStorageService("mult_parent"), sha256Hex);
-  let isParentAreaOpen = false;
-  let isVoiceStudioOpen = false;
   const profileService: ProfileService = createProfileService(storage);
 
   // Les décors déjà débloqués avec d'anciens seuils restent acquis
@@ -261,14 +259,6 @@ export function createApp(): AppInstance {
 
       <!-- Écoute : ni points, ni progression, même en mode guidé -->
       <div class="kids-menu-container">
-        <button type="button" class="kids-main-btn" id="btn-launch-radio">
-          <div class="btn-bubble">📻</div>
-          <div class="btn-text-block">
-            <span class="btn-title">Radio des tables</span>
-            <span class="btn-subtitle">Les multiplications en continu, même écran éteint</span>
-          </div>
-        </button>
-
         <button type="button" class="kids-main-btn" id="btn-launch-brushing">
           <div class="btn-bubble">🪥</div>
           <div class="btn-text-block">
@@ -276,42 +266,19 @@ export function createApp(): AppInstance {
             <span class="btn-subtitle">3 minutes de tables, l'écran reste allumé</span>
           </div>
         </button>
-      </div>
 
-      <!-- Réservé aux adultes : protégé par un code -->
-      <div class="kids-menu-container">
-        <button type="button" class="kids-main-btn" id="btn-open-parent">
-          <div class="btn-bubble">🔒</div>
+        <button type="button" class="kids-main-btn" id="btn-launch-radio">
+          <div class="btn-bubble">📻</div>
           <div class="btn-text-block">
-            <span class="btn-title">Espace parent</span>
-            <span class="btn-subtitle">Sauvegarde et joueurs</span>
-          </div>
-        </button>
-
-        <button type="button" class="kids-main-btn" id="btn-open-voices">
-          <div class="btn-bubble">🎙️</div>
-          <div class="btn-text-block">
-            <span class="btn-title">Voix enregistrées</span>
-            <span class="btn-subtitle">Votre voix à la place de la voix de synthèse</span>
+            <span class="btn-title">Radio des tables</span>
+            <span class="btn-subtitle">Les multiplications en continu, même écran éteint</span>
           </div>
         </button>
       </div>
     `;
 
-    loginEl.querySelector("#btn-open-parent")?.addEventListener("click", () => {
-      openParentArea();
-    });
-
-    // Enregistrer des voix demande le micro : réservé aux adultes, derrière le même code
-    loginEl.querySelector("#btn-open-voices")?.addEventListener("click", () => {
-      openParentGate({
-        parentCode,
-        onGranted: () => {
-          isVoiceStudioOpen = true;
-          renderApp();
-        }
-      });
-    });
+    // Réservé aux adultes : chaque ligne demande le code
+    renderParentEntry(loginEl, parentFeatureState(), openParentArea);
 
     loginEl.querySelector("#btn-launch-radio")?.addEventListener("click", () => {
       openListeningSetup("radio");
@@ -586,7 +553,31 @@ export function createApp(): AppInstance {
           </div>
         </button>
       </div>
+
+      <!-- Écoute : ni points, ni progression -->
+      <div class="kids-menu-container">
+        <button type="button" class="kids-main-btn" id="btn-home-brushing">
+          <div class="btn-bubble">🪥</div>
+          <div class="btn-text-block">
+            <span class="btn-title">Brossage de dents</span>
+            <span class="btn-subtitle">3 minutes de tables, l'écran reste allumé</span>
+          </div>
+        </button>
+
+        <button type="button" class="kids-main-btn" id="btn-home-radio">
+          <div class="btn-bubble">📻</div>
+          <div class="btn-text-block">
+            <span class="btn-title">Radio des tables</span>
+            <span class="btn-subtitle">Les multiplications en continu, même écran éteint</span>
+          </div>
+        </button>
+      </div>
     `;
+
+    homeEl.querySelector("#btn-home-brushing")?.addEventListener("click", () => openListeningSetup("brushing"));
+    homeEl.querySelector("#btn-home-radio")?.addEventListener("click", () => openListeningSetup("radio"));
+    // Une famille avec un seul enfant ne revient jamais à l'écran des joueurs : l'espace parent se montre ici aussi
+    renderParentEntry(homeEl, parentFeatureState(), openParentArea);
 
     // Clics Gamification
     homeEl.querySelector("#btn-home-wheel")?.addEventListener("click", () => {
@@ -1094,8 +1085,8 @@ export function createApp(): AppInstance {
     });
   }
 
-  function openDriveModal(): void {
-    openGoogleDriveModal({
+  function openDriveModal(): HTMLElement {
+    return openGoogleDriveModal({
       cloudSync,
       auth: googleAuth,
       // Joueurs, progression et décor viennent d'être remplacés : on repart des données restaurées
@@ -1115,54 +1106,71 @@ export function createApp(): AppInstance {
     downloadVoiceModelIfWanted();
   }
 
-  // Le code est demandé à chaque entrée dans l'espace parent
-  function openParentArea() {
-    if (isParentAreaOpen) return;
+  function parentFeatureState(): ParentFeatureState {
+    return {
+      isSpeechOn: answerPreferences.isSpeechAllowed(),
+      isBackupOn: cloudSync.getState().status !== "off",
+      hasCode: parentCode.hasCode()
+    };
+  }
+
+  // Le code est demandé à chaque entrée dans l'espace parent ; une fonction choisie depuis l'accueil s'ouvre aussitôt
+  function openParentArea(feature?: ParentFeature) {
+    if (document.querySelector(".parent-hub-modal")) return;
+    // Sans code, la porte le fait choisir : « Définir le code parent » est alors déjà fait
+    const initial = feature === "code" && !parentCode.hasCode() ? undefined : feature;
     openParentGate({
       parentCode,
-      onGranted: () => {
-        isParentAreaOpen = true;
-        renderApp();
-      }
+      onGranted: () =>
+        openParentHub(
+          {
+            state: parentFeatureState,
+            open: {
+              speech: openSpeechSettings,
+              voices: () => openVoiceStudio({ store: voiceStore }),
+              players: () =>
+                openPlayersModal({
+                  profiles: () => profileService.getProfiles(),
+                  onDelete: (profile) => {
+                    profileService.deleteProfile(profile.id);
+                    // Le joueur supprimé était peut-être celui dont la progression est en mémoire
+                    if (!profileService.getActiveProfile()) matrixStore.setProfile("guest");
+                    renderApp();
+                  }
+                }),
+              backup: openDriveModal,
+              code: () => {
+                openParentGate({ parentCode, isChangingCode: true, onGranted: () => undefined });
+                return null;
+              }
+            },
+            // Les libellés de l'accueil suivent ce qui vient d'être activé
+            onClose: () => renderApp()
+          },
+          initial
+        )
     });
   }
 
-  function renderParentAreaView(container: HTMLElement) {
-    renderParentArea(container, {
-      profiles: profileService.getProfiles(),
-      backupStatus: describeCloudSync(cloudSync.getState()),
-      onOpenBackup: () => openDriveModal(),
-      onDeleteProfile: (profile) => {
-        profileService.deleteProfile(profile.id);
-        // Le joueur supprimé était peut-être celui dont la progression est en mémoire
-        if (!profileService.getActiveProfile()) matrixStore.setProfile("guest");
-        renderApp();
+  function openSpeechSettings(): HTMLElement {
+    return openSpeechModal({
+      isAllowed: answerPreferences.isSpeechAllowed(),
+      onChange: (allowed) => answerPreferences.setSpeechAllowed(allowed),
+      openTest: openSpeechTestModal,
+      calibrationText: () => {
+        const calibration = answerPreferences.speechCalibration();
+        return calibration ? calibrationSummary(calibration) : null;
       },
-      onChangeCode: () => openParentGate({ parentCode, isChangingCode: true, onGranted: () => undefined }),
-      speech: {
-        isAllowed: answerPreferences.isSpeechAllowed(),
-        onChange: (allowed) => answerPreferences.setSpeechAllowed(allowed),
-        openTest: openSpeechTestModal,
-        calibrationText: () => {
-          const calibration = answerPreferences.speechCalibration();
-          return calibration ? calibrationSummary(calibration) : null;
-        },
-        openCalibration: (onDone) => openCalibrationModal({ preferences: answerPreferences, onDone }),
-        listenMode: answerPreferences.listenMode(),
-        isPhoneSlow: () => {
-          const verdict = answerPreferences.speechCalibration()?.verdict;
-          return verdict === "slow" || verdict === "unusable";
-        },
-        onListenMode: (mode) => answerPreferences.setListenMode(mode)
+      openCalibration: (onDone) => openCalibrationModal({ preferences: answerPreferences, onDone }),
+      listenMode: answerPreferences.listenMode(),
+      isPhoneSlow: () => {
+        const verdict = answerPreferences.speechCalibration()?.verdict;
+        return verdict === "slow" || verdict === "unusable";
       },
-      onBack: () => {
-        isParentAreaOpen = false;
-        renderApp();
-      }
+      onListenMode: (mode) => answerPreferences.setListenMode(mode)
     });
   }
 
-  // Pastille du bouton ☁️ : sauvegarde à jour, en attente, ou qui demande l'intervention du parent
   function showCloudStatus() {
     const button = document.getElementById("btn-header-cloud");
     if (!button) return;
@@ -1245,7 +1253,7 @@ export function createApp(): AppInstance {
     versionEl.type = "button";
     versionEl.className = "app-version";
     versionEl.textContent = `Version ${__APP_VERSION__} · Nouveautés`;
-    versionEl.addEventListener("click", () => openReleaseNotesModal(notesUpTo(__APP_VERSION__), "🎉 Nouveautés"));
+    versionEl.addEventListener("click", () => openReleaseNotesModal(notesUpTo(__APP_VERSION__)));
     container.appendChild(versionEl);
   }
 
@@ -1255,7 +1263,7 @@ export function createApp(): AppInstance {
     if (lastSeen === __APP_VERSION__) return;
     const notes = notesToShow(lastSeen, __APP_VERSION__, profileService.getProfiles().length > 0);
     storage.set(LAST_SEEN_VERSION_KEY, __APP_VERSION__);
-    openReleaseNotesModal(notes);
+    openReleaseNotesModal(notes, { updatedTo: __APP_VERSION__ });
   }
 
   function renderApp() {
@@ -1271,11 +1279,8 @@ export function createApp(): AppInstance {
       profileService.logout();
     });
 
-    // Le nuage montre l'état de la sauvegarde ; y toucher mène à l'espace parent, donc au code
-    shell.querySelector("#btn-header-cloud")?.addEventListener("click", () => {
-      if (isParentAreaOpen) openDriveModal();
-      else openParentArea();
-    });
+    // Le nuage montre l'état de la sauvegarde ; y toucher mène à la sauvegarde, derrière le code
+    shell.querySelector("#btn-header-cloud")?.addEventListener("click", () => openParentArea("backup"));
 
     // Clic sur le compteur de points dans le header -> Ouvre le tableau des récompenses
     shell.querySelector("#btn-header-rewards")?.addEventListener("click", () => {
@@ -1300,22 +1305,6 @@ export function createApp(): AppInstance {
     });
 
     const content = shell.querySelector("#main-content") as HTMLElement;
-
-    if (isParentAreaOpen) {
-      renderParentAreaView(content);
-      return;
-    }
-
-    if (isVoiceStudioOpen) {
-      renderVoiceStudio(content, {
-        store: voiceStore,
-        onBack: () => {
-          isVoiceStudioOpen = false;
-          renderApp();
-        }
-      });
-      return;
-    }
 
     // Si aucun joueur n'est connecté -> Afficher l'écran de Login avec (+)
     if (!activeProfile) {

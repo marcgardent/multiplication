@@ -1,30 +1,20 @@
 import { AudioManifest, resolveAudioUrl } from "../services/audioService";
 import { nextToRecord, recordingOrder, VoiceClip, voiceCatalog } from "../voices/voiceCatalog";
 import { VoiceStore } from "../voices/voiceStore";
+import { openFeatureModal } from "./parentArea";
 import { openVoiceRecordModal } from "./voiceRecordModal";
 
 export interface VoiceStudioOptions {
   store: VoiceStore;
-  onBack(): void;
 }
 
-// Menu « Voix enregistrées » : félicitations, tableau des multiplications et réponses, chacun cliquable
-export function renderVoiceStudio(container: HTMLElement, options: VoiceStudioOptions): void {
-  container.innerHTML = "";
-
-  const bar = document.createElement("div");
-  bar.className = "carnet-top-bar";
-  bar.innerHTML = `
-    <button type="button" class="btn-back-home" id="btn-voice-back">Accueil</button>
-    <h2>🎙️ Voix enregistrées</h2>
-  `;
-  bar.querySelector("#btn-voice-back")?.addEventListener("click", options.onBack);
-  container.appendChild(bar);
-
+// « Enregistrer votre voix » : félicitations, tableau des multiplications et réponses, chacun cliquable
+export function openVoiceStudio(options: VoiceStudioOptions): HTMLElement {
+  const { modal, body } = openFeatureModal("🎙️ Votre voix", "voice-studio-modal");
   const area = document.createElement("div");
   area.className = "parent-area voice-studio";
   area.innerHTML = `<p class="voice-loading">Chargement…</p>`;
-  container.appendChild(area);
+  body.appendChild(area);
 
   Promise.all([
     fetch(resolveAudioUrl("/audio/index.json")).then((r) => r.json() as Promise<AudioManifest>),
@@ -40,6 +30,7 @@ export function renderVoiceStudio(container: HTMLElement, options: VoiceStudioOp
       console.warn("Voix indisponibles", err);
       area.innerHTML = `<p class="voice-loading">Impossible de charger la liste des voix.</p>`;
     });
+  return modal;
 }
 
 function cell(clip: VoiceClip, recorded: Set<string>, text = clip.label): string {

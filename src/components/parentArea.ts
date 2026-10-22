@@ -2,124 +2,202 @@ import { UserProfile } from "../types";
 import { isSpeechSupported, ListenMode } from "../voices/speechListener";
 import { downloadVoiceModel, isVoiceModelBusy, isVoiceModelDownloaded, MODEL_SIZE_MB } from "../voices/voiceModel";
 
-// Espace parent : réglages réservés aux adultes, derrière le code à 4 chiffres
+// Espace parent : réglages réservés aux adultes, derrière le code à 4 chiffres.
+// Ses fonctions sont listées sur l'accueil, pour que les parents les voient ; une fois le code tapé,
+// un hub les reprend, et chacune s'ouvre dans sa propre fenêtre
 
-export interface ParentAreaOptions {
-  profiles: UserProfile[];
-  // État de la sauvegarde, en clair : « À jour », « Désactivée »...
-  backupStatus: string;
-  onOpenBackup(): void;
-  onDeleteProfile(profile: UserProfile): void;
-  onChangeCode(): void;
-  onBack(): void;
-  // Réponse à voix haute : proposée ou non aux enfants, et ce que cet appareil sait faire
-  speech: {
-    isAllowed: boolean;
-    onChange(allowed: boolean): void;
-    // Essai, où le parent valide aussi les heuristiques
-    openTest(): void;
-    // Calibrage : son dernier résultat sur cet appareil, et de quoi le refaire
-    calibrationText(): string | null;
-    openCalibration(onDone: () => void): void;
-    // Façon d'écouter sur cet appareil ; le test a-t-il trouvé ce téléphone trop lent pour le repérage automatique ?
-    listenMode: ListenMode;
-    isPhoneSlow(): boolean;
-    onListenMode(mode: ListenMode): void;
-  };
+export type ParentFeature = "speech" | "voices" | "players" | "backup" | "code";
+
+// Ce qui change le libellé d'une fonction : « Activer » tant qu'elle est éteinte, « Gérer » ensuite
+export interface ParentFeatureState {
+  isSpeechOn: boolean;
+  isBackupOn: boolean;
+  hasCode: boolean;
 }
 
-export function renderParentArea(container: HTMLElement, options: ParentAreaOptions): void {
-  container.innerHTML = "";
-
-  const bar = document.createElement("div");
-  bar.className = "carnet-top-bar";
-  bar.innerHTML = `
-    <button type="button" class="btn-back-home" id="btn-parent-back">Accueil</button>
-    <h2>Espace parent</h2>
-  `;
-  bar.querySelector("#btn-parent-back")?.addEventListener("click", options.onBack);
-  container.appendChild(bar);
-
-  const area = document.createElement("div");
-  area.className = "parent-area";
-  area.innerHTML = `
-    <section class="parent-card">
-      <div class="parent-card-head">
-        <h3>☁️ Sauvegarde</h3>
-        <span class="parent-card-status" id="parent-backup-status">${options.backupStatus}</span>
-      </div>
-      <p>Enregistrez les joueurs et leur progression dans votre Google Drive, ou dans un fichier sur cet appareil.</p>
-      <button type="button" class="btn-confirm-launch" id="btn-parent-backup">Ouvrir la sauvegarde</button>
-    </section>
-
-    <section class="parent-card">
-      <div class="parent-card-head">
-        <h3>👥 Joueurs</h3>
-      </div>
-      ${
-        options.profiles.length === 0
-          ? `<p>Aucun joueur pour l'instant.</p>`
-          : `<ul class="parent-players">
-              ${options.profiles
-                .map(
-                  (profile) => `
-                    <li>
-                      <span class="parent-player-avatar">${profile.avatar}</span>
-                      <span class="parent-player-name">${profile.name}</span>
-                      <button type="button" class="btn-cancel" data-delete="${profile.id}">Supprimer</button>
-                    </li>
-                  `
-                )
-                .join("")}
-            </ul>`
-      }
-    </section>
-
-    <section class="parent-card" id="parent-speech-card"></section>
-
-    <section class="parent-card">
-      <div class="parent-card-head">
-        <h3>🔒 Code parent</h3>
-      </div>
-      <p>Le code protège cet espace. Il reste sur cet appareil.</p>
-      <button type="button" class="btn-choice-helper" id="btn-parent-code">Changer le code</button>
-    </section>
-  `;
-
-  bindSpeechCard(area, options.speech);
-  area.querySelector("#btn-parent-backup")?.addEventListener("click", options.onOpenBackup);
-  area.querySelector("#btn-parent-code")?.addEventListener("click", options.onChangeCode);
-  area.querySelectorAll<HTMLElement>("[data-delete]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const profile = options.profiles.find((p) => p.id === button.dataset.delete);
-      if (profile) confirmDeletion(profile, () => options.onDeleteProfile(profile));
-    });
-  });
-
-  container.appendChild(area);
+interface ParentFeatureItem {
+  feature: ParentFeature;
+  icon: string;
+  title: string;
 }
 
-// Carte « Réponse à voix haute » : éteinte, un gros bouton pour l'activer ; allumée, une ligne d'état et l'essentiel.
-// Le reste (façon d'écouter, essai de la reconnaissance) est replié dans « Plus d'options »
-function bindSpeechCard(area: HTMLElement, speech: ParentAreaOptions["speech"]): void {
-  const card = area.querySelector("#parent-speech-card") as HTMLElement;
-  let isOn = speech.isAllowed;
+export function parentFeatures(state: ParentFeatureState): ParentFeatureItem[] {
+  return [
+    { feature: "speech", icon: "🎤", title: state.isSpeechOn ? "Gérer la réponse à voix haute" : "Activer la réponse à voix haute" },
+    { feature: "voices", icon: "🎙️", title: "Enregistrer votre voix" },
+    { feature: "players", icon: "👥", title: "Gérer les joueurs" },
+    { feature: "backup", icon: "☁️", title: state.isBackupOn ? "Gérer la sauvegarde" : "Activer la sauvegarde" },
+    { feature: "code", icon: "🔑", title: state.hasCode ? "Changer le code parent" : "Définir le code parent" }
+  ];
+}
 
-  const head = (pill: string) => `
-    <div class="parent-card-head">
-      <h3>🎤 Réponse à voix haute</h3>
-      ${pill ? `<span class="parent-card-status">${pill}</span>` : ""}
+function featureList(state: ParentFeatureState): string {
+  return parentFeatures(state)
+    .map(
+      (item) => `
+        <button type="button" class="parent-feature-item" data-feature="${item.feature}">
+          <span class="parent-feature-icon" aria-hidden="true">${item.icon}</span>
+          <span class="parent-feature-title">${item.title}</span>
+        </button>
+      `
+    )
+    .join("");
+}
+
+// Carte de l'accueil : l'espace parent et ce qu'on y trouve. Chaque ligne demande le code puis ouvre sa fonction
+export function renderParentEntry(container: HTMLElement, state: ParentFeatureState, onOpen: (feature?: ParentFeature) => void): void {
+  const card = document.createElement("section");
+  card.className = "parent-entry";
+  card.innerHTML = `
+    <button type="button" class="parent-entry-head" data-feature="">
+      <span class="parent-feature-icon" aria-hidden="true">🔒</span>
+      <span class="parent-entry-title">Espace parent</span>
+    </button>
+    <div class="parent-feature-list">${featureList(state)}</div>
+  `;
+  card.querySelectorAll<HTMLElement>("[data-feature]").forEach((button) =>
+    button.addEventListener("click", () => onOpen((button.dataset.feature as ParentFeature) || undefined))
+  );
+  container.appendChild(card);
+}
+
+export interface ParentHubOptions {
+  state(): ParentFeatureState;
+  // Chaque fonction ouvre sa fenêtre et la rend, pour que le hub se mette à jour à sa fermeture
+  open: Record<ParentFeature, () => HTMLElement | null>;
+  onClose(): void;
+}
+
+// Hub : la liste des fonctions, rien d'autre
+export function openParentHub(options: ParentHubOptions, initial?: ParentFeature): void {
+  if (document.querySelector(".parent-hub-modal")) return;
+  const modal = document.createElement("div");
+  modal.className = "session-modal-overlay";
+  modal.innerHTML = `
+    <div class="session-modal-container prompt-choice-modal parent-hub-modal">
+      <div class="prompt-header">
+        <h3>🔒 Espace parent</h3>
+        <button type="button" class="btn-modal-close" data-action="close" aria-label="Fermer">✕</button>
+      </div>
+      <div class="parent-feature-list" id="parent-hub-list"></div>
     </div>
   `;
+  const list = modal.querySelector("#parent-hub-list") as HTMLElement;
+
+  function draw() {
+    list.innerHTML = featureList(options.state());
+    list.querySelectorAll<HTMLElement>("[data-feature]").forEach((button) =>
+      button.addEventListener("click", () => open(button.dataset.feature as ParentFeature))
+    );
+  }
+
+  function open(feature: ParentFeature) {
+    const opened = options.open[feature]();
+    if (opened) onRemoved(opened, draw);
+  }
+
+  modal.querySelector('[data-action="close"]')?.addEventListener("click", () => {
+    modal.remove();
+    options.onClose();
+  });
+  draw();
+  document.body.appendChild(modal);
+  if (initial) open(initial);
+}
+
+// Prévient quand une fenêtre se ferme, quelle que soit la façon dont elle se ferme
+function onRemoved(element: HTMLElement, callback: () => void): void {
+  const observer = new MutationObserver(() => {
+    if (element.isConnected) return;
+    observer.disconnect();
+    callback();
+  });
+  observer.observe(document.body, { childList: true });
+}
+
+// Fenêtre d'une fonction : un titre, une croix, le contenu
+export function openFeatureModal(title: string, className = ""): { modal: HTMLElement; body: HTMLElement } {
+  const modal = document.createElement("div");
+  modal.className = "session-modal-overlay";
+  modal.innerHTML = `
+    <div class="session-modal-container prompt-choice-modal parent-feature-modal ${className}">
+      <div class="prompt-header">
+        <h3>${title}</h3>
+        <button type="button" class="btn-modal-close" data-action="close" aria-label="Fermer">✕</button>
+      </div>
+      <div class="parent-feature-body"></div>
+    </div>
+  `;
+  modal.querySelector('[data-action="close"]')?.addEventListener("click", () => modal.remove());
+  document.body.appendChild(modal);
+  return { modal, body: modal.querySelector(".parent-feature-body") as HTMLElement };
+}
+
+// Joueurs : la liste, et de quoi en supprimer un
+export function openPlayersModal(options: { profiles(): UserProfile[]; onDelete(profile: UserProfile): void }): HTMLElement {
+  const { modal, body } = openFeatureModal("👥 Joueurs");
+
+  function draw() {
+    const profiles = options.profiles();
+    body.innerHTML =
+      profiles.length === 0
+        ? `<p>Aucun joueur pour l'instant.</p>`
+        : `<ul class="parent-players">
+            ${profiles
+              .map(
+                (profile) => `
+                  <li>
+                    <span class="parent-player-avatar">${profile.avatar}</span>
+                    <span class="parent-player-name">${profile.name}</span>
+                    <button type="button" class="btn-cancel" data-delete="${profile.id}">Supprimer</button>
+                  </li>
+                `
+              )
+              .join("")}
+          </ul>`;
+    body.querySelectorAll<HTMLElement>("[data-delete]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const profile = profiles.find((p) => p.id === button.dataset.delete);
+        if (profile)
+          confirmDeletion(profile, () => {
+            options.onDelete(profile);
+            draw();
+          });
+      });
+    });
+  }
+
+  draw();
+  return modal;
+}
+
+export interface SpeechSettings {
+  isAllowed: boolean;
+  onChange(allowed: boolean): void;
+  // Essai, où le parent valide aussi les heuristiques
+  openTest(): void;
+  // Calibrage : son dernier résultat sur cet appareil, et de quoi le refaire
+  calibrationText(): string | null;
+  openCalibration(onDone: () => void): void;
+  // Façon d'écouter sur cet appareil ; le test a-t-il trouvé ce téléphone trop lent pour le repérage automatique ?
+  listenMode: ListenMode;
+  isPhoneSlow(): boolean;
+  onListenMode(mode: ListenMode): void;
+}
+
+// Réponse à voix haute : éteinte, un gros bouton pour l'activer ; allumée, une ligne d'état et l'essentiel.
+// Le reste (façon d'écouter, essai de la reconnaissance) est replié dans « Plus d'options »
+export function openSpeechModal(speech: SpeechSettings): HTMLElement {
+  const { modal, body: card } = openFeatureModal("🎤 Réponse à voix haute");
+  let isOn = speech.isAllowed;
 
   function render() {
     if (!isSpeechSupported()) {
-      card.innerHTML = `${head("")}<p>Ce navigateur ne sait pas faire tourner la reconnaissance vocale : sur cet appareil, les enfants répondent au clavier.</p>`;
+      card.innerHTML = `<p>Ce navigateur ne sait pas faire tourner la reconnaissance vocale : sur cet appareil, les enfants répondent au clavier.</p>`;
       return;
     }
     if (!isOn) {
       card.innerHTML = `
-        ${head("")}
         <p>Les enfants disent la réponse au lieu de la taper. Leur voix reste sur le téléphone.</p>
         <button type="button" class="btn-confirm-launch" data-speech="enable">Activer la réponse à voix haute</button>
       `;
@@ -133,7 +211,6 @@ function bindSpeechCard(area: HTMLElement, speech: ParentAreaOptions["speech"]):
       return;
     }
     card.innerHTML = `
-      ${head("Activée")}
       <p class="parent-speech-state" id="parent-speech-state">Vérification…</p>
       <div class="parent-speech-actions">
         <button type="button" class="btn-choice-helper" data-speech="test">📏 Refaire le test</button>
@@ -194,6 +271,7 @@ function bindSpeechCard(area: HTMLElement, speech: ParentAreaOptions["speech"]):
   }
 
   render();
+  return modal;
 }
 
 // Suppression définitive : une fenêtre dit clairement ce qui va disparaître, et où
