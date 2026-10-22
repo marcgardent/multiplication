@@ -179,3 +179,71 @@ export async function downloadDriveBackup(accessToken: string, fileId: string): 
   const res = await driveFetch(accessToken, url, { method: "GET" }, "Téléchargement de la sauvegarde");
   return (await res.json()) as AppDataBackup;
 }
+
+// Voix enregistrées : un fichier par voix dans le dossier caché de l'application, daté, pour que la plus récente
+// l'emporte entre appareils. Un retrait est un fichier vide marqué « supprimé », daté lui aussi.
+const VOICE_PREFIX = "voix_";
+
+export interface RemoteVoice {
+  id: string;
+  // Chemin de la voix de synthèse remplacée, ex. /audio/q_7_8.mp3
+  file: string;
+  at: number;
+  deleted: boolean;
+}
+
+function voiceFileName(file: string): string {
+  return `${VOICE_PREFIX}${file.replace(/^.*\//, "").replace(/\.[^.]+$/, "")}.wav`;
+}
+
+export async function listDriveVoices(accessToken: string): Promise<RemoteVoice[]> {
+  const query = encodeURIComponent(`name contains '${VOICE_PREFIX}' and trashed = false`);
+  const voices: RemoteVoice[] = [];
+  let pageToken = "";
+  do {
+    const url =
+      `https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=${query}&pageSize=1000` +
+      `&fields=nextPageToken,files(id,appProperties)${pageToken ? `&pageToken=${pageToken}` : ""}`;
+    const res = await driveFetch(accessToken, url, { method: "GET" }, "Recherche des voix");
+    const page = (await res.json()) as { nextPageToken?: string; files?: { id: string; appProperties?: Record<string, string> }[] };
+    (page.files ?? []).forEach((f) => {
+      const props = f.appProperties ?? {};
+      if (props.voice) voices.push({ id: f.id, file: props.voice, at: Number(props.at) || 0, deleted: props.deleted === "1" });
+    });
+    pageToken = page.nextPageToken ?? "";
+  } while (pageToken);
+  return voices;
+}
+
+// Crée ou remplace le fichier d'une voix ; sans son, c'est un retrait daté
+export async function uploadDriveVoice(
+  accessToken: string,
+  voice: { file: string; at: number; wav: Blob | null },
+  existingId: string | null
+): Promise<void> {
+  const appProperties = { voice: voice.file, at: String(voice.at), deleted: voice.wav ? "0" : "1" };
+  const metadata = existingId ? { appProperties } : { name: voiceFileName(voice.file), parents: ["appDataFolder"], appProperties };
+  const boundary = "drive_voice_boundary_multiplication";
+  const body = new Blob([
+    `\r\n--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n`,
+    JSON.stringify(metadata),
+    `\r\n--${boundary}\r\nContent-Type: audio/wav\r\n\r\n`,
+    voice.wav ?? new Blob(),
+    `\r\n--${boundary}--`
+  ]);
+  const url = existingId
+    ? `https://www.googleapis.com/upload/drive/v3/files/${existingId}?uploadType=multipart&fields=id`
+    : "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id";
+  await driveFetch(
+    accessToken,
+    url,
+    { method: existingId ? "PATCH" : "POST", headers: { "Content-Type": `multipart/related; boundary=${boundary}` }, body },
+    "Envoi d'une voix"
+  );
+}
+
+export async function downloadDriveVoice(accessToken: string, fileId: string): Promise<Blob> {
+  const url = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
+  const res = await driveFetch(accessToken, url, { method: "GET" }, "Téléchargement d'une voix");
+  return new Blob([await res.arrayBuffer()], { type: "audio/wav" });
+}
