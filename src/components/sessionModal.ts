@@ -1,7 +1,10 @@
 import { RepetitionEngine } from "../core/repetitionEngine";
 import { AudioService } from "../services/audioService";
 import { SessionTimer, createSessionTimer } from "../components/timer";
-import { KeypadComponent, answerTimeMs, createKeypad } from "../components/keypad";
+import { KeypadComponent, answerTimeMs, spokenAnswerTimeMs } from "../components/keypad";
+import { AnswerPreferencesStore } from "../services/answerPreferences";
+import { createAnswerInput } from "./answerInput";
+import { answerTogglesHtml, bindAnswerToggles } from "./answerToggles";
 import { SessionConfig, MultiplicationItem } from "../types";
 import { runCelebration } from "./celebration";
 
@@ -14,6 +17,7 @@ export interface SessionResult {
 export function startSessionModal(
   engine: RepetitionEngine,
   audioService: AudioService,
+  preferences: AnswerPreferencesStore,
   config: SessionConfig,
   onFinish: (result: SessionResult) => void,
   onCancel: (actualPracticeTimeMs: number) => void
@@ -39,6 +43,7 @@ export function startSessionModal(
   let isDiscoveryAudioActive = false;
   let hasDiscoveryWorkshopTimerEnded = false;
   let isCheckingAnswer = false;
+  let unbindToggles: (() => void) | null = null;
 
   const modalEl = document.createElement("div");
   modalEl.className = "session-modal-overlay";
@@ -49,6 +54,7 @@ export function startSessionModal(
         <div class="session-modal-header">
           <div class="timer-display" id="modal-timer">--:--</div>
           <div class="header-controls-group">
+            ${answerTogglesHtml()}
             <button type="button" class="btn-session-pause ${isPaused ? "is-paused" : ""}" id="btn-pause-session" aria-label="Pause ou Reprendre">
               ${isPaused ? "▶️" : "⏸️"}
             </button>
@@ -94,6 +100,9 @@ export function startSessionModal(
         <div class="keypad-mount-point giant-keypad-mount giant-keypad-zone" id="modal-keypad-mount"></div>
       </div>
     `;
+
+    unbindToggles?.();
+    unbindToggles = bindAnswerToggles(modalEl, preferences);
 
     // Attacher les écouteurs de Pause et Quitter
     modalEl.querySelector("#btn-pause-session")?.addEventListener("click", () => {
@@ -150,6 +159,8 @@ export function startSessionModal(
     timer = null;
     keypad?.destroy();
     keypad = null;
+    unbindToggles?.();
+    unbindToggles = null;
     audioService.stop();
     modalEl.remove();
   }
@@ -350,6 +361,9 @@ export function startSessionModal(
   function startWorkshop(idx: number) {
     if (!isRunning) return;
     currentWorkshopIndex = idx;
+    // Le clavier et le micro de l'atelier précédent ne répondent plus
+    keypad?.destroy();
+    keypad = null;
     renderModalLayout();
 
     hasDiscoveryWorkshopTimerEnded = false;
@@ -402,7 +416,7 @@ export function startSessionModal(
 
     if (nextIdx === 1) {
       stepTitle = "Bravo ! Découverte terminée !";
-      stepDescription = "Place au Quiz ! Écoute le calcul et tape la bonne réponse au clavier !";
+      stepDescription = "Place au Quiz ! Écoute le calcul et donne la bonne réponse !";
       iconEmoji = "🎯";
     } else {
       stepTitle = "Génial ! Quiz réussi !";
@@ -508,8 +522,11 @@ export function startSessionModal(
     if (actionsEl) actionsEl.style.display = "flex";
 
     const keypadMount = modalEl.querySelector("#modal-keypad-mount") as HTMLElement;
-    keypad = createKeypad({
-      onSubmit: (value) => checkPracticeAnswer(value),
+    keypad = createAnswerInput({
+      audio: audioService,
+      preferences,
+      onDontKnow: revealPracticeAnswer,
+      onSubmit: (value, spokenAt) => checkPracticeAnswer(value, spokenAt),
       onInput: (_d, fullVal) => {
         if (isPaused) return;
         currentInput = fullVal;
@@ -553,7 +570,7 @@ export function startSessionModal(
       answerEl.textContent = "_";
       answerEl.className = "stage-answer giant-answer user-answer";
     }
-    if (cueEl) cueEl.textContent = "Prends ton temps pour taper la réponse...";
+    if (cueEl) cueEl.textContent = "Prends ton temps pour répondre...";
     if (cardEl) cardEl.className = "stage-card giant-card";
     fitOperation(cardEl);
 
@@ -561,10 +578,11 @@ export function startSessionModal(
     audioService.playQuestion(currentItem.a, currentItem.b);
   }
 
-  async function checkPracticeAnswer(valStr: string) {
+  async function checkPracticeAnswer(valStr: string, spokenAt?: number) {
     if (!currentItem || isPaused) return;
     const val = parseInt(valStr, 10);
-    const timeMs = questionStartTime > 0 ? answerTimeMs(questionStartTime) : 0;
+    const timeMs =
+      questionStartTime <= 0 ? 0 : spokenAt !== undefined ? spokenAnswerTimeMs(questionStartTime, spokenAt) : answerTimeMs(questionStartTime);
     const cardEl = modalEl.querySelector("#modal-card");
     const cueEl = modalEl.querySelector("#modal-cue");
     const inputEl = modalEl.querySelector("#modal-answer");
@@ -653,8 +671,11 @@ export function startSessionModal(
     modalEl.querySelector("#btn-modal-dontknow")?.addEventListener("click", handleTimeAttackDontKnow);
 
     const keypadMount = modalEl.querySelector("#modal-keypad-mount") as HTMLElement;
-    keypad = createKeypad({
-      onSubmit: (value) => checkTimeAttackAnswer(value),
+    keypad = createAnswerInput({
+      audio: audioService,
+      preferences,
+      onDontKnow: handleTimeAttackDontKnow,
+      onSubmit: (value, spokenAt) => checkTimeAttackAnswer(value, spokenAt),
       onInput: (_d, fullVal) => {
         if (isPaused) return;
         currentInput = fullVal;
@@ -700,10 +721,10 @@ export function startSessionModal(
     audioService.playQuestion(currentItem.a, currentItem.b);
   }
 
-  async function checkTimeAttackAnswer(valStr: string) {
+  async function checkTimeAttackAnswer(valStr: string, spokenAt?: number) {
     if (!currentItem || isPaused || isCheckingAnswer) return;
     isCheckingAnswer = true;
-    const timeMs = answerTimeMs(questionStartTime);
+    const timeMs = spokenAt !== undefined ? spokenAnswerTimeMs(questionStartTime, spokenAt) : answerTimeMs(questionStartTime);
     const val = parseInt(valStr, 10);
     const item = currentItem;
     const isCorrect = val === item.result;

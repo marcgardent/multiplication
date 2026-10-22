@@ -35,7 +35,10 @@ export interface AudioService {
   playCoinSound(): void;
   stop(): void;
   isMuted(): boolean;
-  toggleMute(): boolean;
+  setMuted(muted: boolean): void;
+  // Vrai pendant qu'une voix est lue : la réponse à la voix attend la fin de la question
+  isSpeaking(): boolean;
+  onSpeakingChange(listener: (isSpeaking: boolean) => void): () => void;
 }
 
 export function createAudioService(): AudioService {
@@ -85,6 +88,14 @@ export function createAudioService(): AudioService {
   }
 
   let currentResolve: (() => void) | null = null;
+  let isSpeakingState = false;
+  const speakingListeners = new Set<(isSpeaking: boolean) => void>();
+
+  function setSpeaking(isSpeaking: boolean) {
+    if (isSpeaking === isSpeakingState) return;
+    isSpeakingState = isSpeaking;
+    speakingListeners.forEach((listener) => listener(isSpeaking));
+  }
 
   function playAudioFile(url: string): Promise<void> {
     if (isMutedState) return Promise.resolve();
@@ -112,12 +123,15 @@ export function createAudioService(): AudioService {
 
         currentAudio = audio;
         currentResolve = resolve;
+        setSpeaking(true);
 
         const cleanup = () => {
           audio?.removeEventListener("ended", onEnded);
           audio?.removeEventListener("error", onError);
+          audio?.removeEventListener("pause", onPause);
           if (currentResolve === resolve) {
             currentResolve = null;
+            setSpeaking(false);
           }
         };
 
@@ -132,8 +146,17 @@ export function createAudioService(): AudioService {
           resolve();
         };
 
+        // Le téléphone peut couper le son de lui-même, par exemple quand le micro de la reconnaissance vocale s'ouvre :
+        // « ended » ne viendrait jamais, et la réponse à voix haute attendrait la fin de la question pour toujours
+        const onPause = () => {
+          if (!audio?.paused || audio.ended) return;
+          cleanup();
+          resolve();
+        };
+
         audio.addEventListener("ended", onEnded);
         audio.addEventListener("error", onError);
+        audio.addEventListener("pause", onPause);
 
         audio.play().catch((err) => {
           console.warn(`Lecture audio bloquée ou échouée: ${resolvedUrl}`, err);
@@ -144,6 +167,7 @@ export function createAudioService(): AudioService {
         console.warn("Exception playAudioFile", err);
         if (currentResolve === resolve) {
           currentResolve = null;
+          setSpeaking(false);
         }
         resolve();
       }
@@ -238,18 +262,25 @@ export function createAudioService(): AudioService {
         currentResolve = null;
         res();
       }
+      setSpeaking(false);
     },
 
     isMuted(): boolean {
       return isMutedState;
     },
 
-    toggleMute(): boolean {
-      isMutedState = !isMutedState;
+    setMuted(muted: boolean): void {
+      isMutedState = muted;
       if (isMutedState) {
         this.stop();
       }
-      return isMutedState;
+    },
+
+    isSpeaking: () => isSpeakingState,
+
+    onSpeakingChange(listener) {
+      speakingListeners.add(listener);
+      return () => speakingListeners.delete(listener);
     }
   };
 }

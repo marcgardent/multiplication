@@ -1,6 +1,9 @@
 import { MatrixStore } from "../core/matrixStore";
 import { AudioService } from "../services/audioService";
-import { KeypadComponent, answerTimeMs, createKeypad } from "../components/keypad";
+import { KeypadComponent, answerTimeMs, spokenAnswerTimeMs } from "../components/keypad";
+import { AnswerPreferencesStore } from "../services/answerPreferences";
+import { createAnswerInput } from "./answerInput";
+import { answerTogglesHtml, bindAnswerToggles } from "./answerToggles";
 import { MultiplicationItem } from "../types";
 
 export interface EvaluationResult {
@@ -16,6 +19,7 @@ export function startEvaluationModal(
   selectedTables: number[],
   matrixStore: MatrixStore,
   audioService: AudioService,
+  preferences: AnswerPreferencesStore,
   onComplete: (result: EvaluationResult) => void,
   onCancel: (actualPracticeTimeMs: number) => void
 ): void {
@@ -55,6 +59,7 @@ export function startEvaluationModal(
         </div>
         <div class="header-controls-group">
           <div class="step-indicator" id="eval-progress-text">${currentIndex + 1}/${pool.length}</div>
+          ${answerTogglesHtml()}
           <button type="button" class="btn-session-pause" id="btn-pause-eval" aria-label="Pause ou Reprendre">⏸️</button>
           <button type="button" class="btn-modal-close" id="btn-cancel-eval" aria-label="Fermer">✕</button>
         </div>
@@ -71,7 +76,7 @@ export function startEvaluationModal(
           <span class="stage-equals giant-equals">=</span>
           <span class="stage-answer giant-answer user-answer" id="eval-input">_</span>
         </div>
-        <div class="feedback-cue" id="eval-cue">Calcule et tape le résultat</div>
+        <div class="feedback-cue" id="eval-cue">Calcule et donne le résultat</div>
       </div>
 
       <div class="action-bar-secondary">
@@ -84,6 +89,7 @@ export function startEvaluationModal(
   `;
 
   document.body.appendChild(modalEl);
+  const unbindToggles = bindAnswerToggles(modalEl, preferences);
 
   const evalStartTime = performance.now();
 
@@ -124,6 +130,7 @@ export function startEvaluationModal(
     isCheckingAnswer = false;
     keypad?.destroy();
     keypad = null;
+    unbindToggles();
     audioService.stop();
     modalEl.remove();
   }
@@ -296,8 +303,11 @@ export function startEvaluationModal(
   });
 
   const keypadMount = modalEl.querySelector("#eval-keypad") as HTMLElement;
-  keypad = createKeypad({
-    onSubmit: (value) => checkCurrentAnswer(value),
+  keypad = createAnswerInput({
+    audio: audioService,
+    preferences,
+    onDontKnow: () => handleDontKnow(),
+    onSubmit: (value, spokenAt) => checkCurrentAnswer(value, spokenAt),
     onInput: (_digit, fullVal) => {
       if (isPaused || !isRunning) return;
       currentInput = fullVal;
@@ -351,7 +361,7 @@ export function startEvaluationModal(
       inputEl.textContent = "_";
       inputEl.className = "stage-answer giant-answer user-answer";
     }
-    if (cueEl) cueEl.textContent = "Calcule et tape le résultat";
+    if (cueEl) cueEl.textContent = "Calcule et donne le résultat";
     if (cardEl) cardEl.className = "stage-card giant-card";
     fitOperation(cardEl);
     if (progressText) progressText.textContent = `${currentIndex + 1}/${pool.length}`;
@@ -395,12 +405,12 @@ export function startEvaluationModal(
       showQuestion();
     }
   }
-  async function checkCurrentAnswer(valStr: string) {
+  async function checkCurrentAnswer(valStr: string, spokenAt?: number) {
     if (!isRunning || isPaused || isCheckingAnswer) return;
     isCheckingAnswer = true;
     const item = pool[currentIndex];
     const val = parseInt(valStr, 10);
-    const timeMs = answerTimeMs(questionStartTime);
+    const timeMs = spokenAt !== undefined ? spokenAnswerTimeMs(questionStartTime, spokenAt) : answerTimeMs(questionStartTime);
     times.push(timeMs);
 
     const isCorrect = val === item.result;

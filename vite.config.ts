@@ -68,8 +68,17 @@ export default defineConfig({
         navigateFallback: null,
         globPatterns: ["**/*.{js,css,html,svg,png,ico,mp3,json,woff2,webp}"],
         // Les snapshots de test se chargent à la demande : inutile de les mettre en cache hors-ligne
-        globIgnores: ["**/snapshots/**", "google*.html"],
-        maximumFileSizeToCacheInBytes: 15 * 1024 * 1024
+        // Le moteur de reconnaissance vocale (5,8 Mo) ne sert qu'à qui répond à voix haute : gardé au premier usage, pas à l'installation.
+        // Son modèle (42 Mo) n'est pas mis en cache ici : Vosk le garde lui-même, décompressé, dans IndexedDB
+        globIgnores: ["**/snapshots/**", "google*.html", "**/assets/vosk-*.js", "models/**"],
+        maximumFileSizeToCacheInBytes: 15 * 1024 * 1024,
+        runtimeCaching: [
+          {
+            urlPattern: /\/assets\/vosk-[^/]+\.js$/,
+            handler: "CacheFirst",
+            options: { cacheName: "reconnaissance-vocale", expiration: { maxEntries: 2 } }
+          }
+        ]
       }
     })
   ]
