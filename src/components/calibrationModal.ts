@@ -1,231 +1,274 @@
-import { AnswerPreferencesStore, SpeechCalibration } from "../services/answerPreferences";
-import { CALIBRATION_TARGETS, calibrationVerdict, measureSpeed, medianOf, speechFloor } from "../voices/speechCalibration";
+import { AnswerPreferencesStore, CalibrationVerdict, SpeechCalibration } from "../services/answerPreferences";
+import {
+  CALIBRATION_TARGETS,
+  calibrationLevel,
+  calibrationVerdict,
+  LEVEL_COUNT,
+  measureSpeed,
+  medianOf,
+  speechFloor
+} from "../voices/speechCalibration";
 import { createSpeechListener, HeardSpeech } from "../voices/speechListener";
-import { MODEL_SIZE_MB } from "../voices/voiceModel";
+import { downloadVoiceModel, isVoiceModelDownloaded } from "../voices/voiceModel";
 
-// Temps de silence mesuré, et temps laissé pour dire chaque nombre
+// « Test du téléphone » : pensé pour n'importe quel adulte, sans chiffres ni jargon.
+// 1. performance, tout seul ; 2. silence ; 3. trois nombres, en appuyant longtemps dessus ; puis un bilan en une jauge
+
 const SILENCE_MS = 3000;
-const TARGET_TIMEOUT_MS = 12000;
+const THINKING_MAX_MS = 20000;
+const MIN_HOLD_MS = 250;
 
-type StepState = "todo" | "running" | "done" | "failed";
+const LABELS: Record<CalibrationVerdict, string> = {
+  fast: "Conseillé",
+  slow: "Praticable",
+  unusable: "Non conseillé"
+};
 
-const STEP_ICONS: Record<StepState, string> = { todo: "○", running: "⏳", done: "✓", failed: "✗" };
+const SENTENCES: Record<CalibrationVerdict, string> = {
+  fast: "La réponse à voix haute marche bien sur ce téléphone.",
+  slow: "Elle marche, avec un petit temps d'attente après chaque réponse.",
+  unusable: "Elle marche mal sur ce téléphone : mieux vaut le clavier."
+};
 
-const seconds = (ms: number) => `${(ms / 1000).toFixed(1).replace(".", ",")} s`;
+const BADGES: Record<CalibrationVerdict, string> = {
+  fast: "✅ Conseillé sur ce téléphone.",
+  slow: "🟡 Praticable sur ce téléphone : un peu d'attente après chaque réponse.",
+  unusable: "❌ Non conseillé sur ce téléphone : mieux vaut le clavier."
+};
 
-// Phrase du verdict, aussi affichée dans l'espace parent
+// Résultat du dernier test, en une ligne, pour l'espace parent
 export function calibrationSummary(calibration: SpeechCalibration): string {
-  const wait = calibration.latencyMs === null ? "" : seconds(calibration.latencyMs);
-  if (calibration.verdict === "fast") return `✅ Rapide : réponse comprise ${wait} après le dernier mot.`;
-  if (calibration.verdict === "slow") return `🟡 Lent mais utilisable : environ ${wait} d'attente après chaque réponse.`;
-  return calibration.correct < 2
-    ? "❌ La voix n'est pas assez bien comprise sur ce téléphone : mieux vaut le clavier."
-    : `❌ Trop lent : ${wait} d'attente après chaque réponse. Sur ce téléphone, mieux vaut le clavier.`;
+  return BADGES[calibration.verdict];
 }
 
-// Espace parent : mesure si la réponse à voix haute est utilisable sur ce téléphone, et règle le seuil de la parole
+interface Attempt {
+  isRight: boolean;
+  latencyMs: number | null;
+}
+
 export function openCalibrationModal(options: { preferences: AnswerPreferencesStore; onDone(): void }): void {
   const modal = document.createElement("div");
   modal.className = "session-modal-overlay";
-  modal.innerHTML = `
-    <div class="session-modal-container prompt-choice-modal calibration-modal">
-      <div class="prompt-header">
-        <h3>📏 Calibrage de ce téléphone</h3>
-        <button type="button" class="btn-modal-close" id="btn-calibration-close" aria-label="Fermer">✕</button>
-      </div>
-      <p class="calibration-help">Trois étapes, une minute environ. Le résultat est retenu pour ce téléphone.</p>
+  const box = document.createElement("div");
+  box.className = "session-modal-container prompt-choice-modal calibration-modal";
+  modal.appendChild(box);
 
-      <ol class="calibration-steps">
-        <li data-step="speed"><span class="calibration-step-icon"></span><span><strong>Vitesse</strong><small id="calibration-speed">Le téléphone reconnaît 10 secondes de voix enregistrée. Rien à dire.</small></span></li>
-        <li data-step="silence"><span class="calibration-step-icon"></span><span><strong>Silence</strong><small id="calibration-silence">Trois secondes sans parler, pour écouter le bruit de la pièce.</small></span></li>
-        <li data-step="voice"><span class="calibration-step-icon"></span><span><strong>Voix</strong><small id="calibration-voice">Dire trois nombres, normalement, à la distance habituelle.</small></span></li>
-      </ol>
+  let realTimeFactor = 0;
+  let noise = 0;
+  let voice: number | null = null;
+  const attempts = new Map<number, Attempt>();
 
-      <div class="calibration-prompt" id="calibration-prompt" hidden>
-        <span class="calibration-prompt-label" id="calibration-prompt-label"></span>
-        <span class="calibration-prompt-text" id="calibration-prompt-text"></span>
-        <div class="speech-test-level" aria-hidden="true"><span id="calibration-level"></span></div>
-      </div>
-
-      <p class="calibration-verdict" id="calibration-verdict" hidden></p>
-
-      <button type="button" class="btn-confirm-launch" id="btn-calibration-start">Commencer</button>
-    </div>
-  `;
-
-  const promptEl = modal.querySelector("#calibration-prompt") as HTMLElement;
-  const promptLabelEl = modal.querySelector("#calibration-prompt-label") as HTMLElement;
-  const promptTextEl = modal.querySelector("#calibration-prompt-text") as HTMLElement;
-  const levelEl = modal.querySelector("#calibration-level") as HTMLElement;
-  const verdictEl = modal.querySelector("#calibration-verdict") as HTMLElement;
-  const startBtn = modal.querySelector("#btn-calibration-start") as HTMLButtonElement;
-  const detail = (id: string) => modal.querySelector(`#calibration-${id}`) as HTMLElement;
-
-  function setStep(step: "speed" | "silence" | "voice", state: StepState, text?: string) {
-    const item = modal.querySelector(`[data-step="${step}"]`) as HTMLElement;
-    item.dataset.state = state;
-    (item.querySelector(".calibration-step-icon") as HTMLElement).textContent = STEP_ICONS[state];
-    if (text) detail(step).textContent = text;
-  }
-  (["speed", "silence", "voice"] as const).forEach((step) => setStep(step, "todo"));
-
-  // Écoute partagée par les étapes Silence et Voix : volumes bruts, phrases, nombres compris
-  let levels: number[] = [];
+  let onLevel: ((level: number, rms: number) => void) | null = null;
+  let onFinal: ((heard: HeardSpeech) => void) | null = null;
+  let isSpeaking = false;
   let speechPeak = 0;
-  let isInSpeech = false;
-  let onFinal: ((heard: HeardSpeech, at: number) => void) | null = null;
-  let isClosed = false;
   const listener = createSpeechListener({
+    mode: () => "hold",
     onHeard(heard) {
-      if (heard.isFinal) onFinal?.(heard, performance.now());
+      if (heard.isFinal) onFinal?.(heard);
     },
     onProblem() {
-      fail("Le micro ou la reconnaissance ne marche pas sur ce téléphone.");
+      showVerdict(null);
     },
     onLevel(level, rms) {
-      levelEl.style.width = `${Math.round(level * 100)}%`;
-      levels.push(rms);
-      if (isInSpeech) speechPeak = Math.max(speechPeak, rms);
+      if (isSpeaking) speechPeak = Math.max(speechPeak, rms);
+      onLevel?.(level, rms);
     },
     onSpeech(event) {
-      isInSpeech = event === "start";
+      isSpeaking = event === "start";
     }
   });
 
-  function fail(text: string) {
-    verdictEl.hidden = false;
-    verdictEl.textContent = `❌ ${text}`;
-    startBtn.disabled = false;
-    startBtn.textContent = "Recommencer";
+  function close() {
     listener.release();
+    modal.remove();
   }
 
-  const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+  function screen(title: string, body: string, actions = "") {
+    box.innerHTML = `
+      <div class="prompt-header">
+        <h3>${title}</h3>
+        <button type="button" class="btn-modal-close" data-action="close" aria-label="Fermer">✕</button>
+      </div>
+      ${body}
+      <div class="calibration-actions">${actions}</div>
+    `;
+    box.querySelector('[data-action="close"]')?.addEventListener("click", close);
+  }
+  const on = (action: string, handler: () => void) => box.querySelector(`[data-action="${action}"]`)?.addEventListener("click", handler);
 
-  // Attend le prochain nombre compris, ou rien après le délai
-  function nextFinal(): Promise<{ heard: HeardSpeech; at: number } | null> {
-    return new Promise((resolve) => {
-      const timer = setTimeout(() => {
-        onFinal = null;
-        resolve(null);
-      }, TARGET_TIMEOUT_MS);
-      onFinal = (heard, at) => {
-        if (!heard.transcript) return;
-        clearTimeout(timer);
-        onFinal = null;
-        resolve({ heard, at });
-      };
+  const loader = (text: string) =>
+    screen("Test du téléphone", `<div class="calibration-loader" role="status"><span class="calibration-spinner" aria-hidden="true"></span><span>${text}</span></div>`);
+
+  // 1. Performance : tout seul, rien à faire. La première fois, la reconnaissance s'installe d'abord
+  async function runSpeed() {
+    try {
+      if (!(await isVoiceModelDownloaded())) {
+        loader("Installation");
+        await downloadVoiceModel();
+        if (!modal.isConnected) return;
+      }
+      loader("Test de performance");
+      const speed = await measureSpeed();
+      if (!modal.isConnected) return;
+      if (speed.realTimeFactor === null) {
+        showVerdict(null);
+        return;
+      }
+      realTimeFactor = speed.realTimeFactor;
+      listener.start();
+      showSilence();
+    } catch (err) {
+      console.warn("Test du téléphone : performance", err);
+      showVerdict(null);
+    }
+  }
+
+  // 2. Silence : le bruit de la pièce
+  function showSilence() {
+    screen(
+      "Silence",
+      `<div class="calibration-big" aria-hidden="true">🤫</div>
+       <div class="calibration-progress" aria-hidden="true"><span id="progress"></span></div>`,
+      `<button type="button" class="btn-confirm-launch" data-action="start">C'est parti</button>`
+    );
+    on("start", async () => {
+      const button = box.querySelector('[data-action="start"]') as HTMLButtonElement;
+      button.hidden = true;
+      const progress = box.querySelector("#progress") as HTMLElement;
+      // La barre se remplit pendant les trois secondes d'écoute
+      progress.style.transitionDuration = `${SILENCE_MS}ms`;
+      requestAnimationFrame(() => (progress.style.width = "100%"));
+      const levels: number[] = [];
+      onLevel = (_level, rms) => levels.push(rms);
+      await new Promise((resolve) => setTimeout(resolve, SILENCE_MS));
+      onLevel = null;
+      if (!modal.isConnected) return;
+      if (levels.length === 0) {
+        showVerdict(null);
+        return;
+      }
+      noise = medianOf(levels);
+      showNumber(0);
     });
   }
 
-  async function run() {
-    startBtn.disabled = true;
-    startBtn.textContent = "Calibrage en cours…";
-    verdictEl.hidden = true;
-    (["speed", "silence", "voice"] as const).forEach((step) => setStep(step, "todo"));
-
-    // 1. Vitesse : sans micro, sur les voix de l'application
-    setStep("speed", "running", `Préparation du modèle vocal (${MODEL_SIZE_MB} Mo la première fois), puis mesure…`);
-    let speed;
-    try {
-      speed = await measureSpeed();
-    } catch (err) {
-      console.warn("Calibrage : vitesse", err);
-      setStep("speed", "failed", "La reconnaissance n'a pas pu se charger.");
-      fail("Le modèle vocal n'a pas pu se charger : il faut internet la première fois.");
-      return;
-    }
-    if (isClosed) return;
-    const rtf = speed.realTimeFactor;
-    setStep(
-      "speed",
-      rtf === null ? "failed" : "done",
-      rtf === null
-        ? "Aucun résultat : ce téléphone n'arrive pas à faire tourner la reconnaissance."
-        : `${seconds(rtf * 1000)} de calcul pour 1 seconde de parole.${speed.loadMs > 1500 ? ` Chargement : ${seconds(speed.loadMs)}.` : ""}`
+  // 3. Trois nombres : on appuie longtemps sur le nombre et on le dit. Il devient 🎤, puis ⏳, puis vert ou rouge
+  function showNumber(index: number) {
+    const target = CALIBRATION_TARGETS[index];
+    const dots = CALIBRATION_TARGETS.map((_, i) => `<span class="${i <= index ? "is-on" : ""}"></span>`).join("");
+    screen(
+      "Appuie longtemps sur le nombre et dis-le",
+      `<div class="calibration-dots" aria-hidden="true">${dots}</div>
+       <button type="button" class="calibration-number" id="number" aria-label="Maintenir et dire ${target}">${target}</button>`,
+      `<button type="button" class="btn-confirm-launch" data-action="next" hidden>${index + 1 < CALIBRATION_TARGETS.length ? "Suivant" : "Voir le résultat"}</button>`
     );
-    if (rtf === null) {
-      fail("Ce téléphone n'arrive pas à faire tourner la reconnaissance.");
-      return;
-    }
+    const tile = box.querySelector("#number") as HTMLButtonElement;
+    const next = box.querySelector('[data-action="next"]') as HTMLButtonElement;
+    let pressedAt = 0;
+    let releasedAt = 0;
+    let timer: ReturnType<typeof setTimeout> | null = null;
 
-    // 2. Silence : le bruit de la pièce
-    setStep("silence", "running", "Ne parlez pas…");
-    promptEl.hidden = false;
-    promptLabelEl.textContent = "Silence";
-    promptTextEl.textContent = "🤫";
-    levels = [];
-    listener.start();
-    await wait(SILENCE_MS);
-    if (isClosed) return;
-    const noise = medianOf(levels);
-    setStep("silence", "done", levels.length === 0 ? "Le micro n'a rien envoyé." : "Bruit de la pièce mesuré.");
-    if (levels.length === 0) {
-      fail("Le micro n'envoie rien : vérifiez qu'il est autorisé pour l'application.");
-      return;
-    }
+    const show = (state: "idle" | "listening" | "thinking" | "right" | "wrong") => {
+      tile.dataset.state = state;
+      tile.textContent = state === "listening" ? "🎤" : state === "thinking" ? "⏳" : String(target);
+    };
+    const record = (attempt: Attempt) => {
+      if (timer) clearTimeout(timer);
+      timer = null;
+      onFinal = null;
+      attempts.set(target, attempt);
+      show(attempt.isRight ? "right" : "wrong");
+      next.hidden = false;
+    };
 
-    // 3. Voix : trois nombres
-    setStep("voice", "running", "Dites le nombre affiché.");
-    const latencies: number[] = [];
-    let correct = 0;
-    let voice: number | null = null;
-    for (const [index, target] of CALIBRATION_TARGETS.entries()) {
-      promptLabelEl.textContent = `Dites (${index + 1}/${CALIBRATION_TARGETS.length})`;
-      promptTextEl.textContent = String(target);
-      speechPeak = 0;
-      const result = await nextFinal();
-      if (isClosed) return;
-      if (speechPeak > 0) voice = Math.max(voice ?? 0, speechPeak);
-      if (!result) {
-        detail("voice").textContent = `${target} : rien de compris.`;
-        continue;
+    tile.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      if (tile.dataset.state === "thinking") return;
+      try {
+        tile.setPointerCapture(e.pointerId);
+      } catch {
+        // Pointeur déjà relâché : l'appui s'arrêtera sur pointerup
       }
-      const isRight = result.heard.guess?.kind === "number" && result.heard.guess.value === target;
-      if (isRight) correct++;
-      if (result.heard.spokenAt !== undefined) latencies.push(result.at - result.heard.spokenAt);
-      detail("voice").textContent = `${target} : ${isRight ? "✓" : "✗"} « ${result.heard.transcript} »`;
-      await wait(600);
-    }
-    listener.release();
-    promptEl.hidden = true;
-    setStep("voice", correct > 0 ? "done" : "failed", `${correct} nombre${correct > 1 ? "s" : ""} sur ${CALIBRATION_TARGETS.length} compris.`);
+      pressedAt = performance.now();
+      speechPeak = 0;
+      show("listening");
+      navigator.vibrate?.(20);
+      listener.holdStart();
+    });
+    const release = () => {
+      if (pressedAt === 0) return;
+      const heldMs = performance.now() - pressedAt;
+      pressedAt = 0;
+      releasedAt = performance.now();
+      listener.holdEnd();
+      // Un appui trop bref : le nombre revient, on peut réessayer
+      if (heldMs < MIN_HOLD_MS) {
+        show(attempts.has(target) ? (attempts.get(target)?.isRight ? "right" : "wrong") : "idle");
+        return;
+      }
+      if (speechPeak > 0) voice = Math.max(voice ?? 0, speechPeak);
+      show("thinking");
+      onFinal = (heard) => {
+        const isRight = heard.guess?.kind === "number" && heard.guess.value === target;
+        record({ isRight, latencyMs: Math.round(performance.now() - releasedAt) });
+      };
+      timer = setTimeout(() => record({ isRight: false, latencyMs: null }), THINKING_MAX_MS);
+    };
+    tile.addEventListener("pointerup", release);
+    tile.addEventListener("pointercancel", release);
+    tile.addEventListener("contextmenu", (e) => e.preventDefault());
+    show("idle");
 
-    // Verdict, retenu pour ce téléphone ; le seuil de la parole s'applique dès la prochaine séance
+    on("next", () => (index + 1 < CALIBRATION_TARGETS.length ? showNumber(index + 1) : showVerdict(finish())));
+  }
+
+  // Le résultat, retenu pour ce téléphone
+  function finish(): SpeechCalibration {
+    const all = [...attempts.values()];
+    const correct = all.filter((a) => a.isRight).length;
+    const latencies = all.filter((a) => a.latencyMs !== null).map((a) => a.latencyMs as number);
     const latencyMs = latencies.length > 0 ? Math.round(medianOf(latencies)) : null;
+    const total = CALIBRATION_TARGETS.length;
     const calibration: SpeechCalibration = {
       at: Date.now(),
-      realTimeFactor: rtf,
+      realTimeFactor,
       latencyMs,
       noise,
       voice,
       floor: speechFloor(noise, voice),
       correct,
-      total: CALIBRATION_TARGETS.length,
-      verdict: calibrationVerdict({ latencyMs, correct, total: CALIBRATION_TARGETS.length })
+      total,
+      verdict: calibrationVerdict({ latencyMs, correct, total })
     };
     options.preferences.setSpeechCalibration(calibration);
-    const isQuiet = voice !== null && voice < noise * 3;
-    verdictEl.hidden = false;
-    verdictEl.textContent = `${calibrationSummary(calibration)}${isQuiet ? " La voix est faible par rapport au bruit de la pièce : parlez plus près du téléphone." : ""}`;
-    verdictEl.dataset.verdict = calibration.verdict;
-    startBtn.disabled = false;
-    startBtn.textContent = "Recommencer";
     options.onDone();
+    return calibration;
   }
 
-  startBtn.addEventListener("click", () => {
-    run().catch((err) => {
-      console.warn("Calibrage", err);
-      fail("Le calibrage s'est interrompu.");
-    });
-  });
-  modal.querySelector("#btn-calibration-close")?.addEventListener("click", () => {
-    isClosed = true;
-    onFinal = null;
+  // Bilan : une jauge, un mot, une phrase. Sans résultat (micro refusé, téléphone qui n'y arrive pas) : non conseillé
+  function showVerdict(calibration: SpeechCalibration | null) {
     listener.release();
-    modal.remove();
-  });
+    onLevel = null;
+    onFinal = null;
+    const verdict: CalibrationVerdict = calibration?.verdict ?? "unusable";
+    const level = calibration ? calibrationLevel(calibration) : 1;
+    const segments = Array.from({ length: LEVEL_COUNT }, (_, i) => `<span class="${i < level ? "is-on" : ""}"></span>`).join("");
+    screen(
+      "Résultat",
+      `<div class="calibration-gauge" data-verdict="${verdict}" role="img" aria-label="${LABELS[verdict]}, niveau ${level} sur ${LEVEL_COUNT}">${segments}</div>
+       <p class="calibration-label" data-verdict="${verdict}">${LABELS[verdict]}</p>
+       <p class="calibration-sentence">${calibration ? SENTENCES[verdict] : "Le micro ou la reconnaissance ne marche pas sur ce téléphone."}</p>`,
+      `<button type="button" class="btn-choice-helper" data-action="again">Refaire le test</button><button type="button" class="btn-confirm-launch" data-action="done">Terminer</button>`
+    );
+    on("again", () => {
+      attempts.clear();
+      voice = null;
+      runSpeed();
+    });
+    on("done", close);
+  }
 
   document.body.appendChild(modal);
+  runSpeed();
 }

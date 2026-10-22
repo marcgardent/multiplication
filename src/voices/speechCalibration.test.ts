@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calibrationVerdict, FAST_MS, SLOW_MS, speechFloor } from "./speechCalibration";
+import { calibrationLevel, calibrationVerdict, FAST_MS, SLOW_MS, speechFloor } from "./speechCalibration";
 import { DEFAULT_FLOOR } from "./speechSegmenter";
 
 describe("Verdict du calibrage", () => {
@@ -32,5 +32,16 @@ describe("Seuil de la parole", () => {
   it("sans voix entendue, le seuil par défaut, relevé si la pièce est bruyante", () => {
     expect(speechFloor(0.001, null)).toBe(DEFAULT_FLOOR);
     expect(speechFloor(0.02, null)).toBeCloseTo(0.06);
+  });
+});
+
+describe("Niveau de la jauge du bilan", () => {
+  it("5 et 4 conseillé, 3 praticable, 2 et 1 non conseillé", () => {
+    expect(calibrationLevel({ latencyMs: 400, correct: 3, total: 3 })).toBe(5);
+    expect(calibrationLevel({ latencyMs: 900, correct: 3, total: 3 })).toBe(4);
+    expect(calibrationLevel({ latencyMs: 1800, correct: 3, total: 3 })).toBe(3);
+    expect(calibrationLevel({ latencyMs: 3500, correct: 3, total: 3 })).toBe(2);
+    expect(calibrationLevel({ latencyMs: 400, correct: 1, total: 3 })).toBe(1);
+    expect(calibrationLevel({ latencyMs: null, correct: 0, total: 3 })).toBe(1);
   });
 });

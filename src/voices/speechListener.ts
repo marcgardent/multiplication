@@ -4,7 +4,7 @@
 // découpée en phrases par speechSegmenter : un téléphone lent ne prend pas de retard pendant les silences
 import type { KaldiRecognizer } from "vosk-browser";
 import { ANSWER_GRAMMAR, interpretAlternatives, SpeechGuess, SpeechRule } from "./speechGuess";
-import { createSpeechSegmenter, DEFAULT_FLOOR, SegmentEvent } from "./speechSegmenter";
+import { AudioChunk, createSpeechSegmenter, DEFAULT_FLOOR, SegmentEvent } from "./speechSegmenter";
 import { loadVoiceModel } from "./voiceModel";
 
 export function isSpeechSupported(): boolean {
@@ -33,9 +33,16 @@ export type SpeechProblem = "no-mic" | "download" | "unavailable";
 // « loading » : modèle en cours de chargement (téléchargement la première fois) ; « ready » : on peut parler
 export type ListenerState = "loading" | "ready";
 
+// « hold » : l'enfant maintient un bouton pendant qu'il parle ; « auto » : la parole est repérée au volume
+export type ListenMode = "hold" | "auto";
+
 export interface SpeechListener {
   // Les réponses dites comptent à partir de maintenant
   start(): void;
+  // Bouton à maintenir : appui, puis relâchement. Le son d'avant l'appui et d'après le relâchement est gardé
+  holdStart(): void;
+  holdEnd(): void;
+  isReady(): boolean;
   // Elles ne comptent plus ; le micro reste ouvert pour repartir tout de suite
   stop(): void;
   // Coupe le micro : le téléphone cesse d'afficher qu'il écoute
@@ -69,6 +76,10 @@ registerProcessor("speech-capture", Capture);
 
 // Volume d'une voix normale près du téléphone (moyenne quadratique) : au-delà, le micro est « plein »
 const LOUD_LEVEL = 0.12;
+// Bouton à maintenir : son gardé avant l'appui (l'enfant commence souvent à parler en appuyant)
+// et après le relâchement (il relâche souvent sur la dernière syllabe)
+const HOLD_PREROLL_MS = 400;
+const HOLD_POSTROLL_MS = 300;
 
 interface Capture {
   context: AudioContext;
@@ -87,6 +98,8 @@ export function createSpeechListener(handlers: {
   onSpeech?(event: SegmentEvent): void;
   // Seuil le plus bas de la parole pour ce téléphone, fixé par le calibrage
   floor?(): number | undefined;
+  // Bouton à maintenir (par défaut) ou repérage automatique de la parole
+  mode?(): ListenMode;
 }): SpeechListener {
   let isWanted = false;
   let isReleased = false;
@@ -98,6 +111,15 @@ export function createSpeechListener(handlers: {
   let fedSamples = 0;
   const segments: { sample: number; wall: number }[] = [];
   const segmenter = createSpeechSegmenter(() => handlers.floor?.() ?? DEFAULT_FLOOR);
+  const mode = () => handlers.mode?.() ?? "hold";
+
+  // Bouton à maintenir : ce qui précède l'appui attend ici ; après le relâchement, encore un peu de son, puis la phrase est close
+  let hold: "idle" | "holding" | "closing" = "idle";
+  let holdCloseAt = 0;
+  let holdPreroll: AudioChunk[] = [];
+  // Donne un paquet à Vosk, en ouvrant un nouveau tronçon si demandé ; puis termine la phrase. Prêts une fois le micro ouvert
+  let feedChunk: ((chunk: AudioChunk, isNewSegment: boolean) => void) | null = null;
+  let finishPhrase: (() => void) | null = null;
 
   function wallTimeOf(seconds: number, sampleRate: number): number | undefined {
     const sample = seconds * sampleRate;
@@ -166,6 +188,14 @@ export function createSpeechListener(handlers: {
         heard(message.result.text, true, lastWord ? wallTimeOf(lastWord.end, context.sampleRate) : undefined);
       });
 
+      feedChunk = (chunk, isNewSegment) => {
+        // Un tronçon continu de son donné à Vosk : c'est ce qui permet de dater les mots
+        if (isNewSegment) segments.push({ sample: fedSamples, wall: chunk.wall });
+        recognizer.acceptWaveformFloat(chunk.samples, context.sampleRate);
+        fedSamples += chunk.samples.length;
+      };
+      finishPhrase = () => recognizer.retrieveFinalResult();
+
       const node = new AudioWorkletNode(context, "speech-capture");
       node.port.onmessage = (e: MessageEvent<{ samples: Float32Array; level: number }>) => {
         const { samples, level } = e.data;
@@ -173,13 +203,26 @@ export function createSpeechListener(handlers: {
         handlers.onLevel?.(Math.min(1, level / LOUD_LEVEL), level);
         const durationMs = (samples.length / context.sampleRate) * 1000;
         // Le paquet vient d'arriver : il a commencé à être enregistré sa propre durée plus tôt
-        const { feed, event } = segmenter.push({ samples, level, durationMs, wall: performance.now() - durationMs });
-        // Une phrase qui commence ouvre un tronçon continu de son donné à Vosk
-        if (event === "start" && feed.length > 0) segments.push({ sample: fedSamples, wall: feed[0].wall });
-        for (const chunk of feed) {
-          recognizer.acceptWaveformFloat(chunk.samples, context.sampleRate);
-          fedSamples += chunk.samples.length;
+        const chunk = { samples, level, durationMs, wall: performance.now() - durationMs };
+
+        if (mode() === "hold") {
+          if (hold === "idle") {
+            holdPreroll.push(chunk);
+            const total = () => holdPreroll.reduce((sum, c) => sum + c.durationMs, 0);
+            while (holdPreroll.length > 1 && total() - holdPreroll[0].durationMs >= HOLD_PREROLL_MS) holdPreroll.shift();
+            return;
+          }
+          feedChunk?.(chunk, false);
+          if (hold === "closing" && performance.now() >= holdCloseAt) {
+            hold = "idle";
+            recognizer.retrieveFinalResult();
+            handlers.onSpeech?.("end");
+          }
+          return;
         }
+
+        const { feed, event } = segmenter.push(chunk);
+        feed.forEach((c, i) => feedChunk?.(c, event === "start" && i === 0));
         if (event === "end") recognizer.retrieveFinalResult();
         if (event) handlers.onSpeech?.(event);
       };
@@ -199,9 +242,17 @@ export function createSpeechListener(handlers: {
     }
   }
 
+  function resetHold() {
+    if (hold !== "idle") finishPhrase?.();
+    hold = "idle";
+    holdPreroll = [];
+  }
+
   function close() {
     const current = capture;
     capture = null;
+    feedChunk = null;
+    finishPhrase = null;
     if (!current) return;
     current.recognizer.remove();
     current.stream.getTracks().forEach((track) => track.stop());
@@ -221,18 +272,39 @@ export function createSpeechListener(handlers: {
       });
     },
 
+    holdStart() {
+      if (!feedChunk || !isWanted || hold === "holding") return;
+      if (hold === "idle") {
+        // Le son d'avant l'appui part en premier : un nouveau tronçon
+        holdPreroll.forEach((chunk, i) => feedChunk?.(chunk, i === 0));
+        holdPreroll = [];
+      }
+      hold = "holding";
+      handlers.onSpeech?.("start");
+    },
+
+    holdEnd() {
+      if (hold !== "holding") return;
+      hold = "closing";
+      holdCloseAt = performance.now() + HOLD_POSTROLL_MS;
+    },
+
+    isReady: () => feedChunk !== null,
+
     stop() {
       if (!isWanted) return;
       isWanted = false;
       // Vide ce que Vosk a entendu jusque-là : la prochaine réponse repart de zéro
-      if (segmenter.isSpeaking()) capture?.recognizer.retrieveFinalResult();
+      if (segmenter.isSpeaking()) finishPhrase?.();
       segmenter.reset();
+      resetHold();
     },
 
     release() {
       isWanted = false;
       isReleased = true;
       segmenter.reset();
+      resetHold();
       close();
     }
   };

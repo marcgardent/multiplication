@@ -1,5 +1,5 @@
 import { UserProfile } from "../types";
-import { isSpeechSupported } from "../voices/speechListener";
+import { isSpeechSupported, ListenMode } from "../voices/speechListener";
 import { downloadVoiceModel, isVoiceModelBusy, isVoiceModelDownloaded, MODEL_SIZE_MB } from "../voices/voiceModel";
 
 // Espace parent : réglages réservés aux adultes, derrière le code à 4 chiffres
@@ -21,6 +21,10 @@ export interface ParentAreaOptions {
     // Calibrage : son dernier résultat sur cet appareil, et de quoi le refaire
     calibrationText(): string | null;
     openCalibration(onDone: () => void): void;
+    // Façon d'écouter sur cet appareil ; le test a-t-il trouvé ce téléphone trop lent pour le repérage automatique ?
+    listenMode: ListenMode;
+    isPhoneSlow(): boolean;
+    onListenMode(mode: ListenMode): void;
   };
 }
 
@@ -71,27 +75,7 @@ export function renderParentArea(container: HTMLElement, options: ParentAreaOpti
       }
     </section>
 
-    <section class="parent-card">
-      <div class="parent-card-head">
-        <h3>🎤 Réponse à voix haute</h3>
-        <span class="parent-card-status" id="parent-speech-status"></span>
-      </div>
-      <p>Avant chaque séance, les enfants peuvent choisir « Je parle » : ils disent la réponse au lieu de la taper.</p>
-      <label class="parent-switch">
-        <input type="checkbox" id="parent-speech-allowed" ${options.speech.isAllowed ? "checked" : ""} />
-        <span>Proposer la réponse à voix haute</span>
-      </label>
-      <p id="parent-speech-model">${
-        isSpeechSupported()
-          ? "Vérification…"
-          : "❌ Ce navigateur ne sait pas faire tourner la reconnaissance vocale : sur cet appareil, les enfants répondent au clavier."
-      }</p>
-      <p id="parent-speech-calibration" ${isSpeechSupported() ? "" : "hidden"}></p>
-      <div class="parent-speech-actions" ${isSpeechSupported() ? "" : "hidden"}>
-        <button type="button" class="btn-choice-helper" id="btn-parent-speech-calibrate">📏 Calibrer ce téléphone</button>
-        <button type="button" class="btn-choice-helper" id="btn-parent-speech-test">🎤 Essayer la reconnaissance</button>
-      </div>
-    </section>
+    <section class="parent-card" id="parent-speech-card"></section>
 
     <section class="parent-card">
       <div class="parent-card-head">
@@ -115,65 +99,101 @@ export function renderParentArea(container: HTMLElement, options: ParentAreaOpti
   container.appendChild(area);
 }
 
+// Carte « Réponse à voix haute » : éteinte, un gros bouton pour l'activer ; allumée, une ligne d'état et l'essentiel.
+// Le reste (façon d'écouter, essai de la reconnaissance) est replié dans « Plus d'options »
 function bindSpeechCard(area: HTMLElement, speech: ParentAreaOptions["speech"]): void {
-  const statusEl = area.querySelector("#parent-speech-status") as HTMLElement;
-  const checkbox = area.querySelector("#parent-speech-allowed") as HTMLInputElement;
+  const card = area.querySelector("#parent-speech-card") as HTMLElement;
+  let isOn = speech.isAllowed;
 
-  const showAllowed = () => {
-    statusEl.textContent = checkbox.checked ? "Proposée" : "Désactivée";
-  };
+  const head = (pill: string) => `
+    <div class="parent-card-head">
+      <h3>🎤 Réponse à voix haute</h3>
+      ${pill ? `<span class="parent-card-status">${pill}</span>` : ""}
+    </div>
+  `;
 
-  area.querySelector("#btn-parent-speech-test")?.addEventListener("click", speech.openTest);
-
-  // Le calibrage dit si la voix est utilisable sur ce téléphone ; sans lui, rien ne l'indique
-  const calibrationEl = area.querySelector("#parent-speech-calibration") as HTMLElement;
-  const showCalibration = () => {
-    calibrationEl.textContent = speech.calibrationText() ?? "📏 Pas encore calibré : le calibrage dit si la voix est utilisable sur ce téléphone.";
-  };
-  showCalibration();
-  area.querySelector("#btn-parent-speech-calibrate")?.addEventListener("click", () => speech.openCalibration(showCalibration));
-
-  // Une seule phrase dit si la reconnaissance est prête sur cet appareil, d'après le stockage du navigateur.
-  // Pas de bouton : activer l'installe, et une installation manquée se relance toute seule (ici, au lancement, au retour d'internet)
-  const modelEl = area.querySelector("#parent-speech-model") as HTMLElement;
-
-  const refresh = async (hasFailed = false) => {
-    if (!checkbox.checked) {
-      modelEl.textContent = `L'activer installe la reconnaissance vocale sur cet appareil (${MODEL_SIZE_MB} Mo, une seule fois).`;
+  function render() {
+    if (!isSpeechSupported()) {
+      card.innerHTML = `${head("")}<p>Ce navigateur ne sait pas faire tourner la reconnaissance vocale : sur cet appareil, les enfants répondent au clavier.</p>`;
       return;
     }
-    if (isVoiceModelBusy()) {
-      install();
+    if (!isOn) {
+      card.innerHTML = `
+        ${head("")}
+        <p>Les enfants disent la réponse au lieu de la taper. Leur voix reste sur le téléphone.</p>
+        <button type="button" class="btn-confirm-launch" data-speech="enable">Activer la réponse à voix haute</button>
+      `;
+      card.querySelector('[data-speech="enable"]')?.addEventListener("click", () => {
+        isOn = true;
+        speech.onChange(true);
+        render();
+        // Activer, c'est installer puis tester le téléphone tout de suite
+        speech.openCalibration(render);
+      });
       return;
     }
-    if (await isVoiceModelDownloaded()) {
-      modelEl.textContent = "✅ Prête sur cet appareil, même sans internet.";
-    } else if (!hasFailed && navigator.onLine) {
-      install();
-    } else {
-      modelEl.textContent = "⚠️ Pas encore installée : il faut internet. Elle s'installera toute seule dès que l'appareil sera connecté.";
-    }
-  };
-  // Lance l'installation, ou suit celle déjà en cours, puis relit l'état réel
-  const install = () => {
-    modelEl.textContent = `⏳ Installation sur cet appareil (${MODEL_SIZE_MB} Mo)…`;
-    downloadVoiceModel().then(
-      () => refresh(),
-      () => refresh(true)
+    card.innerHTML = `
+      ${head("Activée")}
+      <p class="parent-speech-state" id="parent-speech-state">Vérification…</p>
+      <div class="parent-speech-actions">
+        <button type="button" class="btn-choice-helper" data-speech="test">📏 Refaire le test</button>
+        <button type="button" class="btn-choice-helper" data-speech="disable">Désactiver</button>
+      </div>
+      <details class="parent-speech-more">
+        <summary>Plus d'options</summary>
+        <fieldset class="parent-listen-mode">
+          <legend>Sur ce téléphone, l'enfant…</legend>
+          <label><input type="radio" name="parent-listen-mode" value="hold" ${speech.listenMode === "hold" ? "checked" : ""} /> maintient un bouton pendant qu'il parle (conseillé)</label>
+          <label class="${speech.isPhoneSlow() ? "is-discouraged" : ""}"><input type="radio" name="parent-listen-mode" value="auto" ${speech.listenMode === "auto" ? "checked" : ""} /> ${
+            speech.isPhoneSlow()
+              ? "parle simplement, sans bouton : déconseillé, ce téléphone est trop lent pour écouter en continu"
+              : "parle simplement : la parole est repérée au volume"
+          }</label>
+        </fieldset>
+        <button type="button" class="btn-choice-helper" data-speech="try">🎤 Essayer la reconnaissance</button>
+      </details>
+    `;
+    card.querySelector('[data-speech="test"]')?.addEventListener("click", () => speech.openCalibration(render));
+    card.querySelector('[data-speech="try"]')?.addEventListener("click", speech.openTest);
+    card.querySelector('[data-speech="disable"]')?.addEventListener("click", () => {
+      isOn = false;
+      speech.onChange(false);
+      render();
+    });
+    card.querySelectorAll<HTMLInputElement>('input[name="parent-listen-mode"]').forEach((input) =>
+      input.addEventListener("change", () => {
+        speech.listenMode = input.value as ListenMode;
+        speech.onListenMode(speech.listenMode);
+      })
     );
-  };
+    refreshState();
+  }
 
-  if (isSpeechSupported()) refresh();
+  // Une ligne : l'installation tant qu'elle n'est pas faite, sinon le résultat du test. Une installation manquée se relance toute seule
+  async function refreshState(hasFailed = false) {
+    const stateEl = card.querySelector("#parent-speech-state") as HTMLElement | null;
+    if (!stateEl) return;
+    if (isVoiceModelBusy()) {
+      install(stateEl);
+      return;
+    }
+    if (!(await isVoiceModelDownloaded())) {
+      if (!hasFailed && navigator.onLine) install(stateEl);
+      else stateEl.textContent = "⚠️ Pas encore installée : il faut internet. Elle s'installera toute seule dès que le téléphone sera connecté.";
+      return;
+    }
+    stateEl.textContent = speech.calibrationText() ?? "📏 Pas encore testée sur ce téléphone.";
+  }
 
-  checkbox.addEventListener("change", () => {
-    speech.onChange(checkbox.checked);
-    showAllowed();
-    // Activer, c'est installer : « Je parle » marche dès la prochaine séance
-    if (!isSpeechSupported()) return;
-    if (checkbox.checked) modelEl.textContent = "Vérification…";
-    refresh();
-  });
-  showAllowed();
+  function install(stateEl: HTMLElement) {
+    stateEl.textContent = `⏳ Installation sur ce téléphone (${MODEL_SIZE_MB} Mo)…`;
+    downloadVoiceModel().then(
+      () => refreshState(),
+      () => refreshState(true)
+    );
+  }
+
+  render();
 }
 
 // Suppression définitive : une fenêtre dit clairement ce qui va disparaître, et où
