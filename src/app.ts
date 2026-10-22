@@ -1245,7 +1245,7 @@ export function createApp(): AppInstance {
     versionEl.type = "button";
     versionEl.className = "app-version";
     versionEl.textContent = `Version ${__APP_VERSION__} · Nouveautés`;
-    versionEl.addEventListener("click", () => openReleaseNotesModal(notesUpTo(__APP_VERSION__), "🎉 Nouveautés"));
+    versionEl.addEventListener("click", () => openReleaseNotesModal(notesUpTo(__APP_VERSION__)));
     container.appendChild(versionEl);
   }
 
@@ -1255,7 +1255,7 @@ export function createApp(): AppInstance {
     if (lastSeen === __APP_VERSION__) return;
     const notes = notesToShow(lastSeen, __APP_VERSION__, profileService.getProfiles().length > 0);
     storage.set(LAST_SEEN_VERSION_KEY, __APP_VERSION__);
-    openReleaseNotesModal(notes);
+    openReleaseNotesModal(notes, { updatedTo: __APP_VERSION__ });
   }
 
   function renderApp() {
