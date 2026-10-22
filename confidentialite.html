@@ -29,7 +29,7 @@
           <li>Pas de compte, pas de publicité, pas de mesure d'audience, pas de cookie.</li>
           <li>Les données de l'application restent sur votre appareil. L'éditeur n'en reçoit aucune.</li>
           <li>La sauvegarde Google Drive est facultative. Une fois activée, elle écrit toute seule dans votre propre Drive, auquel l'éditeur n'a pas accès.</li>
-          <li>Le micro ne sert qu'à enregistrer des voix, à la demande d'un parent, et seulement pendant l'appui sur le bouton d'enregistrement.</li>
+          <li>Le micro sert à enregistrer des voix, à la demande d'un parent, et à répondre à voix haute quand l'enfant choisit « Je parle ». La voix est reconnue sur l'appareil : elle n'est envoyée nulle part, et rien de ce que le micro entend n'est conservé.</li>
         </ul>
 
         <h2>1. Qui est responsable</h2>
@@ -45,7 +45,7 @@
           <li>pour chaque joueur, le prénom ou surnom saisi et l'animal choisi ;</li>
           <li>sa progression : calculs vus, réussites et erreurs, temps de réponse, dates des révisions, temps d'entraînement ;</li>
           <li>ses récompenses : points, cadeaux, décor choisi, tours de roue ;</li>
-          <li>les réglages : durée de séance, tables et joueurs choisis pour la radio et le brossage de dents, derniers calculs entendus, date de la dernière sauvegarde ;</li>
+          <li>les réglages : avec ou sans le son, réponse au clavier ou à la voix, réponse à voix haute autorisée ou non, modèle vocal déjà utilisé ou non (pour l'installer tout seul sur vos autres appareils), durée de séance, tables et joueurs choisis pour la radio et le brossage de dents, derniers calculs entendus, date de la dernière sauvegarde ;</li>
           <li>l'empreinte du code de l'espace parent, jamais le code lui-même. Elle ne quitte pas l'appareil et ne fait pas partie de la sauvegarde ;</li>
           <li>les voix enregistrées, si vous en enregistrez (voir ci-dessous), avec la date de chaque enregistrement ou de chaque retour à la voix de synthèse.</li>
         </ul>
@@ -66,6 +66,16 @@
           Les voix sont rangées dans le stockage du navigateur (IndexedDB). Elles ne sont jamais envoyées à l'éditeur ni à un service
           de reconnaissance vocale. Une voix est une donnée personnelle : nous conseillons d'enregistrer la voix d'un adulte qui y consent.
           Pour en retirer une : « Revenir à la voix de synthèse » dans sa fenêtre d'enregistrement.
+        </p>
+
+        <p>
+          <strong>Répondre à voix haute.</strong> Si l'enfant choisit « Je parle » avant une séance (ou touche 🎤), l'application comprend la réponse dite
+          grâce à Vosk, un logiciel libre de reconnaissance vocale qui tourne dans le navigateur, sur l'appareil. Le son du micro n'est envoyé à personne :
+          ni à l'éditeur, ni à Google, ni à Apple. Le micro n'écoute que pendant la séance, et la reconnaissance seulement quand une réponse est attendue ;
+          il se coupe en pause et à la fin. L'application ne garde que le nombre compris, comme s'il avait été tapé : ni le son ni le texte entendu ne sont enregistrés.
+          Le modèle vocal (42 Mo) est téléchargé depuis le site de l'application la première fois, puis gardé dans le stockage du navigateur ;
+          ensuite, la reconnaissance marche sans internet. L'espace parent permet de désactiver la réponse à voix haute.
+          Pour ne pas l'utiliser ponctuellement : choisir « En silence » ou « Avec le son », ou toucher 🎤 en haut de l'écran.
         </p>
 
         <h2>3. Sauvegarde Google Drive (facultative)</h2>
@@ -105,13 +115,14 @@
             Voir les <a href="https://policies.google.com/privacy?hl=fr">règles de confidentialité de Google</a>.
           </li>
         </ul>
-        <p>La police de caractères, les voix et les images sont fournies avec l'application : aucun autre service n'est appelé.</p>
+        <p>La police de caractères, les voix, les images et le modèle de reconnaissance vocale sont fournis avec l'application : aucun autre service n'est appelé.</p>
 
         <h2>6. Enfants</h2>
         <p>
           L'application s'adresse à des enfants et ne collecte aucune donnée à leur sujet : tout reste sur l'appareil.
           La sauvegarde Google Drive est à activer par un parent, avec son propre compte Google.
           L'enregistrement des voix, qui utilise le micro, est réservé à l'adulte qui connaît le code de l'espace parent.
+          La réponse à voix haute utilise aussi le micro, à la demande de l'enfant ; seul le nombre compris est gardé (voir le point 2).
         </p>
 
         <h2>7. Vos droits</h2>

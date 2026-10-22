@@ -50,7 +50,11 @@ Application web progressive (PWA) d'apprentissage des tables de multiplication, 
    - Les blancs avant et après sont retirés et le volume réglé sur l'appareil ([`src/voices/`](src/voices/)). Une voix enregistrée remplace la voix de synthèse partout, radio et brossage compris.
    - Rangées dans IndexedDB ; avec la sauvegarde Drive, un fichier daté par voix, la plus récente l'emporte ([`docs/sauvegarde-et-fusion.md`](docs/sauvegarde-et-fusion.md)).
 
-7. **PWA Mobile-First pour Android** :
+7. **Répondre à la voix** :
+   - Avant chaque séance : 🤫 En silence (clavier, sans son), 🔊 Avec le son (clavier), 🎤 Je parle (réponse à voix haute). Icônes 🔊 et 🎤 en haut de l'écran pour changer à tout moment.
+   - Reconnaissance sur l'appareil par [Vosk](https://alphacephei.com/vosk/) ([`vosk-browser`](https://github.com/ccoreilly/vosk-browser), Apache 2.0) : le micro est capté par un AudioWorklet, la reconnaissance tourne dans un Web Worker, limitée à une liste fermée (0 à 100, « passe », « réponse »…) ([`src/voices/speechListener.ts`](src/voices/speechListener.ts)). Modèle `vosk-model-small-fr-0.22` (42 Mo, Apache 2.0) servi depuis [`public/models/`](public/models/), gardé par Vosk dans IndexedDB, et téléchargé tout seul sur un nouvel appareil quand la sauvegarde dit qu'il a déjà servi ([`src/voices/voiceModel.ts`](src/voices/voiceModel.ts)). Le nombre dit remplit la réponse, l'enfant confirme avec Valider ; le temps de réponse s'arrête au dernier mot prononcé ; le texte entendu devient un nombre, « passe » ou « réponse » ([`src/voices/speechGuess.ts`](src/voices/speechGuess.ts)). Règles : [`docs/progression-et-recompenses.md`](docs/progression-et-recompenses.md#répondre-à-la-voix).
+
+8. **PWA Mobile-First pour Android** :
    - Pavé tactile virtuel ergonomique évitant les sursauts d'affichage du clavier virtuel Android.
    - Bouton in-app d'installation PWA (`beforeinstallprompt`).
    - Mode plein écran autonome (`display: standalone`).

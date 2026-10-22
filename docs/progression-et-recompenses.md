@@ -77,11 +77,32 @@ Précisions :
 - **À l'échéance** veut dire le jour prévu ou après. Les échéances en jours tombent à minuit : la séance compte à n'importe quelle heure du jour prévu.
 - **Avant l'échéance**, une réussite entraîne et rapporte des points, mais ne fait pas monter. C'est ce qui empêche de gagner plusieurs boîtes dans la même séance.
 - **Un échec renvoie toujours en Boîte 0**, depuis n'importe quelle boîte, même avant l'échéance. Le calendrier repart alors du début : le calcul revient 10 minutes plus tard, et il faudra de nouveau J1, J3, J7 et J21.
-- **Temps de réponse** : de la question à l'appui sur Valider, moins 0,5 seconde accordée pour cet appui. C'est ce temps qui compte pour la réponse fluide, le bonus de rapidité et l'échelle de vitesse du carnet.
+- **Temps de réponse** : de la question à l'appui sur Valider, moins 0,5 seconde accordée pour cet appui. À la voix, de la question à la fin du dernier mot prononcé, même si Valider est touché après : ni le temps que met la reconnaissance à comprendre, ni l'attente avant Valider ne sont comptés, et rien n'est retiré. Si l'enfant corrige ensuite au clavier, c'est de nouveau l'appui sur Valider qui compte, moins 0,5 seconde. C'est ce temps qui compte pour la réponse fluide, le bonus de rapidité et l'échelle de vitesse du carnet.
 - **Réponse fluide** : en 3,8 secondes au plus. Elle n'est exigée que pour entrer en Boîte 5. Une réussite lente ce jour-là ne fait pas perdre 14 jours : le calcul revient le lendemain.
 - En Boîte 0, un calcul jamais écouté peut monter directement en Boîte 1 par une réussite, par exemple en « Révision tables ».
 - Les attentes sont fixes : la vitesse de réponse ne les allonge ni ne les raccourcit.
 - Un enfant en retard ne perd rien : s'il fait la révision de J3 à J5, la suivante est 4 jours plus tard, à J9.
+
+## Répondre à la voix
+
+Avant chaque séance (révision guidée ou révision des tables), l'enfant choisit comment il joue. Son dernier choix est déjà coché.
+
+| Choix | Son | Réponse |
+|---|---|---|
+| 🤫 En silence | aucun | au clavier |
+| 🔊 Avec le son | questions, réponses, félicitations | au clavier |
+| 🎤 Je parle | questions, réponses, félicitations | à voix haute |
+
+- Pendant le jeu, deux icônes en haut de l'écran changent le son (🔊 / 🔇) et la façon de répondre (🎤 à la voix, ⌨️ au clavier). Elles sont aussi sur l'écran d'accueil. Le choix est propre à l'appareil : la sauvegarde ne le recopie pas sur les autres.
+- À la voix, le micro attend la fin de la question : la voix de l'application n'est pas prise pour une réponse. Un bandeau au-dessus du clavier dit à l'enfant où il en est : « Je prépare mes oreilles… », « Écoute la question… », « Dis la réponse, puis appuie sur Valider. », « Appuie sur Valider, ou redis la réponse. », « Je n'ai pas compris. Redis la réponse. », « Attends… ».
+- Le clavier reste affiché. Un nombre dit s'écrit dans la réponse comme s'il avait été tapé ; l'enfant le confirme avec Valider, ou le redit, ou le corrige au clavier. Mêmes règles, mêmes points qu'au clavier. « Fois » et « égal » sont compris pour que l'enfant puisse répéter la question. Si l'enfant se reprend (« cinquante… cinquante-six »), c'est le dernier nombre qui compte. S'il répète la question (« sept fois huit, cinquante-six »), la question n'est pas prise pour la réponse.
+- La reconnaissance ne choisit que parmi une liste fermée : les nombres de 0 à 100, « passe », « je passe », « suivant », « réponse », « la réponse », « je ne sais pas », « je sais pas ». Tout le reste est entendu comme un mot inconnu. Toute la liste des nombres, pas seulement la bonne réponse : sinon une mauvaise réponse proche (« trente-cinq » pour 36) serait recollée sur la bonne et comptée juste (6 cas sur 42 à l'essai).
+- Un nombre dont la fin n'est pas comprise (« vingt… » puis un mot inconnu) n'est pas deviné : l'enfant redit sa réponse.
+- L'essai de l'espace parent affiche, pour chaque réponse, la supposition qui a servi.
+- « Je passe », « réponse » ou « je ne sais pas » font la même chose que le bouton « Je ne sais pas » (« Donner la réponse » dans le Quiz) : la réponse est donnée et le calcul compte comme un échec.
+- Si le micro est refusé ou ne marche pas, l'enfant revient au clavier, avec un message qui le lui dit.
+- L'espace parent peut désactiver la réponse à voix haute (réglage partagé par la sauvegarde). « Je parle » et 🎤 restent alors visibles mais grisés, avec « À activer dans l'espace parent ».
+- La voix est reconnue sur l'appareil par Vosk (petit modèle français, 42 Mo, licence Apache 2.0) : rien ne part sur internet. Le modèle est téléchargé depuis le site une seule fois, au premier « Je parle » ou depuis l'espace parent, puis gardé par le navigateur. La reconnaissance du navigateur (Google pour Chrome) a été essayée d'abord : elle ne rendait rien pour un nombre dit seul, trop court pour elle.
 
 ## Quels calculs entrent dans une séance
 

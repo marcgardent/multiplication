@@ -41,6 +41,12 @@ import { guidedLabel, guidedPool, guidedRounds, readPlayerProgress } from "./rad
 import { renderVoiceStudio } from "./components/voiceStudio";
 import { createVoiceStore } from "./voices/voiceStore";
 import { createVoiceSync } from "./voices/voiceSync";
+import { createAnswerPreferences } from "./services/answerPreferences";
+import { openAnswerModeModal } from "./components/answerModeModal";
+import { answerTogglesHtml, bindAnswerToggles } from "./components/answerToggles";
+import { openSpeechTestModal } from "./components/speechTestModal";
+import { isSpeechSupported } from "./voices/speechListener";
+import { downloadVoiceModel, isVoiceModelBusy, onVoiceModelReady } from "./voices/voiceModel";
 import { MultiplicationItem, SessionConfig, UserProfile } from "./types";
 
 export interface AppInstance {
@@ -50,6 +56,19 @@ export interface AppInstance {
 export function createApp(): AppInstance {
   const storage = createStorageService(STORAGE_NAMESPACE);
   const audio = createAudioService();
+  // Son et réponse à la voix : choisis avant chaque séance, modifiables à tout moment depuis la barre du haut
+  const answerPreferences = createAnswerPreferences(storage);
+  audio.setMuted(!answerPreferences.get().sound);
+  answerPreferences.subscribe((p) => audio.setMuted(!p.sound));
+  // Modèle vocal installé ici : la sauvegarde le dira aux autres appareils
+  onVoiceModelReady(() => answerPreferences.markSpeechModelWanted());
+  // Nouveau téléphone d'une famille qui répond à voix haute : le modèle se télécharge tout seul, en arrière-plan
+  function downloadVoiceModelIfWanted() {
+    if (!answerPreferences.isSpeechModelWanted() || !answerPreferences.isSpeechAllowed()) return;
+    if (!isSpeechSupported() || !navigator.onLine || isVoiceModelBusy()) return;
+    downloadVoiceModel().catch((err) => console.warn("Téléchargement automatique du modèle vocal", err));
+  }
+  let unbindHeaderToggles: (() => void) | null = null;
   const wakeLock = createWakeLockService();
 
   // Sauvegarde automatique dans le Google Drive du parent : chaque écriture de l'application y part toute seule.
@@ -86,6 +105,7 @@ export function createApp(): AppInstance {
   window.addEventListener("online", () => {
     cloudSync.refresh();
     voiceSync.requestCheck();
+    downloadVoiceModelIfWanted();
   });
   document.addEventListener("visibilitychange", () => {
     // En partant : envoyer ce qui attend. En revenant : voir ce que les autres appareils ont envoyé
@@ -186,7 +206,7 @@ export function createApp(): AppInstance {
         </div>
         <div class="header-actions">
           <button type="button" class="icon-btn" id="btn-header-cloud" aria-label="Sauvegarde">☁️</button>
-          <button type="button" class="icon-btn" id="btn-audio-mute" aria-label="Couper ou activer le son">🔊</button>
+          ${answerTogglesHtml()}
           <button type="button" class="icon-btn" id="btn-pwa-install" aria-label="Installer l'application" style="display: none;">📲</button>
         </div>
       </header>
@@ -1007,22 +1027,28 @@ export function createApp(): AppInstance {
 
     modal.querySelector("#btn-start-guided-now")?.addEventListener("click", () => {
       modal.remove();
-      const before = snapshotProgress();
-      const releaseScreen = wakeLock.keepAwake();
+      openAnswerModeModal({
+        preferences: answerPreferences,
+        onConfirm: () => {
+          const before = snapshotProgress();
+          const releaseScreen = wakeLock.keepAwake();
 
-      startSessionModal(
-        repetitionEngine,
-        audio,
-        sessionConfig,
-        (res) => {
-          releaseScreen();
-          showSessionBilan(before, res.actualPracticeTimeMs, false);
-        },
-        (cancelledTimeMs) => {
-          releaseScreen();
-          showSessionBilan(before, cancelledTimeMs, true);
+          startSessionModal(
+            repetitionEngine,
+            audio,
+            answerPreferences,
+            sessionConfig,
+            (res) => {
+              releaseScreen();
+              showSessionBilan(before, res.actualPracticeTimeMs, false);
+            },
+            (cancelledTimeMs) => {
+              releaseScreen();
+              showSessionBilan(before, cancelledTimeMs, true);
+            }
+          );
         }
-      );
+      });
     });
 
     document.body.appendChild(modal);
@@ -1036,22 +1062,28 @@ export function createApp(): AppInstance {
       confirmLabel: "Valider et commencer",
       onConfirm: (tables) => {
         storage.set(revisionKey, tables);
-        const before = snapshotProgress();
-        const releaseScreen = wakeLock.keepAwake();
+        openAnswerModeModal({
+          preferences: answerPreferences,
+          onConfirm: () => {
+            const before = snapshotProgress();
+            const releaseScreen = wakeLock.keepAwake();
 
-        startEvaluationModal(
-          tables,
-          matrixStore,
-          audio,
-          (result) => {
-            releaseScreen();
-            showSessionBilan(before, result.actualPracticeTimeMs, false);
-          },
-          (cancelledTimeMs) => {
-            releaseScreen();
-            showSessionBilan(before, cancelledTimeMs, true);
+            startEvaluationModal(
+              tables,
+              matrixStore,
+              audio,
+              answerPreferences,
+              (result) => {
+                releaseScreen();
+                showSessionBilan(before, result.actualPracticeTimeMs, false);
+              },
+              (cancelledTimeMs) => {
+                releaseScreen();
+                showSessionBilan(before, cancelledTimeMs, true);
+              }
+            );
           }
-        );
+        });
       }
     });
   }
@@ -1074,6 +1106,7 @@ export function createApp(): AppInstance {
     sessionConfig.durationMinutes = storage.get<number>("config_duration", sessionConfig.durationMinutes);
     if (activeProfile) initAppBackground(activeProfile.id);
     renderApp();
+    downloadVoiceModelIfWanted();
   }
 
   // Le code est demandé à chaque entrée dans l'espace parent
@@ -1100,6 +1133,11 @@ export function createApp(): AppInstance {
         renderApp();
       },
       onChangeCode: () => openParentGate({ parentCode, isChangingCode: true, onGranted: () => undefined }),
+      speech: {
+        isAllowed: answerPreferences.isSpeechAllowed(),
+        onChange: (allowed) => answerPreferences.setSpeechAllowed(allowed),
+        openTest: openSpeechTestModal
+      },
       onBack: () => {
         isParentAreaOpen = false;
         renderApp();
@@ -1216,12 +1254,9 @@ export function createApp(): AppInstance {
       openRewardsBoardModal(matrixStore, audio, () => renderApp());
     });
 
-    // Mute
-    const muteBtn = shell.querySelector("#btn-audio-mute");
-    muteBtn?.addEventListener("click", () => {
-      const isMuted = audio.toggleMute();
-      if (muteBtn) muteBtn.textContent = isMuted ? "🔇" : "🔊";
-    });
+    // Son et réponse à la voix
+    unbindHeaderToggles?.();
+    unbindHeaderToggles = bindAnswerToggles(shell, answerPreferences);
 
     // Install PWA
     const installBtn = shell.querySelector("#btn-pwa-install");
@@ -1290,6 +1325,7 @@ export function createApp(): AppInstance {
         .then(() => voiceSync.requestCheck());
       renderApp();
       cloudSync.start();
+      downloadVoiceModelIfWanted();
     }
   };
 }

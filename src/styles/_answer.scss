@@ -1,0 +1,332 @@
+@use "variables" as *;
+@use "mixins" as *;
+
+/* Icônes de la barre du haut : son et façon de répondre */
+.btn-toggle-sound, .btn-toggle-speech {
+  &[hidden] {
+    display: none !important;
+  }
+}
+
+/* Avant une séance : « Comment veux-tu jouer ? » */
+.answer-mode-modal {
+  .answer-mode-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .answer-mode-choice {
+    @include selectable;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: $radius-card;
+    text-align: left;
+
+    &.is-selected {
+      @include selected;
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+
+  .answer-mode-icon {
+    font-size: 2rem;
+    line-height: 1;
+  }
+
+  .answer-mode-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .answer-mode-title {
+    font-size: $fs-body;
+    font-weight: 600;
+  }
+
+  .answer-mode-detail {
+    font-size: $fs-small;
+    color: $ink-soft;
+    line-height: 1.35;
+  }
+
+  .answer-mode-hint {
+    margin: 0;
+    font-size: $fs-small;
+    color: $ink-soft;
+    text-align: center;
+  }
+}
+
+/* Saisie de la réponse : le clavier, toujours là ; à la voix, un bandeau au-dessus dit à l'enfant où il en est */
+.answer-input {
+  .speech-strip {
+    display: none;
+  }
+
+  &.is-speech-mode .speech-strip {
+    display: flex;
+  }
+
+  .answer-notice {
+    margin: 0 auto 8px;
+    max-width: 480px;
+    padding: 8px 12px;
+    border-radius: $radius-control;
+    background: $status-review-soft;
+    color: $status-review-ink;
+    font-size: $fs-small;
+    text-align: center;
+
+    &[hidden] {
+      display: none;
+    }
+  }
+}
+
+.speech-strip {
+  @include card;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto 8px;
+  padding: 8px 12px;
+
+  .speech-mic {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: $ground;
+    border: 2px solid $line;
+    font-size: 1.4rem;
+    line-height: 1;
+    transition: background 0.2s, border-color 0.2s;
+  }
+
+  .speech-texts {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .speech-cue {
+    font-size: $fs-body;
+    font-weight: 600;
+    color: $ink;
+  }
+
+  .speech-tips {
+    font-size: $fs-caption;
+    color: $ink-soft;
+  }
+
+  /* À toi : le micro s'allume et respire */
+  &[data-state="listen"] .speech-mic {
+    background: $accent-soft;
+    border-color: $accent;
+    animation: micBreath 1.6s ease-in-out infinite;
+  }
+
+  &[data-state="heard"] .speech-mic {
+    background: $status-mastered-soft;
+    border-color: $status-mastered;
+  }
+
+  &[data-state="unclear"] .speech-mic {
+    background: $status-review-soft;
+    border-color: $status-review;
+  }
+
+  &[data-state="wait"] .speech-mic, &[data-state="loading"] .speech-mic {
+    opacity: 0.5;
+  }
+}
+
+@keyframes micBreath {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.07);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .speech-strip[data-state="listen"] .speech-mic {
+    animation: none;
+  }
+}
+
+/* Icône 🎤 bloquée par le parent : visible, mais estompée */
+.btn-toggle-speech.is-locked {
+  opacity: 0.45;
+}
+
+/* Message court en bas de l'écran */
+.app-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  z-index: 2000;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  margin: 0;
+  padding: 10px 16px;
+  border-radius: $radius-control;
+  background: $ink;
+  color: $surface;
+  font-size: $fs-small;
+  text-align: center;
+  animation: fadeIn 0.2s ease;
+}
+
+/* Case à cocher d'un réglage de l'espace parent */
+.parent-switch {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: $fs-body;
+  font-weight: 500;
+  color: $ink;
+  cursor: pointer;
+
+  input {
+    width: 22px;
+    height: 22px;
+    accent-color: $accent;
+  }
+}
+
+/* Espace parent : essai de la réponse à voix haute */
+.speech-test-modal {
+  .speech-test-help, .speech-test-status {
+    margin: 0;
+    font-size: $fs-small;
+    line-height: 1.4;
+    color: $ink-soft;
+    text-align: center;
+  }
+
+  .speech-test-status {
+    min-height: 1.4em;
+
+    &.is-warning {
+      color: $status-review-ink;
+    }
+  }
+
+  .speech-test-card {
+    @include card;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 14px 12px;
+  }
+
+  .speech-test-label, .speech-test-heard {
+    font-size: $fs-small;
+    color: $ink-soft;
+    text-align: center;
+  }
+
+  .speech-test-question {
+    font-size: clamp(1.4rem, 6vw, 2rem);
+    font-weight: 600;
+    color: $ink;
+  }
+
+  .speech-test-guess {
+    font-size: clamp(1.8rem, 9vw, 2.6rem);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: $ink;
+
+    &.is-right {
+      color: $status-mastered;
+    }
+
+    &.is-wrong {
+      color: $danger;
+    }
+
+    &.is-interim {
+      opacity: 0.45;
+    }
+  }
+
+  .speech-test-actions {
+    display: flex;
+    gap: 8px;
+
+    button {
+      flex: 1;
+    }
+  }
+
+  .speech-test-history {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: $fs-small;
+
+    li {
+      display: grid;
+      grid-template-columns: 4em 6em 1fr;
+      gap: 8px;
+      align-items: baseline;
+      color: $ink-soft;
+    }
+
+    strong {
+      color: $ink;
+
+      &.is-right {
+        color: $status-mastered;
+      }
+
+      &.is-wrong {
+        color: $danger;
+      }
+    }
+
+    em {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+}
+
+.speech-test-modal {
+  .speech-test-rules {
+    font-size: $fs-caption;
+    color: $accent-ink;
+    text-align: center;
+  }
+
+  .speech-test-history small {
+    grid-column: 1 / -1;
+    margin-top: -2px;
+    font-size: $fs-caption;
+    color: $accent-ink;
+  }
+}

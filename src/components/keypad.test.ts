@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { answerTimeMs, createKeypad, SUBMIT_ALLOWANCE_MS } from "./keypad";
+import { answerTimeMs, createKeypad, spokenAnswerTimeMs, SUBMIT_ALLOWANCE_MS } from "./keypad";
 
 class MockElement {
   tagName: string;
@@ -173,5 +173,12 @@ describe("KeypadComponent", () => {
     expect(answerTimeMs(1000, 3800)).toBe(2300);
     // Une réponse plus rapide que l'appui lui-même garde un temps positif : elle reste enregistrée
     expect(answerTimeMs(1000, 1300)).toBe(1);
+  });
+});
+
+describe("Temps d'une réponse dite à voix haute", () => {
+  it("va de la question au dernier mot prononcé, sans délai d'appui", () => {
+    expect(spokenAnswerTimeMs(1000, 3200)).toBe(2200);
+    expect(spokenAnswerTimeMs(1000, 900)).toBe(1);
   });
 });

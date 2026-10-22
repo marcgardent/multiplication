@@ -6,10 +6,18 @@ export function answerTimeMs(questionStartTime: number, now = performance.now())
   return Math.max(1, Math.round(now - questionStartTime) - SUBMIT_ALLOWANCE_MS);
 }
 
+// Réponse dite à voix haute : jusqu'au dernier mot prononcé. Ni le temps de calcul de la reconnaissance,
+// ni de délai pour un appui : il n'y a pas de bouton à toucher
+export function spokenAnswerTimeMs(questionStartTime: number, spokenAt: number): number {
+  return Math.max(1, Math.round(spokenAt - questionStartTime));
+}
+
 export interface KeypadComponent {
   mount(parent: HTMLElement): void;
   destroy(): void;
   clear(): void;
+  // Réponse remplie autrement qu'au clavier (à voix haute) : Valider l'enverra, l'effacement la corrige
+  setValue?(value: string): void;
   getCurrentValue(): string;
   setEnabled(enabled: boolean): void;
 }
@@ -17,8 +25,8 @@ export interface KeypadComponent {
 export interface KeypadOptions {
   onInput?: (digit: string, currentValue: string) => void;
   onDelete?: (currentValue: string) => void;
-  // Touche « Valider » ou Entrée, seulement quand une réponse est tapée
-  onSubmit?: (value: string) => void;
+  // Touche « Valider » ou Entrée, seulement quand une réponse est tapée ; spokenAt quand elle a été dite à voix haute
+  onSubmit?: (value: string, spokenAt?: number) => void;
   // Nombre de chiffres acceptés : 3 par défaut, le plus grand résultat étant 100
   maxLength?: number;
 }
@@ -118,6 +126,10 @@ export function createKeypad(options: KeypadOptions = {}): KeypadComponent {
 
     clear() {
       currentValue = "";
+    },
+
+    setValue(value: string) {
+      currentValue = value.slice(0, maxLength);
     },
 
     getCurrentValue(): string {
