@@ -19,6 +19,7 @@ export interface ReleaseNote {
 
 // De la plus récente à la plus ancienne
 export const VERSION_HISTORY: VersionEntry[] = [
+  { version: "1.8.4", date: "2026-10-23", summary: "Texte de l'affiche corrigé sur le site" },
   { version: "1.8.3", date: "2026-10-23", summary: "Test du téléphone plus court et plus clair ; une note de nouveautés pour la 1.8" },
   { version: "1.8.2", date: "2026-10-22", summary: "Espace parent aligné sur les autres boutons de l'accueil" },
   { version: "1.8.1", date: "2026-10-22", summary: "Message « Application mise à jour » ; brossage, radio et espace parent visibles sur l'accueil du joueur ; une fenêtre par réglage" },
