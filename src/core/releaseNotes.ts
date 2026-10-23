@@ -19,6 +19,7 @@ export interface ReleaseNote {
 
 // De la plus récente à la plus ancienne
 export const VERSION_HISTORY: VersionEntry[] = [
+  { version: "1.8.3", date: "2026-10-23", summary: "Test du téléphone plus court et plus clair ; une note de nouveautés pour la 1.8" },
   { version: "1.8.2", date: "2026-10-22", summary: "Espace parent aligné sur les autres boutons de l'accueil" },
   { version: "1.8.1", date: "2026-10-22", summary: "Message « Application mise à jour » ; brossage, radio et espace parent visibles sur l'accueil du joueur ; une fenêtre par réglage" },
   { version: "1.8.0", date: "2026-10-22", summary: "Les nouveautés s'affichent après chaque grande mise à jour ; historique des versions sur le site" },
@@ -45,7 +46,7 @@ export const VERSION_HISTORY: VersionEntry[] = [
 
 // Versions majeures, de la plus récente à la plus ancienne : une seule nouveauté chacune, en quelques mots
 export const RELEASE_NOTES: ReleaseNote[] = [
-  { series: "1.8", title: "Les nouveautés s'affichent ici" },
+  { series: "1.8", title: "L'espace parent visible depuis l'accueil" },
   { series: "1.7", title: "Répondre à voix haute" },
   { series: "1.6", title: "Votre voix à la place de la voix de synthèse" },
   { series: "1.5", title: "Radio et brossage guidés" },
