@@ -3,6 +3,7 @@ import { AudioService } from "../services/audioService";
 import { KeypadComponent, answerTimeMs, spokenAnswerTimeMs } from "../components/keypad";
 import { AnswerPreferencesStore } from "../services/answerPreferences";
 import { createAnswerInput } from "./answerInput";
+import { earnedText } from "./earnedText";
 import { answerTogglesHtml, bindAnswerToggles } from "./answerToggles";
 import { MultiplicationItem } from "../types";
 
@@ -422,7 +423,7 @@ export function startEvaluationModal(
     const inputEl = modalEl.querySelector("#eval-input");
 
     // Enregistrer les statistiques dans le store
-    matrixStore.recordAttempt(item.a, item.b, "evaluation", isCorrect, timeMs);
+    const earned = matrixStore.recordAttempt(item.a, item.b, "evaluation", isCorrect, timeMs);
 
     if (isCorrect) {
       correctCount++;
@@ -432,7 +433,7 @@ export function startEvaluationModal(
         inputEl.classList.add("revealed");
       }
       fitOperation(cardEl);
-      if (cueEl) cueEl.textContent = `Correct ! ${(timeMs / 1000).toFixed(2)}s ⚡`;
+      if (cueEl) cueEl.textContent = `Correct ! ${(timeMs / 1000).toFixed(2)}s · ${earnedText(earned)}`;
       audioService.playFeedback("correct");
       await audioService.playAnswer(item.result);
     } else {

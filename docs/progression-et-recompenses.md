@@ -168,39 +168,60 @@ stateDiagram-v2
 
 ## Points et décors
 
-| Événement | Points |
-|---|---|
-| Écoute d'un calcul | +5 |
-| Bonne réponse | +10 |
-| Bonne réponse fluide, en moins de 5 secondes (2,5 s jusqu'en 1.8.5) | +5 de plus |
-| Arrivée en Boîte 5 | +50 de plus |
-| Ouverture d'un cadeau | +25 |
-| Roue magique, 3 tours par jour | le résultat du calcul tiré, de 1 à 100 |
+Depuis la 1.9, un calcul rapporte selon sa difficulté. Chaque calcul a une **valeur**, de 1 à 20, choisie à la main dans cette table (a × b vaut b × a) :
+
+| × | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| **1** | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 |
+| **2** | 1 | 3 | 3 | 3 | 3 | 3 | 3 | 3 | 3 | 1 |
+| **3** | 1 | 3 | 3 | 3 | 5 | 5 | 5 | 5 | 5 | 1 |
+| **4** | 1 | 3 | 3 | 5 | 5 | 5 | 5 | 8 | 8 | 1 |
+| **5** | 1 | 3 | 5 | 5 | 5 | 5 | 8 | 10 | 10 | 1 |
+| **6** | 1 | 3 | 5 | 5 | 5 | 8 | 10 | 10 | 20 | 1 |
+| **7** | 1 | 3 | 5 | 5 | 8 | 10 | 10 | 20 | 20 | 1 |
+| **8** | 1 | 3 | 5 | 8 | 10 | 10 | 20 | 10 | 20 | 1 |
+| **9** | 1 | 3 | 5 | 8 | 10 | 20 | 20 | 20 | 10 | 1 |
+| **10** | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 |
+
+Les tables de 1 et de 10 valent le moins ; les carrés (6 × 6, 7 × 7, 8 × 8, 9 × 9) un cran de moins que leurs voisins, car il n'y a qu'un calcul à retenir et il se retient bien ; 6 × 9, 7 × 8, 7 × 9 et 8 × 9 valent le plus. La valeur totale des 100 calculs est 516.
+
+| Événement | Points | Exemple : 7 × 8 (valeur 20) | Exemple : 2 × 6 (valeur 3) |
+|---|---|---|---|
+| Écoute d'un calcul | la valeur | +20 | +3 |
+| Bonne réponse | 2 × la valeur | +40 | +6 |
+| Bonne réponse fluide, en moins de 5 secondes | autant de plus que la bonne réponse | +40 de plus | +6 de plus |
+| Arrivée en Boîte 5 | 10 × la valeur, de plus | +200 de plus | +30 de plus |
+| Ouverture d'un cadeau | +25 | +25 | +25 |
+| Roue magique, 3 tours par jour | le résultat du calcul tiré, de 1 à 100 | | |
+
+Jusqu'en 1.8.6, tous les calculs rapportaient pareil : écoute +5, bonne réponse +10, réponse fluide +5, Boîte 5 +50. Les points déjà gagnés restent acquis.
+
+L'enfant voit ce qu'il gagne après chaque bonne réponse (« +40 ⚡+40 », et « 🏆+200 » à l'entrée en Boîte 5). Le carnet montre la valeur de chaque calcul (vue « Points » de la grille, et la fiche d'un calcul).
 
 La radio des tables et le brossage de dents ne donnent aucun point et ne déplacent aucun calcul d'une boîte à l'autre, même en mode guidé : écouter ne prouve pas que l'enfant sait.
 
 Un décor est débloqué dès que le total de points atteint son seuil. Les points ne baissent jamais, donc un décor débloqué le reste.
 
-Les seuils sont réglés pour s'étaler sur tout le parcours d'une élève régulière qui joue **6 minutes par jour** (environ 650 points par jour) : un premier décor dès le lendemain, puis des attentes de plus en plus longues, le dernier vers le 100e jour, quand presque tous les cadeaux sont gagnés. Les jours ci-dessous viennent de la simulation (`make scenarios`), une séance par jour.
+Les seuils n'ont pas changé avec la 1.9. Pour une élève régulière qui joue **6 minutes par jour** (environ 580 points par jour le premier mois), le premier décor vient dans la première semaine (les premières tables apprises, 1, 10 et 2, rapportent peu), le dernier vers le 70e jour. Les jours ci-dessous viennent de la simulation (`make scenarios`), une séance par jour ; les temps de réponse des élèves simulés sont inventés, c'est une tendance, pas une mesure.
 
 | Décor | Seuil | 3 min par jour | **6 min par jour** | 9 min par jour | 15 min par jour, élève rapide |
 |---|---|---|---|---|---|
 | Printemps | 0 | J0 | **J0** | J0 | J0 |
-| Été | 1 000 | J3 | **J1** | J1 | J0 |
-| Hiver | 2 500 | J8 | **J4** | J2 | J0 |
-| Automne | 4 500 | J14 | **J7** | J5 | J1 |
-| Pâques | 7 000 | J21 | **J11** | J7 | J2 |
-| Halloween | 10 000 | J29 | **J16** | J11 | J3 |
-| Noël | 13 500 | J38 | **J21** | J14 | J4 |
-| Monde Plateforme | 18 000 | J49 | **J27** | J19 | J6 |
-| Monde Fermier | 23 500 | J63 | **J35** | J24 | J7 |
-| Monde Voxel | 30 000 | J80 | **J44** | J30 | J10 |
-| Village Gaulois | 38 000 | J102 | **J55** | J38 | J12 |
-| Ville des Super-Héros | 47 000 | J127 | **J68** | J46 | J15 |
-| Ville Steampunk | 58 000 | J156 | **J83** | J56 | J19 |
-| Ville Cyberpunk | 72 000 | J196 | **J104** | J70 | J23 |
+| Été | 1 000 | J8 | **J4** | J3 | J1 |
+| Hiver | 2 500 | J19 | **J10** | J6 | J2 |
+| Automne | 4 500 | J27 | **J14** | J9 | J4 |
+| Pâques | 7 000 | J34 | **J17** | J11 | J5 |
+| Halloween | 10 000 | J40 | **J20** | J13 | J6 |
+| Noël | 13 500 | J48 | **J25** | J16 | J7 |
+| Monde Plateforme | 18 000 | J59 | **J30** | J20 | J9 |
+| Monde Fermier | 23 500 | J69 | **J36** | J23 | J11 |
+| Monde Voxel | 30 000 | J81 | **J42** | J28 | J13 |
+| Village Gaulois | 38 000 | J96 | **J48** | J31 | J15 |
+| Ville des Super-Héros | 47 000 | J113 | **J54** | J34 | J17 |
+| Ville Steampunk | 58 000 | J128 | **J61** | J39 | J18 |
+| Ville Cyberpunk | 72 000 | J154 | **J68** | J43 | J20 |
 
-Les points gagnés sont proportionnels au temps joué : un enfant qui joue plus longtemps chaque jour débloque les décors plus vite.
+Les points gagnés sont proportionnels au temps joué et à la difficulté des calculs : un enfant qui joue plus longtemps, ou qui en est aux tables de 6 à 9, débloque les décors plus vite.
 
 Les décors débloqués avec les anciens seuils (500 à 22 000 points pour dix décors) restent acquis aux joueurs qui les avaient.
 

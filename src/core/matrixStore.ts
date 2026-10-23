@@ -1,13 +1,15 @@
 import { MultiplicationItem, ItemStatus, AttemptLog } from "../types";
 import { StorageService } from "../services/storageService";
 import { profileKey, toWheelDate, WheelDailyState } from "./profileData";
+import { answerPoints, calcValue, EarnedPoints, fluentBonusPoints, masteryPoints, NO_POINTS } from "./calcPoints";
 
 export interface MatrixStore {
   getAll(): MultiplicationItem[];
   get(id: string): MultiplicationItem | undefined;
   getByFactors(a: number, b: number): MultiplicationItem | undefined;
   update(item: MultiplicationItem): void;
-  recordAttempt(a: number, b: number, mode: "discovery" | "practice" | "time-attack" | "evaluation", isCorrect: boolean, responseTimeMs: number): void;
+  // Rend les points gagnés par cette réponse, pour les montrer
+  recordAttempt(a: number, b: number, mode: "discovery" | "practice" | "time-attack" | "evaluation", isCorrect: boolean, responseTimeMs: number): EarnedPoints;
   getCountsByStatus(): Record<ItemStatus, number>;
   getDueItemsCount(): number;
   isItemDue(item: MultiplicationItem, now?: number): boolean;
@@ -207,10 +209,11 @@ export function createMatrixStore(storage: StorageService, initialProfileId = "d
       return count;
     },
 
-    recordAttempt(a: number, b: number, mode: "discovery" | "practice" | "time-attack" | "evaluation", isCorrect: boolean, responseTimeMs: number): void {
+    recordAttempt(a: number, b: number, mode: "discovery" | "practice" | "time-attack" | "evaluation", isCorrect: boolean, responseTimeMs: number): EarnedPoints {
       const id = `${a}x${b}`;
       const item = itemsMap.get(id);
-      if (!item) return;
+      if (!item) return NO_POINTS;
+      const earned: EarnedPoints = { answer: 0, bonus: 0, mastery: 0 };
 
       const now = Date.now();
       const isDueForPromotion = canPromote(item, now);
@@ -241,7 +244,8 @@ export function createMatrixStore(storage: StorageService, initialProfileId = "d
         if (item.nextReviewAt === null) {
           item.nextReviewAt = now;
         }
-        points += 5;
+        // L'écoute rapporte la valeur du calcul
+        earned.answer = calcValue(a, b);
       } else {
         // Enregistrer tous les temps mesurés
         if (responseTimeMs > 0) {
@@ -256,12 +260,12 @@ export function createMatrixStore(storage: StorageService, initialProfileId = "d
         if (isCorrect) {
           item.successStreak += 1;
 
-          // Toute bonne réponse rapporte des points, même à l'entraînement
-          points += 10;
+          // Toute bonne réponse rapporte des points, même à l'entraînement : plus le calcul est difficile, plus elle rapporte
+          earned.answer = answerPoints(a, b);
 
           // Bonus rapidité pour une réponse fluide
           if (responseTimeMs > 0 && responseTimeMs < FLUENT_ANSWER_MS) {
-            points += 5;
+            earned.bonus = fluentBonusPoints(a, b);
           }
 
           if (isDueForPromotion) {
@@ -276,7 +280,7 @@ export function createMatrixStore(storage: StorageService, initialProfileId = "d
 
             if (item.boxLevel === MAX_BOX) {
               if (item.status !== "mastered") {
-                points += 50; // Super bonus maîtrise
+                earned.mastery = masteryPoints(a, b); // Super bonus maîtrise
               }
               item.status = "mastered";
               item.giftEarned = true;
@@ -295,8 +299,10 @@ export function createMatrixStore(storage: StorageService, initialProfileId = "d
         }
       }
 
+      points += earned.answer + earned.bonus + earned.mastery;
       itemsMap.set(id, item);
       save();
+      return earned;
     },
 
     getCountsByStatus(): Record<ItemStatus, number> {

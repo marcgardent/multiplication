@@ -32,6 +32,8 @@ $heat-high: #b4332a;
 // Récompenses : points, tours, cadeaux
 $gold-soft: #fbf1d9;
 $gold-ink: #7a4f04;
+// Ce que vaut un calcul (vue Points du carnet) : un seul or, du plus clair (1) au plus foncé (20)
+$points-scale: (1: #fbf1d9, 2: #f6e2ad, 3: #efcd76, 4: #e2b047, 5: #c98d1c, 6: #7a4f04);
 
 // Danger : quitter, supprimer
 $danger: #b4332a;

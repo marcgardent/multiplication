@@ -34,22 +34,25 @@ describe("Décors : étalés sur tout le parcours", () => {
     });
   });
 
-  it("donne à l'élève régulière (6 min par jour) un premier décor dès le lendemain et le dernier après trois mois", () => {
+  // Depuis la 1.9, les premiers calculs (tables de 1, 10 et 2) rapportent peu : le premier décor vient dans la semaine,
+  // pas le lendemain, et le dernier vers le 70e jour. Rythme accepté par Marc avec la table des points
+  it("donne à l'élève régulière (6 min par jour) un premier décor dans la première semaine et le dernier après deux mois", () => {
     const days = unlockDays(REGULAR, 6, 21);
     expect(days).toHaveLength(BACKGROUNDS.length);
-    expect(days[1]).toBe(1);
-    expect(days[days.length - 1]).toBeGreaterThanOrEqual(90);
+    expect(days[1]).toBeLessThanOrEqual(7);
+    expect(days[days.length - 1]).toBeGreaterThanOrEqual(60);
     expect(days[days.length - 1]).toBeLessThanOrEqual(120);
 
-    // Jamais deux décors le même jour, et l'attente entre deux décors ne raccourcit jamais de plus d'un jour
+    // Jamais deux décors le même jour, et l'attente entre deux décors ne raccourcit jamais de plus de deux jours
     for (let i = 2; i < days.length; i++) {
       expect(days[i], BACKGROUNDS[i].name).toBeGreaterThan(days[i - 1]);
-      expect(days[i] - days[i - 1], BACKGROUNDS[i].name).toBeGreaterThanOrEqual(days[i - 1] - days[i - 2] - 1);
+      expect(days[i] - days[i - 1], BACKGROUNDS[i].name).toBeGreaterThanOrEqual(days[i - 1] - days[i - 2] - 2);
     }
   });
 
-  it("garde des décors à gagner pendant trois semaines même à 15 minutes par jour", () => {
+  // 21 jours jusqu'en 1.8 ; 20 depuis la table des points de la 1.9 (les calculs difficiles rapportent plus)
+  it("garde des décors à gagner pendant près de trois semaines même à 15 minutes par jour", () => {
     const days = unlockDays(FAST, 15, 5);
-    expect(days[days.length - 1]).toBeGreaterThanOrEqual(21);
+    expect(days[days.length - 1]).toBeGreaterThanOrEqual(20);
   });
 });

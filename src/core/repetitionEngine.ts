@@ -1,5 +1,6 @@
 import { MultiplicationItem, SessionConfig } from "../types";
 import { MatrixStore, MAX_BOX } from "./matrixStore";
+import { EarnedPoints } from "./calcPoints";
 
 export interface SessionLot {
   items: MultiplicationItem[];
@@ -26,7 +27,7 @@ export interface RepetitionEngine {
   getDiscoveryItems(): MultiplicationItem[];
   getNextDiscovery(): MultiplicationItem;
   getNextQuestion(): MultiplicationItem;
-  registerResult(item: MultiplicationItem, mode: "discovery" | "practice" | "time-attack", isCorrect: boolean, timeMs: number): void;
+  registerResult(item: MultiplicationItem, mode: "discovery" | "practice" | "time-attack", isCorrect: boolean, timeMs: number): EarnedPoints;
   isReviewQueueOverloaded(durationMinutes?: number): boolean;
   getQueueStats(durationMinutes?: number): QueueStats;
   previewLot(durationMinutes?: number): DetailedLot;
@@ -267,7 +268,7 @@ export function createRepetitionEngine(
       return selected;
     },
 
-    registerResult(item: MultiplicationItem, mode: "discovery" | "practice" | "time-attack", isCorrect: boolean, timeMs: number): void {
+    registerResult(item: MultiplicationItem, mode: "discovery" | "practice" | "time-attack", isCorrect: boolean, timeMs: number): EarnedPoints {
       if (!isCorrect) {
         // Verrouillage de 3 questions intercalaires avant réapparition
         errorLockouts.set(item.id, 3);
@@ -275,7 +276,7 @@ export function createRepetitionEngine(
         errorLockouts.delete(item.id);
       }
 
-      matrixStore.recordAttempt(item.a, item.b, mode, isCorrect, timeMs);
+      return matrixStore.recordAttempt(item.a, item.b, mode, isCorrect, timeMs);
     },
 
     // Vrai quand les révisions occupent toute la prochaine séance alors qu'il reste des calculs à découvrir
