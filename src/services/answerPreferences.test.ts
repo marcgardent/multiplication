@@ -45,17 +45,17 @@ describe("Façon de jouer", () => {
     expect(preferences.get().speech).toBe(true);
   });
 
-  it("l'accord du parent suit la sauvegarde sur les autres appareils", () => {
-    expect(familyOf(`${STORAGE_NAMESPACE}:speech_answers_allowed`)).toBe("setting");
+  it("l'accord du parent reste sur ce téléphone : un autre téléphone ne l'hérite pas sans avoir été testé", () => {
+    expect(familyOf(`${STORAGE_NAMESPACE}:speech_answers_allowed`)).toBe("phone");
   });
 
-  it("retient une fois pour toutes que la famille utilise le modèle vocal, et le partage par la sauvegarde", () => {
+  it("retient une fois pour toutes que le modèle vocal a servi ici, sans le dire aux autres appareils", () => {
     const storage = createMemoryStorage();
     const preferences = createAnswerPreferences(storage);
     expect(preferences.isSpeechModelWanted()).toBe(false);
     preferences.markSpeechModelWanted();
     expect(createAnswerPreferences(storage).isSpeechModelWanted()).toBe(true);
-    expect(familyOf(`${STORAGE_NAMESPACE}:speech_model_wanted`)).toBe("setting");
+    expect(familyOf(`${STORAGE_NAMESPACE}:speech_model_wanted`)).toBe("phone");
   });
 
   it("reste propre à l'appareil : la sauvegarde ne la fusionne pas", () => {

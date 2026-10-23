@@ -18,7 +18,7 @@ export interface SyncDoc {
   sync: SyncMeta;
 }
 
-export type KeyFamily = "profiles" | "counter" | "items" | "history" | "set" | "wheel" | "device" | "setting";
+export type KeyFamily = "profiles" | "counter" | "items" | "history" | "set" | "wheel" | "device" | "phone" | "setting";
 
 const HISTORY_LIMIT = 500;
 // Part attribuée à un ancien fichier, qui ne disait pas quel appareil avait apporté quoi
@@ -50,6 +50,11 @@ const FAMILY_BY_NAME: Record<string, KeyFamily> = {
   answer_preferences: "device",
   speech_calibration: "device",
   speech_listen_mode: "device",
+  // La voix s'active téléphone par téléphone : l'activation lance l'installation et le test de ce téléphone.
+  // Recopiées par la sauvegarde jusqu'en 1.8.4, elles activaient la voix sur un téléphone jamais testé :
+  // contrairement aux autres données de l'appareil, elles ne sont jamais reprises d'une sauvegarde
+  speech_answers_allowed: "phone",
+  speech_model_wanted: "phone",
   last_seen_version: "device"
 };
 
@@ -83,9 +88,15 @@ export function canonical(value: unknown): string {
   return JSON.stringify(value) ?? "null";
 }
 
+// Propre à l'appareil : jamais envoyé dans la sauvegarde
+export function isDeviceKey(fullKey: string): boolean {
+  const family = familyOf(fullKey);
+  return family === "device" || family === "phone";
+}
+
 // Les données propres à chaque appareil ne comptent pas pour dire si deux sauvegardes sont identiques
 export function withoutDeviceKeys(data: Record<string, unknown>): Record<string, unknown> {
-  return Object.fromEntries(Object.entries(data).filter(([key]) => familyOf(key) !== "device"));
+  return Object.fromEntries(Object.entries(data).filter(([key]) => !isDeviceKey(key)));
 }
 
 export function counterVector(doc: SyncDoc, key: string): Record<string, number> {
@@ -183,6 +194,9 @@ export function mergeDocs(local: SyncDoc, remote: SyncDoc): SyncDoc {
       data[key] = sumVector(vector);
     } else if (family === "device") {
       data[key] = inLocal ? a : b;
+    } else if (family === "phone") {
+      // Jamais prise d'un autre appareil, même si une ancienne sauvegarde la contient
+      if (inLocal) data[key] = a;
     } else if (family === "setting") {
       const localTime = local.sync.times[key] ?? 0;
       const remoteTime = remote.sync.times[key] ?? 0;

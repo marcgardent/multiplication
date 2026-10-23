@@ -17,9 +17,10 @@ export const PRESETS: Record<AnswerPreset, AnswerPreferences> = {
 };
 
 export const ANSWER_PREFERENCES_KEY = "answer_preferences";
-// Réglage de l'espace parent : la réponse à voix haute est proposée ou non. Partagé par la sauvegarde avec les autres appareils
+// Réglage de l'espace parent : la réponse à voix haute est proposée ou non sur ce téléphone. Propre à chaque appareil :
+// l'activer lance l'installation et le test de ce téléphone, un autre téléphone ne l'hérite pas
 export const SPEECH_ALLOWED_KEY = "speech_answers_allowed";
-// Le modèle vocal a servi sur un appareil de la famille : partagé par la sauvegarde, un nouveau téléphone le télécharge tout seul
+// Le modèle vocal a servi sur cet appareil (en 1.7.0, avant l'espace parent, il valait accord du parent)
 export const SPEECH_MODEL_WANTED_KEY = "speech_model_wanted";
 // Résultat du calibrage : propre à chaque appareil, la vitesse et le micro changent d'un téléphone à l'autre
 export const SPEECH_CALIBRATION_KEY = "speech_calibration";
@@ -108,7 +109,7 @@ export function createAnswerPreferences(storage: StorageService): AnswerPreferen
       notify();
     },
 
-    // Écrit une seule fois : chaque écriture part dans la sauvegarde
+    // Écrit une seule fois
     markSpeechModelWanted() {
       if (!storage.get<boolean>(SPEECH_MODEL_WANTED_KEY, false)) storage.set(SPEECH_MODEL_WANTED_KEY, true);
     },

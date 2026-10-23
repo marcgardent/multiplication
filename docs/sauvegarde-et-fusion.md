@@ -29,6 +29,7 @@ Limite assumée : un appareil écrasé dans cette fenêtre d'environ une seconde
 | Réglages : durée de séance, tables de la radio et du brossage, ordre des tables à apprendre (carnet de suivi), décor choisi | le plus récemment modifié | |
 | Voix enregistrées (un fichier par voix dans le Drive, à côté de la sauvegarde) | la plus récente, retrait compris : revenir à la voix de synthèse est daté comme un enregistrement | voix de 7 × 8 enregistrée lundi sur A, réenregistrée mardi sur B : celle de B ; retirée mercredi sur A : retirée partout |
 | Joueur connecté, dernier scénario de test ; pour la radio et le brossage : onglet choisi, joueurs cochés, calculs entendus à la dernière écoute ; son et réponse à la voix | propre à chaque appareil, jamais fusionné | |
+| Réponse à voix haute activée par le parent, modèle vocal installé, test du téléphone | propre à chaque téléphone, jamais repris d'une sauvegarde, même ancienne (recopiés jusqu'en 1.8.4) | voix activée sur le PC : le Nokia reste à activer, ce qui lance son test |
 
 Un joueur se supprime dans l'espace parent, après confirmation. L'application garde la liste des joueurs supprimés : c'est elle qui empêche un autre appareil de le faire revenir à la fusion suivante.
 

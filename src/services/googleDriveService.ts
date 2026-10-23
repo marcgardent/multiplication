@@ -1,5 +1,5 @@
 import { STORAGE_NAMESPACE } from "./storageService";
-import { SyncMeta } from "./cloudMerge";
+import { familyOf, SyncMeta } from "./cloudMerge";
 
 // Identifiant OAuth de l'application dans Google Cloud. Il est public par nature : il désigne l'application,
 // il ne donne aucun accès. Les origines autorisées à s'en servir se règlent dans la console Google Cloud.
@@ -65,7 +65,8 @@ export function importAllAppData(backup: AppDataBackup, namespace = STORAGE_NAME
   }
   const prefix = `${namespace}:`;
   for (const [k, v] of Object.entries(backup.data)) {
-    if (k.startsWith(prefix)) {
+    // La voix activée sur un autre téléphone ne l'est pas ici, même dans une sauvegarde qui le contient
+    if (k.startsWith(prefix) && familyOf(k) !== "phone") {
       localStorage.setItem(k, JSON.stringify(v));
     }
   }
