@@ -35,8 +35,9 @@ const ERROR_RETRY_MS = 10 * 60 * 1000;
 export const MAX_BOX = 5;
 // Jours d'attente une fois dans chaque boîte : révisions à J1, J3, J7 et J21, puis entretien tous les 21 jours
 const BOX_WAIT_DAYS = [0, 1, 2, 4, 14, 21];
-// Au-delà, la réponse n'est pas fluide : elle ne suffit pas pour entrer en Boîte 5
-export const SLOW_ANSWER_MS = 3800;
+// Échelle de vitesse : en dessous, la réponse est fluide (vert dans le carnet) : bonus de rapidité, et il en faut une pour entrer en Boîte 5.
+// Le double, puis le quadruple, bornent le jaune et l'orange ; au-delà, rouge
+export const FLUENT_ANSWER_MS = 5000;
 export const GIFT_OPEN_POINTS = 25;
 
 // On ne monte d'une boîte qu'à l'échéance : les réussites répétées d'une même séance entraînent sans faire monter
@@ -258,14 +259,14 @@ export function createMatrixStore(storage: StorageService, initialProfileId = "d
           // Toute bonne réponse rapporte des points, même à l'entraînement
           points += 10;
 
-          // Bonus rapidité sous 2500ms
-          if (responseTimeMs > 0 && responseTimeMs < 2500) {
+          // Bonus rapidité pour une réponse fluide
+          if (responseTimeMs > 0 && responseTimeMs < FLUENT_ANSWER_MS) {
             points += 5;
           }
 
           if (isDueForPromotion) {
             // L'entrée en Boîte 5 demande une réponse fluide : sinon le calcul revient le lendemain
-            const isHeldBack = item.boxLevel === MAX_BOX - 1 && responseTimeMs > SLOW_ANSWER_MS;
+            const isHeldBack = item.boxLevel === MAX_BOX - 1 && responseTimeMs >= FLUENT_ANSWER_MS;
             if (isHeldBack) {
               item.intervalDays = 1;
             } else {

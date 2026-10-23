@@ -40,7 +40,7 @@
     "order": 1,
     "capturedAt": "2026-01-06T08:00:00.000Z",
     "summary": {
-      "points": 610,
+      "points": 860,
       "giftsEarned": 0,
       "giftsToOpen": 0,
       "dueCount": 4,
@@ -66,16 +66,16 @@
       "Décors : Été est débloqué, 2 sur 14"
     ],
     "order": 2,
-    "capturedAt": "2026-01-06T08:04:36.960Z",
+    "capturedAt": "2026-01-06T08:02:09.062Z",
     "summary": {
-      "points": 990,
+      "points": 985,
       "giftsEarned": 0,
       "giftsToOpen": 0,
-      "dueCount": 1,
+      "dueCount": 7,
       "boxes": [
-        93,
-        5,
+        97,
         2,
+        1,
         0,
         0,
         0
@@ -94,15 +94,15 @@
       "Le fond change et reste après rechargement"
     ],
     "order": 3,
-    "capturedAt": "2026-01-06T08:04:40.907Z",
+    "capturedAt": "2026-01-06T08:02:15.081Z",
     "summary": {
       "points": 1000,
       "giftsEarned": 0,
       "giftsToOpen": 0,
-      "dueCount": 1,
+      "dueCount": 6,
       "boxes": [
-        93,
-        5,
+        97,
+        1,
         2,
         0,
         0,
@@ -123,7 +123,7 @@
     "order": 4,
     "capturedAt": "2026-01-08T08:00:00.000Z",
     "summary": {
-      "points": 1810,
+      "points": 2550,
       "giftsEarned": 0,
       "giftsToOpen": 0,
       "dueCount": 7,
@@ -150,7 +150,7 @@
     "order": 5,
     "capturedAt": "2026-01-12T08:00:00.000Z",
     "summary": {
-      "points": 4260,
+      "points": 6005,
       "giftsEarned": 0,
       "giftsToOpen": 0,
       "dueCount": 9,
@@ -177,7 +177,7 @@
     "order": 6,
     "capturedAt": "2026-01-15T08:06:10.593Z",
     "summary": {
-      "points": 6759,
+      "points": 9504,
       "giftsEarned": 0,
       "giftsToOpen": 0,
       "dueCount": 4,
@@ -204,7 +204,7 @@
     "order": 7,
     "capturedAt": "2026-01-25T08:06:09.310Z",
     "summary": {
-      "points": 12829,
+      "points": 18059,
       "giftsEarned": 0,
       "giftsToOpen": 0,
       "dueCount": 3,
@@ -232,7 +232,7 @@
     "order": 8,
     "capturedAt": "2026-01-26T08:00:00.000Z",
     "summary": {
-      "points": 12829,
+      "points": 18059,
       "giftsEarned": 0,
       "giftsToOpen": 0,
       "dueCount": 12,
@@ -260,7 +260,7 @@
     "order": 9,
     "capturedAt": "2026-01-26T08:06:12.166Z",
     "summary": {
-      "points": 13539,
+      "points": 19019,
       "giftsEarned": 2,
       "giftsToOpen": 2,
       "dueCount": 4,
@@ -288,7 +288,7 @@
     "order": 10,
     "capturedAt": "2026-01-27T08:00:02.706Z",
     "summary": {
-      "points": 13564,
+      "points": 19044,
       "giftsEarned": 2,
       "giftsToOpen": 1,
       "dueCount": 14,
@@ -316,7 +316,7 @@
     "order": 11,
     "capturedAt": "2026-02-16T08:00:00.000Z",
     "summary": {
-      "points": 27444,
+      "points": 37994,
       "giftsEarned": 35,
       "giftsToOpen": 34,
       "dueCount": 9,
@@ -344,7 +344,7 @@
     "order": 12,
     "capturedAt": "2026-01-05T08:03:03.680Z",
     "summary": {
-      "points": 145,
+      "points": 170,
       "giftsEarned": 0,
       "giftsToOpen": 0,
       "dueCount": 4,
@@ -371,7 +371,7 @@
     "order": 13,
     "capturedAt": "2026-01-07T08:00:00.000Z",
     "summary": {
-      "points": 300,
+      "points": 350,
       "giftsEarned": 0,
       "giftsToOpen": 0,
       "dueCount": 6,
@@ -399,7 +399,7 @@
     "order": 14,
     "capturedAt": "2026-01-29T08:00:00.000Z",
     "summary": {
-      "points": 5990,
+      "points": 8435,
       "giftsEarned": 0,
       "giftsToOpen": 0,
       "dueCount": 23,

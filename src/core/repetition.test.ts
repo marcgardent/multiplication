@@ -5,8 +5,9 @@ import { createMatrixStore, GIFT_OPEN_POINTS, isGiftUnlocked, MatrixStore } from
 import { profileKey } from "./profileData";
 import { createRepetitionEngine } from "./repetitionEngine";
 
-// Réponse ni rapide ni lente : n'allonge ni ne raccourcit les intervalles
+// Réponse fluide (verte) ; la vitesse n'allonge ni ne raccourcit les intervalles
 const NEUTRAL_MS = 3000;
+// Plus de vert dans l'échelle de vitesse : 5 s tout juste
 const SLOW_MS = 5000;
 
 // Se place au jour J+day de la première séance, à l'heure donnée
@@ -157,15 +158,22 @@ describe("graphe des boîtes (docs/progression-et-recompenses.md)", () => {
   });
 
   describe("Boîte 4", () => {
-    it("réussite fluide à l'échéance (J21) : monte en Boîte 5, maîtrisé, cadeau gagné, +50", () => {
+    it("réussite fluide à l'échéance (J21) : monte en Boîte 5, maîtrisé, cadeau gagné, +5 de rapidité et +50", () => {
       goTo(reachBox(store, 4));
       const pointsBefore = store.getPoints();
       answer(store, 2, 3);
       expect(item(store).boxLevel).toBe(5);
       expect(item(store).status).toBe("mastered");
       expect(isGiftUnlocked(item(store))).toBe(true);
-      expect(store.getPoints() - pointsBefore).toBe(10 + 50);
+      expect(store.getPoints() - pointsBefore).toBe(10 + 5 + 50);
       expect(dayOf(item(store).nextReviewAt)).toBe(42);
+    });
+
+    it("réussite en 4,9 s à l'échéance : encore fluide (vert), monte en Boîte 5", () => {
+      goTo(reachBox(store, 4));
+      answer(store, 2, 3, true, SLOW_MS - 100);
+      expect(item(store).boxLevel).toBe(5);
+      expect(isGiftUnlocked(item(store))).toBe(true);
     });
 
     it("réussite lente à l'échéance : reste en Boîte 4, revient le lendemain, sans cadeau", () => {

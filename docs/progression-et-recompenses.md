@@ -78,7 +78,8 @@ Précisions :
 - **Avant l'échéance**, une réussite entraîne et rapporte des points, mais ne fait pas monter. C'est ce qui empêche de gagner plusieurs boîtes dans la même séance.
 - **Un échec renvoie toujours en Boîte 0**, depuis n'importe quelle boîte, même avant l'échéance. Le calendrier repart alors du début : le calcul revient 10 minutes plus tard, et il faudra de nouveau J1, J3, J7 et J21.
 - **Temps de réponse** : de la question à l'appui sur Valider, moins 0,5 seconde accordée pour cet appui. À la voix, de la question à la fin du dernier mot prononcé (si Valider est touché avant que la reconnaissance ait fini la phrase : au moment où le nombre entendu a changé pour la dernière fois), même si Valider est touché après : ni le temps que met la reconnaissance à comprendre, ni l'attente avant Valider ne sont comptés, et rien n'est retiré. Si l'enfant corrige ensuite au clavier, c'est de nouveau l'appui sur Valider qui compte, moins 0,5 seconde. C'est ce temps qui compte pour la réponse fluide, le bonus de rapidité et l'échelle de vitesse du carnet.
-- **Réponse fluide** : en 3,8 secondes au plus. Elle n'est exigée que pour entrer en Boîte 5. Une réussite lente ce jour-là ne fait pas perdre 14 jours : le calcul revient le lendemain.
+- **Échelle de vitesse** : moins de 5 s vert, 5 à 10 s jaune, 10 à 20 s orange, 20 s et plus rouge. Le carnet colore chaque calcul d'après la moyenne de ses temps.
+- **Réponse fluide** : en moins de 5 secondes, le vert de l'échelle. Elle rapporte le bonus de rapidité. Elle n'est exigée que pour entrer en Boîte 5, et c'est le temps de cette réponse-là qui compte. Une réussite plus lente ce jour-là ne fait pas perdre 14 jours : le calcul revient le lendemain. (Jusqu'en 1.8.5 : 3,8 s au plus, et le vert du carnet s'arrêtait à 2 s.)
 - En Boîte 0, un calcul jamais écouté peut monter directement en Boîte 1 par une réussite, par exemple en « Révision tables ».
 - Les attentes sont fixes : la vitesse de réponse ne les allonge ni ne les raccourcit.
 - Un enfant en retard ne perd rien : s'il fait la révision de J3 à J5, la suivante est 4 jours plus tard, à J9.
@@ -171,7 +172,7 @@ stateDiagram-v2
 |---|---|
 | Écoute d'un calcul | +5 |
 | Bonne réponse | +10 |
-| Bonne réponse en moins de 2,5 secondes | +5 de plus |
+| Bonne réponse fluide, en moins de 5 secondes (2,5 s jusqu'en 1.8.5) | +5 de plus |
 | Arrivée en Boîte 5 | +50 de plus |
 | Ouverture d'un cadeau | +25 |
 | Roue magique, 3 tours par jour | le résultat du calcul tiré, de 1 à 100 |
