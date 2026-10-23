@@ -1,8 +1,6 @@
 // Calibrage d'un téléphone pour la réponse à voix haute : est-il assez rapide, et à partir de quel volume la voix est-elle de la parole ?
 import type { CalibrationVerdict } from "../services/answerPreferences";
-import { ANSWER_GRAMMAR, guessSpeech } from "./speechGuess";
 import { DEFAULT_FLOOR } from "./speechSegmenter";
-import { loadVoiceModel } from "./voiceModel";
 
 // Nombres que l'adulte ou l'enfant dit pendant le calibrage : un court, deux composés
 export const CALIBRATION_TARGETS = [7, 56, 81];
@@ -11,15 +9,6 @@ export const CALIBRATION_TARGETS = [7, 56, 81];
 // Choix de confort pour un enfant, à revoir avec l'usage
 export const FAST_MS = 1000;
 export const SLOW_MS = 2500;
-
-// Réponses de l'application décodées pour mesurer la vitesse : environ 10 secondes de parole.
-// La dernière n'apparaît qu'une fois : quand Vosk la rend, tout l'échantillon est traité
-const SPEED_SAMPLE = [7, 56, 81, 42, 36, 24, 63, 100];
-const SPEED_LAST = SPEED_SAMPLE[SPEED_SAMPLE.length - 1];
-const SPEED_RATE = 16000;
-const SPEED_GAP_S = 0.3;
-// Sans résultat pendant ce temps, le téléphone n'y arrive pas
-const SPEED_TIMEOUT_MS = 60000;
 
 export function calibrationVerdict(result: { latencyMs: number | null; correct: number; total: number }): CalibrationVerdict {
   // Moins de deux nombres sur trois compris : la voix ne sert à rien sur ce téléphone, quelle que soit sa vitesse
@@ -53,57 +42,4 @@ export function speechFloor(noise: number, voice: number | null): number {
 export function medianOf(values: number[]): number {
   const sorted = [...values].sort((a, b) => a - b);
   return sorted.length === 0 ? 0 : sorted[Math.floor(sorted.length / 2)];
-}
-
-// Vitesse de calcul : secondes de calcul pour une seconde de parole, sans micro, sur les voix de l'application.
-// loadMs : temps de chargement du modèle, nul s'il était déjà chargé
-export async function measureSpeed(): Promise<{ realTimeFactor: number | null; loadMs: number }> {
-  const loadStart = performance.now();
-  const model = await loadVoiceModel();
-  const loadMs = Math.round(performance.now() - loadStart);
-
-  // Les voix de synthèse, jamais celles enregistrées par un parent : la mesure reste comparable d'un appareil à l'autre
-  const context = new OfflineAudioContext(1, 1, SPEED_RATE);
-  const parts: Float32Array[] = [];
-  for (const n of SPEED_SAMPLE) {
-    const response = await fetch(`${import.meta.env.BASE_URL}audio/ans_${n}.mp3`);
-    const buffer = await context.decodeAudioData(await response.arrayBuffer());
-    parts.push(buffer.getChannelData(0), new Float32Array(SPEED_RATE * SPEED_GAP_S));
-  }
-  const audio = new Float32Array(parts.reduce((sum, p) => sum + p.length, 0));
-  let offset = 0;
-  for (const part of parts) {
-    audio.set(part, offset);
-    offset += part.length;
-  }
-
-  const recognizer = new model.KaldiRecognizer(SPEED_RATE, JSON.stringify(ANSWER_GRAMMAR));
-  let lastResultAt = 0;
-  let results = 0;
-  let isLastHeard = false;
-  recognizer.on("result", (message) => {
-    lastResultAt = performance.now();
-    results++;
-    // Le dernier nombre, seul ou à la fin d'un résultat qui en regroupe plusieurs (la supposition garde le dernier dit)
-    const guess = message.event === "result" ? guessSpeech(message.result.text) : null;
-    if (guess?.kind === "number" && guess.value === SPEED_LAST) isLastHeard = true;
-  });
-  const start = performance.now();
-  const chunk = SPEED_RATE / 25;
-  for (let i = 0; i < audio.length; i += chunk) recognizer.acceptWaveformFloat(audio.slice(i, i + chunk), SPEED_RATE);
-  recognizer.retrieveFinalResult();
-
-  // Fini quand Vosk rend le dernier nombre de l'échantillon, quel que soit le temps que ça prenne.
-  // Attendre seulement un moment sans résultat était faux : sur un téléphone lent, chaque nombre prend plus que ce moment
-  await new Promise<void>((resolve) => {
-    const check = () => {
-      if (isLastHeard || performance.now() - start > SPEED_TIMEOUT_MS) resolve();
-      else setTimeout(check, 100);
-    };
-    setTimeout(check, 100);
-  });
-  recognizer.remove();
-
-  const audioSeconds = audio.length / SPEED_RATE;
-  return { realTimeFactor: results > 0 ? (lastResultAt - start) / 1000 / audioSeconds : null, loadMs };
 }

@@ -540,16 +540,17 @@
       background: $line;
     }
 
-    span.is-on:nth-child(-n + 2) {
-      background: $danger;
+    // Une seule couleur, celle du verdict : toute verte, toute orange ou toute rouge
+    &[data-verdict="fast"] span.is-on {
+      background: $status-mastered;
     }
 
-    span.is-on:nth-child(3) {
+    &[data-verdict="slow"] span.is-on {
       background: $status-review;
     }
 
-    span.is-on:nth-child(n + 4) {
-      background: $status-mastered;
+    &[data-verdict="unusable"] span.is-on {
+      background: $danger;
     }
   }
 

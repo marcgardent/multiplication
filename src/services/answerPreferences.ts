@@ -30,8 +30,6 @@ export type CalibrationVerdict = "fast" | "slow" | "unusable";
 
 export interface SpeechCalibration {
   at: number;
-  // Secondes de calcul pour une seconde de parole
-  realTimeFactor: number;
   // Attente mesurée entre la fin d'une réponse dite et le nombre compris
   latencyMs: number | null;
   // Volumes (moyenne quadratique) de la pièce et de la voix

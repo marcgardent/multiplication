@@ -4,17 +4,17 @@ import {
   calibrationLevel,
   calibrationVerdict,
   LEVEL_COUNT,
-  measureSpeed,
   medianOf,
   speechFloor
 } from "../voices/speechCalibration";
 import { createSpeechListener, HeardSpeech } from "../voices/speechListener";
-import { downloadVoiceModel, isVoiceModelDownloaded } from "../voices/voiceModel";
+import { downloadVoiceModel, isVoiceModelDownloaded, loadVoiceModel } from "../voices/voiceModel";
 
 // « Test du téléphone » : pensé pour n'importe quel adulte, sans chiffres ni jargon.
-// 1. performance, tout seul ; 2. silence ; 3. trois nombres, en appuyant longtemps dessus ; puis un bilan en une jauge
+// 1. préparation, toute seule ; 2. silence ; 3. trois nombres, en maintenant le bouton ; puis un bilan en une jauge.
+// Le verdict ne tient qu'à l'attente réelle après chaque nombre dit : pas de mesure de vitesse à part
 
-const SILENCE_MS = 3000;
+const SILENCE_MS = 10000;
 const THINKING_MAX_MS = 20000;
 const MIN_HOLD_MS = 250;
 
@@ -53,7 +53,6 @@ export function openCalibrationModal(options: { preferences: AnswerPreferencesSt
   box.className = "session-modal-container prompt-choice-modal calibration-modal";
   modal.appendChild(box);
 
-  let realTimeFactor = 0;
   let noise = 0;
   let voice: number | null = null;
   const attempts = new Map<number, Attempt>();
@@ -100,26 +99,22 @@ export function openCalibrationModal(options: { preferences: AnswerPreferencesSt
   const loader = (text: string) =>
     screen("Test du téléphone", `<div class="calibration-loader" role="status"><span class="calibration-spinner" aria-hidden="true"></span><span>${text}</span></div>`);
 
-  // 1. Performance : tout seul, rien à faire. La première fois, la reconnaissance s'installe d'abord
-  async function runSpeed() {
+  // 1. Préparation : rien à faire. La première fois, la reconnaissance s'installe d'abord ; elle est chargée
+  // avant le premier nombre, pour que ce chargement ne compte pas dans l'attente
+  async function runPreparation() {
     try {
       if (!(await isVoiceModelDownloaded())) {
         loader("Installation");
         await downloadVoiceModel();
         if (!modal.isConnected) return;
       }
-      loader("Test de performance");
-      const speed = await measureSpeed();
+      loader("Préparation");
+      await loadVoiceModel();
       if (!modal.isConnected) return;
-      if (speed.realTimeFactor === null) {
-        showVerdict(null);
-        return;
-      }
-      realTimeFactor = speed.realTimeFactor;
       listener.start();
       showSilence();
     } catch (err) {
-      console.warn("Test du téléphone : performance", err);
+      console.warn("Test du téléphone : préparation", err);
       showVerdict(null);
     }
   }
@@ -127,7 +122,7 @@ export function openCalibrationModal(options: { preferences: AnswerPreferencesSt
   // 2. Silence : le bruit de la pièce
   function showSilence() {
     screen(
-      "Silence",
+      "Faites silence 10 secondes",
       `<div class="calibration-big" aria-hidden="true">🤫</div>
        <div class="calibration-progress" aria-hidden="true"><span id="progress"></span></div>`,
       `<button type="button" class="btn-confirm-launch" data-action="start">C'est parti</button>`
@@ -136,7 +131,7 @@ export function openCalibrationModal(options: { preferences: AnswerPreferencesSt
       const button = box.querySelector('[data-action="start"]') as HTMLButtonElement;
       button.hidden = true;
       const progress = box.querySelector("#progress") as HTMLElement;
-      // La barre se remplit pendant les trois secondes d'écoute
+      // La barre se remplit pendant l'écoute
       progress.style.transitionDuration = `${SILENCE_MS}ms`;
       requestAnimationFrame(() => (progress.style.width = "100%"));
       const levels: number[] = [];
@@ -153,12 +148,12 @@ export function openCalibrationModal(options: { preferences: AnswerPreferencesSt
     });
   }
 
-  // 3. Trois nombres : on appuie longtemps sur le nombre et on le dit. Il devient 🎤, puis ⏳, puis vert ou rouge
+  // 3. Trois nombres : on maintient le bouton du nombre et on le dit. Il devient 🎤, puis ⏳, puis vert ou rouge
   function showNumber(index: number) {
     const target = CALIBRATION_TARGETS[index];
     const dots = CALIBRATION_TARGETS.map((_, i) => `<span class="${i <= index ? "is-on" : ""}"></span>`).join("");
     screen(
-      "Appuie longtemps sur le nombre et dis-le",
+      `Maintenez le bouton et prononcez ${target}`,
       `<div class="calibration-dots" aria-hidden="true">${dots}</div>
        <button type="button" class="calibration-number" id="number" aria-label="Maintenir et dire ${target}">${target}</button>`,
       `<button type="button" class="btn-confirm-launch" data-action="next" hidden>${index + 1 < CALIBRATION_TARGETS.length ? "Suivant" : "Voir le résultat"}</button>`
@@ -232,7 +227,6 @@ export function openCalibrationModal(options: { preferences: AnswerPreferencesSt
     const total = CALIBRATION_TARGETS.length;
     const calibration: SpeechCalibration = {
       at: Date.now(),
-      realTimeFactor,
       latencyMs,
       noise,
       voice,
@@ -264,11 +258,11 @@ export function openCalibrationModal(options: { preferences: AnswerPreferencesSt
     on("again", () => {
       attempts.clear();
       voice = null;
-      runSpeed();
+      runPreparation();
     });
     on("done", close);
   }
 
   document.body.appendChild(modal);
-  runSpeed();
+  runPreparation();
 }
