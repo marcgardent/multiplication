@@ -1,5 +1,6 @@
 import { AnswerPreferencesStore } from "../services/answerPreferences";
 import { AudioService } from "../services/audioService";
+import { createHoldToTalk, HoldOutcome } from "../voices/holdToTalk";
 import { createSpeechListener, HeardSpeech, SpeechProblem } from "../voices/speechListener";
 import { createKeypad, KeypadComponent, KeypadOptions } from "./keypad";
 
@@ -26,8 +27,6 @@ const HOLD_LABELS: Partial<Record<SpeechState, string>> = {
   thinking: "Je réfléchis…"
 };
 const HOLD_LABEL = "Maintiens et parle";
-// Un appui plus bref ne contient pas une réponse
-const MIN_HOLD_MS = 250;
 
 const CUES: Record<SpeechState, { icon: string; text: string }> = {
   loading: { icon: "⏳", text: "Je prépare mes oreilles…" },
@@ -62,13 +61,18 @@ export function createAnswerInput(options: AnswerInputOptions): KeypadComponent 
   let spoken: { value: string; at: number } | null = null;
   const keypad = createKeypad({
     ...options,
+    // Une touche du clavier remplace aussi ce qui a été dit, et le message de l'essai d'avant
     onInput(digit, value) {
       spoken = null;
+      isUnclear = false;
+      isTooShort = false;
       options.onInput?.(digit, value);
       render();
     },
     onDelete(value) {
       spoken = null;
+      isUnclear = false;
+      isTooShort = false;
       options.onDelete?.(value);
       render();
     },
@@ -99,7 +103,6 @@ export function createAnswerInput(options: AnswerInputOptions): KeypadComponent 
   const cueEl = strip.querySelector(".speech-cue") as HTMLElement;
   const holdBtn = strip.querySelector(".speech-hold") as HTMLButtonElement;
   const holdLabelEl = strip.querySelector(".speech-hold-label") as HTMLElement;
-  let pressedAt = 0;
   let isTooShort = false;
   const isHoldMode = () => preferences.listenMode() === "hold";
   // Le micro, à la place de la réponse dans le grand calcul : il respire quand c'est à l'enfant, grossit avec sa voix
@@ -112,7 +115,7 @@ export function createAnswerInput(options: AnswerInputOptions): KeypadComponent 
   notice.hidden = true;
 
   const listener = createSpeechListener({
-    onHeard: handleHeard,
+    onHeard: (heard) => (isHoldMode() ? hold.heard(heard) : handleHeard(heard)),
     onProblem(problem) {
       isLoading = false;
       showNotice(PROBLEM_NOTICES[problem]);
@@ -127,8 +130,9 @@ export function createAnswerInput(options: AnswerInputOptions): KeypadComponent 
       mic.style.setProperty("--level", level.toFixed(2));
       render();
     },
+    // Repérage automatique seulement : avec le bouton, c'est l'appui qui dit où en est l'enfant
     onSpeech(event) {
-      if (!isListening()) return;
+      if (isHoldMode() || !isListening()) return;
       if (event === "start") {
         isHearing = true;
         isUnclear = false;
@@ -142,30 +146,35 @@ export function createAnswerInput(options: AnswerInputOptions): KeypadComponent 
     mode: () => preferences.listenMode()
   });
 
-  // Maintenir pour parler, au doigt comme à la souris ; le relâchement arrête, même hors du bouton
-  holdBtn.addEventListener("pointerdown", (e) => {
-    e.preventDefault();
-    if (holdBtn.disabled || !listener.isReady()) return;
-    try {
-      holdBtn.setPointerCapture(e.pointerId);
-    } catch {
-      // Pointeur déjà relâché : l'appui s'arrêtera sur pointerup
+  // Maintenir pour parler : un appui, une nouvelle réponse. Elle remplace celle d'avant, dite ou tapée
+  const hold = createHoldToTalk({
+    listener,
+    thinkingMaxMs: THINKING_MAX_MS,
+    onPhase(phase) {
+      if (phase === "holding") {
+        isUnclear = false;
+        isTooShort = false;
+        if (keypad.getCurrentValue() !== "") {
+          keypad.setValue?.("");
+          spoken = null;
+          options.onDelete?.("");
+        }
+      }
+      render();
+    },
+    // Le nombre s'affiche dès qu'il est entendu, doigt encore posé
+    onPartial: handleHeard,
+    onOutcome(outcome: HoldOutcome) {
+      if (outcome.kind === "heard") {
+        handleHeard(outcome.heard);
+        return;
+      }
+      isTooShort = outcome.kind === "too-short";
+      isUnclear = true;
+      render();
     }
-    pressedAt = performance.now();
-    isTooShort = false;
-    navigator.vibrate?.(20);
-    listener.holdStart();
   });
-  const release = () => {
-    if (pressedAt === 0) return;
-    isTooShort = performance.now() - pressedAt < MIN_HOLD_MS;
-    pressedAt = 0;
-    listener.holdEnd();
-  };
-  holdBtn.addEventListener("pointerup", release);
-  holdBtn.addEventListener("pointercancel", release);
-  // Un appui long ouvrirait sinon le menu du navigateur
-  holdBtn.addEventListener("contextmenu", (e) => e.preventDefault());
+  const unbindHold = hold.bind(holdBtn);
 
   function setThinking(thinking: boolean) {
     isThinking = thinking;
@@ -185,14 +194,16 @@ export function createAnswerInput(options: AnswerInputOptions): KeypadComponent 
     return isSpeechMode && isEnabled && !audio.isSpeaking();
   }
 
+  // Le nouvel essai passe avant la réponse d'avant : l'enfant voit qu'on l'écoute, puis s'il a été compris
   function state(): SpeechState {
     if (isLoading) return "loading";
     if (!isEnabled) return "wait";
     if (audio.isSpeaking()) return "question";
-    if (isHearing) return "hearing";
-    if (isThinking && !spoken) return "thinking";
-    if (spoken) return "heard";
-    return isUnclear ? "unclear" : "listen";
+    const phase = isHoldMode() ? hold.phase() : isHearing ? "holding" : isThinking ? "thinking" : "idle";
+    if (phase === "holding") return "hearing";
+    if (phase === "thinking" && !spoken) return "thinking";
+    if (isUnclear) return "unclear";
+    return spoken ? "heard" : "listen";
   }
 
   function render() {
@@ -210,7 +221,7 @@ export function createAnswerInput(options: AnswerInputOptions): KeypadComponent 
     holdBtn.dataset.state = current;
     holdLabelEl.textContent = HOLD_LABELS[current] ?? HOLD_LABEL;
     // Le bouton ne sert que quand une réponse est attendue et que la reconnaissance est prête ; enfoncé, il le reste
-    holdBtn.disabled = pressedAt === 0 && (!isListening() || current === "loading" || !listener.isReady());
+    holdBtn.disabled = hold.phase() !== "holding" && (!isListening() || current === "loading" || !listener.isReady());
     if (!isListening()) mic.style.setProperty("--level", "0");
     renderSlot();
   }
@@ -242,6 +253,7 @@ export function createAnswerInput(options: AnswerInputOptions): KeypadComponent 
     } else {
       isHearing = false;
       setThinking(false);
+      hold.cancel();
       listener.stop();
       if (!isEnabled) idleTimer = setTimeout(() => listener.release(), MIC_IDLE_MS);
     }
@@ -308,6 +320,8 @@ export function createAnswerInput(options: AnswerInputOptions): KeypadComponent 
     },
 
     destroy() {
+      unbindHold();
+      hold.cancel();
       unsubscribePreferences();
       unsubscribeSpeaking();
       if (idleTimer) clearTimeout(idleTimer);
@@ -321,10 +335,13 @@ export function createAnswerInput(options: AnswerInputOptions): KeypadComponent 
       root = null;
     },
 
+    // Nouvelle question, ou réponse fausse effacée : un essai en cours ne doit pas y écrire après coup
     clear() {
+      hold.cancel();
       keypad.clear();
       spoken = null;
       isUnclear = false;
+      isTooShort = false;
       render();
     },
 

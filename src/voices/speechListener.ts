@@ -5,6 +5,7 @@
 import type { KaldiRecognizer } from "vosk-browser";
 import { ANSWER_GRAMMAR, interpretAlternatives, SpeechGuess, SpeechRule } from "./speechGuess";
 import { AudioChunk, createSpeechSegmenter, DEFAULT_FLOOR, SegmentEvent } from "./speechSegmenter";
+import { createPhraseTracker, VoskMessage } from "./speechPhrases";
 import { loadVoiceModel } from "./voiceModel";
 
 export function isSpeechSupported(): boolean {
@@ -24,6 +25,8 @@ export interface HeardSpeech {
   rulesUsed: SpeechRule[];
   // Faux tant que l'enfant parle encore : la supposition peut changer
   isFinal: boolean;
+  // Phrase entendue : un appui du bouton, ou une prise de parole repérée au volume
+  phrase: number;
   // Phrase finie : moment où l'enfant a fini de parler (horloge de performance.now()), sans le temps de calcul de Vosk
   spokenAt?: number;
 }
@@ -39,8 +42,9 @@ export type ListenMode = "hold" | "auto";
 export interface SpeechListener {
   // Les réponses dites comptent à partir de maintenant
   start(): void;
-  // Bouton à maintenir : appui, puis relâchement. Le son d'avant l'appui et d'après le relâchement est gardé
-  holdStart(): void;
+  // Bouton à maintenir : appui, puis relâchement. Le son d'avant l'appui et d'après le relâchement est gardé.
+  // L'appui ouvre une phrase, dont il rend le numéro ; nul si l'écoute n'est pas prête
+  holdStart(): number | null;
   holdEnd(): void;
   isReady(): boolean;
   // Elles ne comptent plus ; le micro reste ouvert pour repartir tout de suite
@@ -117,6 +121,10 @@ export function createSpeechListener(handlers: {
   let hold: "idle" | "holding" | "closing" = "idle";
   let holdCloseAt = 0;
   let holdPreroll: AudioChunk[] = [];
+  // Phrase en cours : tout ce qui part vers Vosk lui appartient, jusqu'à sa fin demandée
+  let phraseCount = 0;
+  let currentPhrase = 0;
+  const phrases = createPhraseTracker();
   // Donne un paquet à Vosk, en ouvrant un nouveau tronçon si demandé ; puis termine la phrase. Prêts une fois le micro ouvert
   let feedChunk: ((chunk: AudioChunk, isNewSegment: boolean) => void) | null = null;
   let finishPhrase: (() => void) | null = null;
@@ -131,9 +139,34 @@ export function createSpeechListener(handlers: {
   let lastPartial = "";
   let lastPartialAt = 0;
 
-  function heard(text: string, isFinal: boolean, spokenAt?: number) {
+  function heard(text: string, isFinal: boolean, phrase: number, spokenAt?: number) {
     const { guess, transcript, rulesUsed } = interpretAlternatives([text]);
-    handlers.onHeard({ guess, transcript, rulesUsed, isFinal, spokenAt });
+    handlers.onHeard({ guess, transcript, rulesUsed, isFinal, phrase, spokenAt });
+  }
+
+  // Chaque message de Vosk est rangé dans sa phrase ; une phrase n'est finie qu'à la fin demandée, même si Vosk l'a coupée avant
+  function receive(message: VoskMessage, sampleRate: number) {
+    const update = phrases.receive(message);
+    if (!update) return;
+    if (update.isFinal) {
+      lastPartial = "";
+      // Une phrase sans rien de reconnu est signalée aussi : l'enfant doit savoir qu'il faut redire
+      const spokenAt = update.lastWordEnd !== undefined ? wallTimeOf(update.lastWordEnd, sampleRate) : undefined;
+      heard(update.text, true, update.phrase, spokenAt);
+      return;
+    }
+    if (!update.text) return;
+    if (update.text !== lastPartial) {
+      lastPartial = update.text;
+      lastPartialAt = performance.now();
+    }
+    heard(update.text, false, update.phrase, lastPartialAt);
+  }
+
+  function closeHoldPhrase() {
+    hold = "idle";
+    finishPhrase?.();
+    handlers.onSpeech?.("end");
   }
 
   async function open(): Promise<Capture | null> {
@@ -168,33 +201,28 @@ export function createSpeechListener(handlers: {
 
       const recognizer = new model.KaldiRecognizer(context.sampleRate, JSON.stringify(ANSWER_GRAMMAR));
       recognizer.on("partialresult", (message) => {
-        if (message.event !== "partialresult" || !message.result.partial) return;
-        if (message.result.partial !== lastPartial) {
-          lastPartial = message.result.partial;
-          lastPartialAt = performance.now();
-        }
-        heard(message.result.partial, false, lastPartialAt);
+        if (message.event === "partialresult") receive({ kind: "partial", partial: message.result.partial ?? "" }, context.sampleRate);
       });
       recognizer.setWords(true);
       recognizer.on("result", (message) => {
-        if (message.event !== "result") return;
-        lastPartial = "";
-        // Une phrase sans rien de reconnu est signalée aussi : l'enfant doit savoir qu'il faut redire
-        if (!message.result.text) {
-          heard("", true);
-          return;
-        }
-        const lastWord = message.result.result?.[message.result.result.length - 1];
-        heard(message.result.text, true, lastWord ? wallTimeOf(lastWord.end, context.sampleRate) : undefined);
+        if (message.event === "result") receive({ kind: "result", text: message.result.text ?? "", words: message.result.result }, context.sampleRate);
+      });
+      recognizer.on("error", (message) => {
+        console.warn("Reconnaissance vocale", message);
+        receive({ kind: "error" }, context.sampleRate);
       });
 
       feedChunk = (chunk, isNewSegment) => {
         // Un tronçon continu de son donné à Vosk : c'est ce qui permet de dater les mots
         if (isNewSegment) segments.push({ sample: fedSamples, wall: chunk.wall });
+        phrases.fed(currentPhrase);
         recognizer.acceptWaveformFloat(chunk.samples, context.sampleRate);
         fedSamples += chunk.samples.length;
       };
-      finishPhrase = () => recognizer.retrieveFinalResult();
+      finishPhrase = () => {
+        phrases.finished(currentPhrase);
+        recognizer.retrieveFinalResult();
+      };
 
       const node = new AudioWorkletNode(context, "speech-capture");
       node.port.onmessage = (e: MessageEvent<{ samples: Float32Array; level: number }>) => {
@@ -213,17 +241,14 @@ export function createSpeechListener(handlers: {
             return;
           }
           feedChunk?.(chunk, false);
-          if (hold === "closing" && performance.now() >= holdCloseAt) {
-            hold = "idle";
-            recognizer.retrieveFinalResult();
-            handlers.onSpeech?.("end");
-          }
+          if (hold === "closing" && performance.now() >= holdCloseAt) closeHoldPhrase();
           return;
         }
 
         const { feed, event } = segmenter.push(chunk);
+        if (event === "start") currentPhrase = ++phraseCount;
         feed.forEach((c, i) => feedChunk?.(c, event === "start" && i === 0));
-        if (event === "end") recognizer.retrieveFinalResult();
+        if (event === "end") finishPhrase?.();
         if (event) handlers.onSpeech?.(event);
       };
       // Relié à une sortie muette : sans sortie, certains navigateurs ne font pas tourner le nœud
@@ -254,6 +279,7 @@ export function createSpeechListener(handlers: {
     feedChunk = null;
     finishPhrase = null;
     if (!current) return;
+    phrases.reset();
     current.recognizer.remove();
     current.stream.getTracks().forEach((track) => track.stop());
     current.context.close().catch(() => undefined);
@@ -273,14 +299,17 @@ export function createSpeechListener(handlers: {
     },
 
     holdStart() {
-      if (!feedChunk || !isWanted || hold === "holding") return;
-      if (hold === "idle") {
-        // Le son d'avant l'appui part en premier : un nouveau tronçon
-        holdPreroll.forEach((chunk, i) => feedChunk?.(chunk, i === 0));
-        holdPreroll = [];
-      }
+      if (!feedChunk || !isWanted) return null;
+      if (hold === "holding") return currentPhrase;
+      // Nouvel appui avant la fin du précédent : la phrase d'avant se termine là, la nouvelle ne s'y mélange pas
+      if (hold === "closing") closeHoldPhrase();
+      currentPhrase = ++phraseCount;
+      // Le son d'avant l'appui part en premier : un nouveau tronçon
+      holdPreroll.forEach((chunk, i) => feedChunk?.(chunk, i === 0));
+      holdPreroll = [];
       hold = "holding";
       handlers.onSpeech?.("start");
+      return currentPhrase;
     },
 
     holdEnd() {

@@ -8,6 +8,8 @@ import { answerTogglesHtml, bindAnswerToggles } from "./answerToggles";
 import { SessionConfig, MultiplicationItem } from "../types";
 import { runCelebration } from "./celebration";
 
+const PRACTICE_CUE = "Prends ton temps pour répondre...";
+
 export interface SessionResult {
   completedWorkshops: number;
   totalTimeMinutes: number;
@@ -530,6 +532,7 @@ export function startSessionModal(
       onSubmit: (value, spokenAt) => checkPracticeAnswer(value, spokenAt),
       onInput: (_d, fullVal) => {
         if (isPaused) return;
+        resetPracticeCue();
         currentInput = fullVal;
         const ansEl = modalEl.querySelector("#modal-answer");
         if (ansEl) ansEl.textContent = currentInput;
@@ -553,6 +556,12 @@ export function startSessionModal(
     nextPracticeQuestion();
   }
 
+  // Après « Pas tout à fait », la nouvelle réponse de l'enfant efface le message
+  function resetPracticeCue() {
+    const cueEl = modalEl.querySelector("#modal-cue");
+    if (cueEl && !modalEl.querySelector("#modal-card")?.classList.contains("card-hint")) cueEl.textContent = PRACTICE_CUE;
+  }
+
   function nextPracticeQuestion() {
     if (!isRunning || currentWorkshopIndex !== 1) return;
     currentItem = engine.getNextQuestion();
@@ -571,7 +580,7 @@ export function startSessionModal(
       answerEl.textContent = "_";
       answerEl.className = "stage-answer giant-answer user-answer";
     }
-    if (cueEl) cueEl.textContent = "Prends ton temps pour répondre...";
+    if (cueEl) cueEl.textContent = PRACTICE_CUE;
     if (cardEl) cardEl.className = "stage-card giant-card";
     fitOperation(cardEl);
 
@@ -599,6 +608,10 @@ export function startSessionModal(
       await new Promise((r) => setTimeout(r, 800));
       if (isRunning && currentWorkshopIndex === 1) nextPracticeQuestion();
     } else {
+      // Le temps de montrer l'erreur, la saisie attend : pas de second envoi de la même réponse,
+      // et un nouvel essai (dit ou tapé) n'est pas effacé juste après
+      const item = currentItem;
+      keypad?.setEnabled(false);
       cardEl?.classList.add("card-wrong");
       if (cueEl) cueEl.textContent = "Pas tout à fait, réessaie ou demande de l'aide !";
       audioService.playFeedback("wrong");
@@ -607,9 +620,11 @@ export function startSessionModal(
 
       setTimeout(() => {
         cardEl?.classList.remove("card-wrong");
+        if (!isRunning || currentWorkshopIndex !== 1 || currentItem !== item || hasUsedHelp) return;
         currentInput = "";
-        keypad?.clear();
         if (inputEl) inputEl.textContent = "_";
+        keypad?.clear();
+        keypad?.setEnabled(!isPaused);
       }, 700);
     }
   }
