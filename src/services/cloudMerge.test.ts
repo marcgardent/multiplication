@@ -95,6 +95,15 @@ describe("Règles de fusion", () => {
     expect(read(merged, "points_xp-2")).toBe(30);
   });
 
+  it("voix : une ancienne sauvegarde qui l'active n'active pas un téléphone qui ne l'a pas activée lui-même", () => {
+    const oldFile = doc({ speech_answers_allowed: true, speech_model_wanted: true, user_profiles_v2: [] });
+    const phone = doc({ user_profiles_v2: [] });
+    expect(read(mergeDocs(phone, oldFile), "speech_answers_allowed")).toBeUndefined();
+    expect(read(mergeDocs(phone, oldFile), "speech_model_wanted")).toBeUndefined();
+    // Le téléphone où elle est active la garde
+    expect(read(mergeDocs(doc({ speech_answers_allowed: true }), doc({ speech_answers_allowed: false })), "speech_answers_allowed")).toBe(true);
+  });
+
   it("points : somme des progrès de chaque appareil", () => {
     // 1000 au départ, tous apportés par A. Depuis : +200 sur A, +300 sur B
     const onA = doc({ "points_p-1": 1200 }, { counters: { "points_p-1": { A: 1200 } } });

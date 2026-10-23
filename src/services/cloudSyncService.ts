@@ -1,6 +1,6 @@
 import { AppDataBackup, DriveAuthError, RemoteBackupInfo } from "./googleDriveService";
 import { StorageService } from "./storageService";
-import { canonical, counterVector, familyOf, mergeDocs, sumVector, SyncDoc, SyncMeta, withoutDeviceKeys } from "./cloudMerge";
+import { canonical, counterVector, familyOf, isDeviceKey, mergeDocs, sumVector, SyncDoc, SyncMeta, withoutDeviceKeys } from "./cloudMerge";
 
 // Sauvegarde automatique : chaque écriture de l'application part dans le Google Drive du parent, sans rien lui demander.
 // Les écritures rapprochées sont regroupées en un seul envoi. Quand un autre appareil a écrit entre-temps,
@@ -450,7 +450,7 @@ export function createCloudSync(deps: CloudSyncDeps): CloudSync {
       if (!remote) throw new Error("Aucune sauvegarde dans votre Google Drive");
       const backup = await drive.download(token, remote.id);
       // Remplacement complet : ce que la sauvegarde n'a pas disparaît de l'appareil, sauf ce qui lui est propre
-      const removed = Object.keys(deps.exportBackup().data).filter((key) => !(key in backup.data) && familyOf(key) !== "device");
+      const removed = Object.keys(deps.exportBackup().data).filter((key) => !(key in backup.data) && !isDeviceKey(key));
       deps.importBackup(backup);
       if (removed.length > 0) deps.removeKeys?.(removed);
 
