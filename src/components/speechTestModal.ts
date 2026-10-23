@@ -1,5 +1,6 @@
 import { guessLabel, interpretAlternatives, SpeechGuess, SpeechRule } from "../voices/speechGuess";
-import { createSpeechListener, SpeechProblem } from "../voices/speechListener";
+import { createHoldToTalk } from "../voices/holdToTalk";
+import { createSpeechListener, HeardSpeech, ListenMode, SpeechProblem } from "../voices/speechListener";
 import { MODEL_SIZE_MB } from "../voices/voiceModel";
 
 const PROBLEMS: Record<SpeechProblem, string> = {
@@ -23,8 +24,12 @@ interface Attempt {
   transcript: string;
 }
 
-// Espace parent : essayer la réponse à voix haute, sans toucher à la progression. Le micro s'ouvre avec la fenêtre
-export function openSpeechTestModal(): void {
+const THINKING_MAX_MS = 8000;
+
+// Espace parent : essayer la réponse à voix haute, sans toucher à la progression. Le micro s'ouvre avec la fenêtre.
+// Elle écoute comme la séance sur ce téléphone : avec le même bouton à maintenir, ou au volume
+export function openSpeechTestModal(options: { mode: () => ListenMode; floor: () => number | undefined }): void {
+  const isHold = options.mode() === "hold";
   let a = 0;
   let b = 0;
   const attempts: Attempt[] = [];
@@ -52,6 +57,9 @@ export function openSpeechTestModal(): void {
 
       <p class="speech-test-status" id="speech-test-status"></p>
       <div class="speech-test-level" aria-hidden="true"><span id="speech-test-level"></span></div>
+      <div class="speech-strip is-hold-mode" ${isHold ? "" : "hidden"}>
+        <button type="button" class="speech-hold" disabled><span class="speech-hold-icon" aria-hidden="true">🎤</span><span class="speech-hold-label">Maintenez et parlez</span></button>
+      </div>
 
       <div class="speech-test-actions">
         <button type="button" class="btn-choice-helper" id="btn-speech-test-next">Autre calcul →</button>
@@ -68,6 +76,8 @@ export function openSpeechTestModal(): void {
   const statusEl = modal.querySelector("#speech-test-status") as HTMLElement;
   const historyEl = modal.querySelector("#speech-test-history") as HTMLElement;
   const levelEl = modal.querySelector("#speech-test-level") as HTMLElement;
+  const holdBtn = modal.querySelector(".speech-hold") as HTMLButtonElement;
+  const holdLabelEl = modal.querySelector(".speech-hold-label") as HTMLElement;
 
   const label = (guess: SpeechGuess | null) => (guess ? guessLabel(guess) : "?");
   const verdictClass = (guess: SpeechGuess | null, x: number, y: number) =>
@@ -112,21 +122,26 @@ export function openSpeechTestModal(): void {
       .join("");
   }
 
+  function showHeard({ transcript, isFinal }: HeardSpeech) {
+    const attempt = { a, b, transcript };
+    showCurrent(attempt, !isFinal);
+    if (isFinal) {
+      attempts.unshift(attempt);
+      attempts.length = Math.min(attempts.length, 12);
+      renderHistory();
+    }
+  }
+
+  const readyText = isHold
+    ? "🎤 Maintenez le bouton pendant que vous parlez. Tout se passe sur l'appareil, sans internet."
+    : "🎤 J'écoute… Tout se passe sur l'appareil, sans internet.";
+
   const listener = createSpeechListener({
-    onHeard({ transcript, isFinal }) {
-      const attempt = { a, b, transcript };
-      showCurrent(attempt, !isFinal);
-      if (isFinal) {
-        attempts.unshift(attempt);
-        attempts.length = Math.min(attempts.length, 12);
-        renderHistory();
-      }
-    },
+    onHeard: (heard) => (isHold ? hold.heard(heard) : showHeard(heard)),
     onState(state) {
       statusEl.textContent =
-        state === "loading"
-          ? `⏳ Préparation de la reconnaissance… La première fois, téléchargement du modèle vocal (${MODEL_SIZE_MB} Mo).`
-          : "🎤 J'écoute… Tout se passe sur l'appareil, sans internet.";
+        state === "loading" ? `⏳ Préparation de la reconnaissance… La première fois, téléchargement du modèle vocal (${MODEL_SIZE_MB} Mo).` : readyText;
+      holdBtn.disabled = state !== "ready";
     },
     // Ce que le micro capte : rien ne bouge, c'est le micro ; ça bouge sans texte, c'est la reconnaissance
     onLevel(level) {
@@ -135,10 +150,33 @@ export function openSpeechTestModal(): void {
     onProblem(problem) {
       statusEl.textContent = `⚠️ ${PROBLEMS[problem]}`;
       statusEl.classList.add("is-warning");
-    }
+      holdBtn.disabled = true;
+    },
+    mode: options.mode,
+    floor: options.floor
   });
 
+  const hold = createHoldToTalk({
+    listener,
+    thinkingMaxMs: THINKING_MAX_MS,
+    onPhase(phase) {
+      holdBtn.dataset.state = phase === "holding" ? "hearing" : phase;
+      holdLabelEl.textContent = phase === "holding" ? "Relâchez quand vous avez fini" : phase === "thinking" ? "Je réfléchis…" : "Maintenez et parlez";
+      if (phase === "holding") {
+        showCurrent(null);
+        statusEl.textContent = readyText;
+      }
+    },
+    onPartial: showHeard,
+    onOutcome(outcome) {
+      if (outcome.kind === "heard") showHeard(outcome.heard);
+      else statusEl.textContent = outcome.kind === "too-short" ? "✋ Trop court : gardez le doigt appuyé pendant que vous parlez." : "🤔 Rien n'est revenu de la reconnaissance : réessayez.";
+    }
+  });
+  const unbindHold = hold.bind(holdBtn);
+
   function newQuestion() {
+    hold.cancel();
     a = 1 + Math.floor(Math.random() * 10);
     b = 1 + Math.floor(Math.random() * 10);
     questionEl.textContent = `${a} × ${b}`;
@@ -147,6 +185,8 @@ export function openSpeechTestModal(): void {
 
   modal.querySelector("#btn-speech-test-next")?.addEventListener("click", newQuestion);
   modal.querySelector("#btn-speech-test-close")?.addEventListener("click", () => {
+    unbindHold();
+    hold.cancel();
     listener.release();
     modal.remove();
   });

@@ -1,4 +1,4 @@
-import { MatrixStore } from "../core/matrixStore";
+import { FLUENT_ANSWER_MS, MatrixStore } from "../core/matrixStore";
 import { MultiplicationItem, ItemStatus } from "../types";
 import { AudioService } from "../services/audioService";
 import { RepetitionEngine } from "../core/repetitionEngine";
@@ -43,9 +43,9 @@ export function createMatrixView(
 
   function getResponseTimeColorClass(avgMs: number): string {
     if (avgMs === 0) return "heat-none";
-    if (avgMs < 2000) return "heat-safe";
-    if (avgMs < 3500) return "heat-low";
-    if (avgMs < 5000) return "heat-medium";
+    if (avgMs < FLUENT_ANSWER_MS) return "heat-safe";
+    if (avgMs < 2 * FLUENT_ANSWER_MS) return "heat-low";
+    if (avgMs < 4 * FLUENT_ANSWER_MS) return "heat-medium";
     return "heat-high";
   }
 
@@ -249,7 +249,7 @@ export function createMatrixView(
             <div class="guide-step-item">
               <span class="step-num-badge">3</span>
               <div class="step-desc">
-                <strong>Vitesse de réponse et réflexe</strong> : Une réponse ultra rapide en moins de 2,2 secondes élargit l intervalle de révision. À l inverse, une hésitation de plus de 3,8 secondes resserre le planning pour consolider le calcul sans précipitation.
+                <strong>Vitesse de réponse et réflexe</strong> : Une réponse en moins de 5 secondes est fluide (vert) : elle rapporte un bonus, et elle est demandée pour entrer en dernière boîte. Plus lente ce jour-là, le calcul revient simplement le lendemain. La vitesse ne change pas les autres révisions.
               </div>
             </div>
             <div class="guide-step-item">
@@ -325,10 +325,10 @@ export function createMatrixView(
               <span class="legend-item"><span class="dot heat-high"></span> Moins de 50%</span>
             `
             : `
-              <span class="legend-item"><span class="dot heat-safe"></span> Moins de 2s</span>
-              <span class="legend-item"><span class="dot heat-low"></span> 2 à 3.5s</span>
-              <span class="legend-item"><span class="dot heat-medium"></span> 3.5 à 5s</span>
-              <span class="legend-item"><span class="dot heat-high"></span> Plus de 5s</span>
+              <span class="legend-item"><span class="dot heat-safe"></span> Moins de 5s</span>
+              <span class="legend-item"><span class="dot heat-low"></span> 5 à 10s</span>
+              <span class="legend-item"><span class="dot heat-medium"></span> 10 à 20s</span>
+              <span class="legend-item"><span class="dot heat-high"></span> Plus de 20s</span>
             `
         }
       </div>

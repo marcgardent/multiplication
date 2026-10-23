@@ -7,7 +7,8 @@ import {
   medianOf,
   speechFloor
 } from "../voices/speechCalibration";
-import { createSpeechListener, HeardSpeech } from "../voices/speechListener";
+import { createHoldToTalk, HoldOutcome, HoldPhase } from "../voices/holdToTalk";
+import { createSpeechListener } from "../voices/speechListener";
 import { downloadVoiceModel, isVoiceModelDownloaded, loadVoiceModel } from "../voices/voiceModel";
 
 // « Test du téléphone » : pensé pour n'importe quel adulte, sans chiffres ni jargon.
@@ -16,7 +17,6 @@ import { downloadVoiceModel, isVoiceModelDownloaded, loadVoiceModel } from "../v
 
 const SILENCE_MS = 10000;
 const THINKING_MAX_MS = 20000;
-const MIN_HOLD_MS = 250;
 
 const LABELS: Record<CalibrationVerdict, string> = {
   fast: "Conseillé",
@@ -58,32 +58,50 @@ export function openCalibrationModal(options: { preferences: AnswerPreferencesSt
   const attempts = new Map<number, Attempt>();
 
   let onLevel: ((level: number, rms: number) => void) | null = null;
-  let onFinal: ((heard: HeardSpeech) => void) | null = null;
-  let isSpeaking = false;
+  let onReady: (() => void) | null = null;
   let speechPeak = 0;
   const listener = createSpeechListener({
     mode: () => "hold",
-    onHeard(heard) {
-      if (heard.isFinal) onFinal?.(heard);
-    },
+    onHeard: (heard) => hold.heard(heard),
     onProblem() {
       showVerdict(null);
     },
-    onLevel(level, rms) {
-      if (isSpeaking) speechPeak = Math.max(speechPeak, rms);
-      onLevel?.(level, rms);
+    onState(state) {
+      if (state === "ready") onReady?.();
     },
-    onSpeech(event) {
-      isSpeaking = event === "start";
+    onLevel(level, rms) {
+      if (hold.phase() === "holding") speechPeak = Math.max(speechPeak, rms);
+      onLevel?.(level, rms);
     }
+  });
+  // Le même bouton à maintenir que pour les enfants ; chaque écran de nombre y branche sa tuile
+  let onPhase: ((phase: HoldPhase) => void) | null = null;
+  let onOutcome: ((outcome: HoldOutcome) => void) | null = null;
+  let unbindTile: (() => void) | null = null;
+  const hold = createHoldToTalk({
+    listener,
+    thinkingMaxMs: THINKING_MAX_MS,
+    onPhase: (phase) => onPhase?.(phase),
+    onOutcome: (outcome) => onOutcome?.(outcome)
   });
 
   function close() {
+    leaveScreen();
     listener.release();
     modal.remove();
   }
 
+  // En quittant un écran, l'appui en cours ne donne plus rien
+  function leaveScreen() {
+    unbindTile?.();
+    unbindTile = null;
+    onPhase = null;
+    onOutcome = null;
+    hold.cancel();
+  }
+
   function screen(title: string, body: string, actions = "") {
+    leaveScreen();
     box.innerHTML = `
       <div class="prompt-header">
         <h3>${title}</h3>
@@ -99,8 +117,19 @@ export function openCalibrationModal(options: { preferences: AnswerPreferencesSt
   const loader = (text: string) =>
     screen("Test du téléphone", `<div class="calibration-loader" role="status"><span class="calibration-spinner" aria-hidden="true"></span><span>${text}</span></div>`);
 
-  // 1. Préparation : rien à faire. La première fois, la reconnaissance s'installe d'abord ; elle est chargée
-  // avant le premier nombre, pour que ce chargement ne compte pas dans l'attente
+  // Le micro ouvert et la reconnaissance prête à écouter
+  const listenerReady = () =>
+    new Promise<void>((resolve) => {
+      onReady = () => {
+        onReady = null;
+        resolve();
+      };
+      listener.start();
+      if (listener.isReady()) onReady();
+    });
+
+  // 1. Préparation : rien à faire. La première fois, la reconnaissance s'installe d'abord ; elle est chargée,
+  // et le micro ouvert, avant le silence et le premier nombre, pour que ça ne compte pas dans la mesure
   async function runPreparation() {
     try {
       if (!(await isVoiceModelDownloaded())) {
@@ -111,7 +140,8 @@ export function openCalibrationModal(options: { preferences: AnswerPreferencesSt
       loader("Préparation");
       await loadVoiceModel();
       if (!modal.isConnected) return;
-      listener.start();
+      await listenerReady();
+      if (!modal.isConnected) return;
       showSilence();
     } catch (err) {
       console.warn("Test du téléphone : préparation", err);
@@ -160,59 +190,40 @@ export function openCalibrationModal(options: { preferences: AnswerPreferencesSt
     );
     const tile = box.querySelector("#number") as HTMLButtonElement;
     const next = box.querySelector('[data-action="next"]') as HTMLButtonElement;
-    let pressedAt = 0;
-    let releasedAt = 0;
-    let timer: ReturnType<typeof setTimeout> | null = null;
 
     const show = (state: "idle" | "listening" | "thinking" | "right" | "wrong") => {
       tile.dataset.state = state;
       tile.textContent = state === "listening" ? "🎤" : state === "thinking" ? "⏳" : String(target);
     };
-    const record = (attempt: Attempt) => {
-      if (timer) clearTimeout(timer);
-      timer = null;
-      onFinal = null;
-      attempts.set(target, attempt);
-      show(attempt.isRight ? "right" : "wrong");
-      next.hidden = false;
+    // Le dernier essai de ce nombre, s'il y en a un
+    const shown = () => {
+      const attempt = attempts.get(target);
+      return attempt ? (attempt.isRight ? "right" : "wrong") : "idle";
     };
 
-    tile.addEventListener("pointerdown", (e) => {
-      e.preventDefault();
-      if (tile.dataset.state === "thinking") return;
-      try {
-        tile.setPointerCapture(e.pointerId);
-      } catch {
-        // Pointeur déjà relâché : l'appui s'arrêtera sur pointerup
+    // Réappuyer, même pendant ⏳, recommence ce nombre : seul le dernier essai compte
+    onPhase = (phase) => {
+      if (phase === "holding") {
+        speechPeak = 0;
+        show("listening");
+      } else if (phase === "thinking") {
+        if (speechPeak > 0) voice = Math.max(voice ?? 0, speechPeak);
+        show("thinking");
       }
-      pressedAt = performance.now();
-      speechPeak = 0;
-      show("listening");
-      navigator.vibrate?.(20);
-      listener.holdStart();
-    });
-    const release = () => {
-      if (pressedAt === 0) return;
-      const heldMs = performance.now() - pressedAt;
-      pressedAt = 0;
-      releasedAt = performance.now();
-      listener.holdEnd();
+    };
+    onOutcome = (outcome) => {
       // Un appui trop bref : le nombre revient, on peut réessayer
-      if (heldMs < MIN_HOLD_MS) {
-        show(attempts.has(target) ? (attempts.get(target)?.isRight ? "right" : "wrong") : "idle");
+      if (outcome.kind === "too-short") {
+        show(shown());
         return;
       }
-      if (speechPeak > 0) voice = Math.max(voice ?? 0, speechPeak);
-      show("thinking");
-      onFinal = (heard) => {
-        const isRight = heard.guess?.kind === "number" && heard.guess.value === target;
-        record({ isRight, latencyMs: Math.round(performance.now() - releasedAt) });
-      };
-      timer = setTimeout(() => record({ isRight: false, latencyMs: null }), THINKING_MAX_MS);
+      const isRight = outcome.kind === "heard" && outcome.heard.guess?.kind === "number" && outcome.heard.guess.value === target;
+      const latencyMs = outcome.kind === "heard" ? Math.round(performance.now() - outcome.releasedAt) : null;
+      attempts.set(target, { isRight, latencyMs });
+      show(isRight ? "right" : "wrong");
+      next.hidden = false;
     };
-    tile.addEventListener("pointerup", release);
-    tile.addEventListener("pointercancel", release);
-    tile.addEventListener("contextmenu", (e) => e.preventDefault());
+    unbindTile = hold.bind(tile);
     show("idle");
 
     on("next", () => (index + 1 < CALIBRATION_TARGETS.length ? showNumber(index + 1) : showVerdict(finish())));
@@ -244,7 +255,7 @@ export function openCalibrationModal(options: { preferences: AnswerPreferencesSt
   function showVerdict(calibration: SpeechCalibration | null) {
     listener.release();
     onLevel = null;
-    onFinal = null;
+    onReady = null;
     const verdict: CalibrationVerdict = calibration?.verdict ?? "unusable";
     const level = calibration ? calibrationLevel(calibration) : 1;
     const segments = Array.from({ length: LEVEL_COUNT }, (_, i) => `<span class="${i < level ? "is-on" : ""}"></span>`).join("");

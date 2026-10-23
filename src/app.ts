@@ -1156,7 +1156,11 @@ export function createApp(): AppInstance {
     return openSpeechModal({
       isAllowed: answerPreferences.isSpeechAllowed(),
       onChange: (allowed) => answerPreferences.setSpeechAllowed(allowed),
-      openTest: openSpeechTestModal,
+      openTest: () =>
+        openSpeechTestModal({
+          mode: () => answerPreferences.listenMode(),
+          floor: () => answerPreferences.speechCalibration()?.floor
+        }),
       calibrationText: () => {
         const calibration = answerPreferences.speechCalibration();
         return calibration ? calibrationSummary(calibration) : null;

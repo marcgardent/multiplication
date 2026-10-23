@@ -19,6 +19,7 @@ export interface ReleaseNote {
 
 // De la plus récente à la plus ancienne
 export const VERSION_HISTORY: VersionEntry[] = [
+  { version: "1.8.6", date: "2026-10-23", summary: "Bouton « Maintiens et parle » fiable partout, essai de la voix réparé ; vitesse : vert sous 5 s" },
   { version: "1.8.5", date: "2026-10-23", summary: "La réponse à voix haute s'active téléphone par téléphone, la sauvegarde ne la recopie plus" },
   { version: "1.8.4", date: "2026-10-23", summary: "Texte de l'affiche corrigé sur le site" },
   { version: "1.8.3", date: "2026-10-23", summary: "Test du téléphone plus court et plus clair ; une note de nouveautés pour la 1.8" },
