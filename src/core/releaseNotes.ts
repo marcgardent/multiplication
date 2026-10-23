@@ -19,6 +19,7 @@ export interface ReleaseNote {
 
 // De la plus récente à la plus ancienne
 export const VERSION_HISTORY: VersionEntry[] = [
+  { version: "1.9.0", date: "2026-10-23", summary: "Chaque calcul rapporte selon sa difficulté : de +2 (× 1, × 10) à +40 (7 × 8) ; points gagnés affichés, vue « Points » dans le carnet" },
   { version: "1.8.6", date: "2026-10-23", summary: "Bouton « Maintiens et parle » fiable partout, essai de la voix réparé ; vitesse : vert sous 5 s" },
   { version: "1.8.5", date: "2026-10-23", summary: "La réponse à voix haute s'active téléphone par téléphone, la sauvegarde ne la recopie plus" },
   { version: "1.8.4", date: "2026-10-23", summary: "Texte de l'affiche corrigé sur le site" },
@@ -49,6 +50,7 @@ export const VERSION_HISTORY: VersionEntry[] = [
 
 // Versions majeures, de la plus récente à la plus ancienne : une seule nouveauté chacune, en quelques mots
 export const RELEASE_NOTES: ReleaseNote[] = [
+  { series: "1.9", title: "Des points selon la difficulté du calcul" },
   { series: "1.8", title: "L'espace parent visible depuis l'accueil" },
   { series: "1.7", title: "Répondre à voix haute" },
   { series: "1.6", title: "Votre voix à la place de la voix de synthèse" },
