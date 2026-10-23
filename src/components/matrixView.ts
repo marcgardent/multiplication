@@ -1,9 +1,13 @@
 import { FLUENT_ANSWER_MS, MatrixStore } from "../core/matrixStore";
+import { answerPoints, calcValue, fluentBonusPoints, masteryPoints } from "../core/calcPoints";
 import { MultiplicationItem, ItemStatus } from "../types";
 import { AudioService } from "../services/audioService";
 import { RepetitionEngine } from "../core/repetitionEngine";
 
-export type MatrixDisplayMode = "status" | "accuracy" | "responseTime";
+export type MatrixDisplayMode = "status" | "accuracy" | "responseTime" | "points";
+
+// Les valeurs de la table des points, de la plus petite à la plus grande : une nuance d'or chacune
+const POINT_VALUES = [1, 3, 5, 8, 10, 20];
 
 export interface MatrixViewComponent {
   mount(parent: HTMLElement): void;
@@ -47,6 +51,10 @@ export function createMatrixView(
     if (avgMs < 2 * FLUENT_ANSWER_MS) return "heat-low";
     if (avgMs < 4 * FLUENT_ANSWER_MS) return "heat-medium";
     return "heat-high";
+  }
+
+  function getPointsColorClass(a: number, b: number): string {
+    return `pts-${POINT_VALUES.indexOf(calcValue(a, b)) + 1}`;
   }
 
   function formatNextReview(item: MultiplicationItem): string {
@@ -127,6 +135,10 @@ export function createMatrixView(
             <div class="stat-item">
               <span class="stat-label">Temps moyen :</span>
               <span class="stat-val">${item.avgResponseTimeMs > 0 ? (item.avgResponseTimeMs / 1000).toFixed(2) + "s" : "-"}</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">Points :</span>
+              <span class="stat-val">+${answerPoints(item.a, item.b)} la bonne réponse, ⚡+${fluentBonusPoints(item.a, item.b)} en moins de 5 s, 🏆+${masteryPoints(item.a, item.b)} à la maîtrise</span>
             </div>
             <div class="stat-item">
               <span class="stat-label">Plus rapide / Plus lent :</span>
@@ -306,6 +318,9 @@ export function createMatrixView(
         <button type="button" class="btn-display-mode ${currentDisplayMode === "responseTime" ? "active" : ""}" data-mode="responseTime">
           Vitesse
         </button>
+        <button type="button" class="btn-display-mode ${currentDisplayMode === "points" ? "active" : ""}" data-mode="points">
+          Points
+        </button>
       </div>
 
       <div class="matrix-legend">
@@ -316,6 +331,11 @@ export function createMatrixView(
               <span class="legend-item"><span class="dot dot-discovery"></span> ${counts.discovery} en apprentissage</span>
               <span class="legend-item"><span class="dot dot-review"></span> ${counts.review} en révision</span>
               <span class="legend-item"><span class="dot dot-mastered"></span> ${counts.mastered} maîtrisés</span>
+            `
+            : currentDisplayMode === "points"
+            ? `
+              ${POINT_VALUES.map((v, i) => `<span class="legend-item"><span class="dot pts-${i + 1}"></span> +${2 * v}</span>`).join("")}
+              <span class="legend-item legend-note">par bonne réponse, le double en moins de 5 s</span>
             `
             : currentDisplayMode === "accuracy"
             ? `
@@ -397,6 +417,9 @@ export function createMatrixView(
           } else if (currentDisplayMode === "responseTime") {
             cellClass = getResponseTimeColorClass(item.avgResponseTimeMs);
             subText = item.avgResponseTimeMs > 0 ? `${(item.avgResponseTimeMs / 1000).toFixed(1)}s` : "-";
+          } else if (currentDisplayMode === "points") {
+            cellClass = getPointsColorClass(a, b);
+            subText = `+${answerPoints(a, b)}`;
           }
         }
 

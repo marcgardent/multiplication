@@ -7,6 +7,7 @@ import { createAnswerInput } from "./answerInput";
 import { answerTogglesHtml, bindAnswerToggles } from "./answerToggles";
 import { SessionConfig, MultiplicationItem } from "../types";
 import { runCelebration } from "./celebration";
+import { earnedText } from "./earnedText";
 
 const PRACTICE_CUE = "Prends ton temps pour répondre...";
 
@@ -600,10 +601,9 @@ export function startSessionModal(
     if (val === currentItem.result) {
       keypad?.setEnabled(false);
       cardEl?.classList.add("card-correct");
-      if (cueEl) cueEl.textContent = "Exact ! Bien joué ! 🎉";
+      const earned = engine.registerResult(currentItem, "practice", !hasUsedHelp, timeMs);
+      if (cueEl) cueEl.textContent = `Exact ! Bien joué ! 🎉 ${earnedText(earned)}`.trim();
       audioService.playFeedback("correct");
-
-      engine.registerResult(currentItem, "practice", !hasUsedHelp, timeMs);
 
       await new Promise((r) => setTimeout(r, 800));
       if (isRunning && currentWorkshopIndex === 1) nextPracticeQuestion();
@@ -751,7 +751,7 @@ export function startSessionModal(
     const cueEl = modalEl.querySelector("#modal-cue");
     const answerEl = modalEl.querySelector("#modal-answer");
 
-    engine.registerResult(item, "time-attack", isCorrect, timeMs);
+    const earned = engine.registerResult(item, "time-attack", isCorrect, timeMs);
 
     if (isCorrect) {
       cardEl?.classList.add("card-correct");
@@ -760,7 +760,7 @@ export function startSessionModal(
         answerEl.classList.add("revealed");
       }
       fitOperation(cardEl);
-      if (cueEl) cueEl.textContent = `Éclair ! ${(timeMs / 1000).toFixed(2)}s ⚡`;
+      if (cueEl) cueEl.textContent = `Éclair ! ${(timeMs / 1000).toFixed(2)}s · ${earnedText(earned)}`;
       audioService.playFeedback("correct");
       await audioService.playAnswer(item.result);
     } else {

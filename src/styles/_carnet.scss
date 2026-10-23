@@ -739,6 +739,11 @@
         align-items: center;
         gap: 8px;
 
+        &.legend-note {
+          flex-basis: 100%;
+          color: $ink-soft;
+        }
+
         .dot {
           width: 12px;
           height: 12px;
@@ -756,6 +761,10 @@
           &.heat-low { background: $heat-low; }
           &.heat-medium { background: $heat-medium; }
           &.heat-high { background: $heat-high; }
+          @each $level, $color in $points-scale {
+            &.pts-#{$level} { background: $color; }
+          }
+          &.pts-1 { border: 1.5px solid $status-unknown-line; }
         }
       }
     }
@@ -852,6 +861,14 @@
         &.heat-high .cell-content {
           background: $heat-high;
           color: $surface;
+        }
+
+        /* Points : plus le calcul rapporte, plus l'or est foncé */
+        @each $level, $color in $points-scale {
+          &.pts-#{$level} .cell-content {
+            background: $color;
+            color: if($level == 6, $surface, $ink);
+          }
         }
       }
     }

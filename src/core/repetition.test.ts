@@ -158,14 +158,14 @@ describe("graphe des boîtes (docs/progression-et-recompenses.md)", () => {
   });
 
   describe("Boîte 4", () => {
-    it("réussite fluide à l'échéance (J21) : monte en Boîte 5, maîtrisé, cadeau gagné, +5 de rapidité et +50", () => {
+    it("réussite fluide à l'échéance (J21) : monte en Boîte 5, maîtrisé, cadeau gagné ; 2 × 3 (valeur 3) rapporte 6, +6 de rapidité, +30", () => {
       goTo(reachBox(store, 4));
       const pointsBefore = store.getPoints();
-      answer(store, 2, 3);
+      expect(store.recordAttempt(2, 3, "practice", true, NEUTRAL_MS)).toEqual({ answer: 6, bonus: 6, mastery: 30 });
       expect(item(store).boxLevel).toBe(5);
       expect(item(store).status).toBe("mastered");
       expect(isGiftUnlocked(item(store))).toBe(true);
-      expect(store.getPoints() - pointsBefore).toBe(10 + 5 + 50);
+      expect(store.getPoints() - pointsBefore).toBe(6 + 6 + 30);
       expect(dayOf(item(store).nextReviewAt)).toBe(42);
     });
 
@@ -250,6 +250,18 @@ describe("calendrier et cadeau", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  it("points selon le calcul : écoute = sa valeur, bonne réponse = deux fois, bonus seulement en moins de 5 s, rien pour une erreur", () => {
+    expect(store.recordAttempt(7, 8, "discovery", true, 0)).toEqual({ answer: 20, bonus: 0, mastery: 0 });
+    goTo(0, 10, 1);
+    expect(store.recordAttempt(7, 8, "practice", true, 4999)).toEqual({ answer: 40, bonus: 40, mastery: 0 });
+    goTo(0, 10, 2);
+    expect(store.recordAttempt(7, 8, "practice", true, 5000)).toEqual({ answer: 40, bonus: 0, mastery: 0 });
+    goTo(0, 10, 3);
+    expect(store.recordAttempt(7, 8, "practice", false, 2000)).toEqual({ answer: 0, bonus: 0, mastery: 0 });
+    expect(store.getPoints()).toBe(20 + 80 + 40);
+    expect(store.recordAttempt(1, 4, "discovery", true, 0)).toEqual({ answer: 1, bonus: 0, mastery: 0 });
   });
 
   it("ne fait monter que d'une boîte quand un calcul est réussi plusieurs fois dans la même séance", () => {

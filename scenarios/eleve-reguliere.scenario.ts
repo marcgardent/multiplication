@@ -55,7 +55,7 @@ describe("Élève régulière : une séance de 6 minutes chaque matin", () => {
         expect(dueInBox(world, 1).length).toBeGreaterThan(0);
         capture(world, "j01-premiere-revision");
 
-        // Le premier décor se gagne pendant cette deuxième séance
+        // Le premier décor se gagne dans la première semaine (depuis la 1.9 : les premiers calculs rapportent peu)
         learner.onAfterAttempt(() => {
           const points = world.store.getPoints();
           if (!isSummerClose && points >= SUMMER_POINTS - 15 && points < SUMMER_POINTS) {
@@ -79,8 +79,8 @@ describe("Élève régulière : une séance de 6 minutes chaque matin", () => {
 
       playDay(day);
       expect(summarize(world).giftsEarned, `cadeaux à J${day}`).toBe(0);
-      if (day === 1) {
-        learner.onAfterAttempt(null);
+      if (isSummerUnlocked) learner.onAfterAttempt(null);
+      if (day === 7) {
         expect(isSummerClose).toBe(true);
         expect(isSummerUnlocked).toBe(true);
       }

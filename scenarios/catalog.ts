@@ -32,7 +32,7 @@ export const CATALOG = [
   {
     id: "decor-ete-imminent",
     title: "Décor Été à portée",
-    day: "J1, en cours de séance",
+    day: "J4, en cours de séance",
     learner: REGULAR,
     description: "Il manque 15 points au plus pour débloquer Été, le premier décor à gagner.",
     checks: [
@@ -44,7 +44,7 @@ export const CATALOG = [
   {
     id: "decor-ete-debloque",
     title: "Décor Été tout juste débloqué",
-    day: "J1, en cours de séance",
+    day: "J4, en cours de séance",
     learner: REGULAR,
     description: "Le seuil du décor Été vient d'être atteint, le décor n'est pas encore choisi.",
     checks: ["Accueil : Décors 2 sur 14", "Décors : Été propose « Choisir ce fond »", "Le fond change et reste après rechargement"]
