@@ -344,13 +344,14 @@ describe("LearningOrderCardComponent", () => {
     rowTable1.getBoundingClientRect = () => ({ top: 0, bottom: 50, left: 0, right: 100, width: 100, height: 50 });
     rowTable10.getBoundingClientRect = () => ({ top: 51, bottom: 100, left: 0, right: 100, width: 100, height: 50 });
 
-    // 1. Début du drag (pointerdown) sur la table 1
+    // 1. Début du drag (pointerdown) sur la poignée de la table 1
     rowTable1.dispatchEvent({
       type: "pointerdown",
       pointerId: 1,
+      pointerType: "touch",
       clientY: 20,
       button: 0,
-      target: rowTable1
+      target: rowTable1.querySelector(".table-drag-handle")
     });
 
     expect(rowTable1.classList.contains("dragging")).toBe(true);
@@ -378,6 +379,25 @@ describe("LearningOrderCardComponent", () => {
     expect(rowTable1.classList.contains("dragging")).toBe(false);
     expect(listEl!.classList.contains("is-dragging")).toBe(false);
     expect(rowTable10.classList.contains("drag-over")).toBe(false);
+  });
+
+  it("toucher la ligne hors de la poignée ne fait pas glisser, au doigt comme à la souris : la fenêtre peut défiler", () => {
+    const parent = new MockDOMElement("DIV");
+    const card = createLearningOrderCard(matrixStore);
+    card.mount(parent as unknown as HTMLElement);
+
+    const rowTable1 = parent.querySelectorAll(".learning-table-row")[0];
+    ["touch", "mouse"].forEach((pointerType, i) => {
+      rowTable1.dispatchEvent({
+        type: "pointerdown",
+        pointerId: i + 1,
+        pointerType,
+        clientY: 20,
+        button: 0,
+        target: rowTable1.querySelector(".table-title")
+      });
+      expect(rowTable1.classList.contains("dragging"), pointerType).toBe(false);
+    });
   });
 
   it("nettoie les écouteurs et le DOM lors de destroy()", () => {
