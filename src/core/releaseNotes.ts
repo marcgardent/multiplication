@@ -19,6 +19,7 @@ export interface ReleaseNote {
 
 // De la plus récente à la plus ancienne
 export const VERSION_HISTORY: VersionEntry[] = [
+  { version: "1.9.1", date: "2026-10-26", summary: "Fenêtres qui défilent sur petit écran ; tables réordonnées par une poignée ; essai de la voix sur l'écran de la séance" },
   { version: "1.9.0", date: "2026-10-23", summary: "Chaque calcul rapporte selon sa difficulté : de +2 (× 1, × 10) à +40 (7 × 8) ; points gagnés affichés, vue « Points » dans le carnet" },
   { version: "1.8.6", date: "2026-10-23", summary: "Bouton « Maintiens et parle » fiable partout, essai de la voix réparé ; vitesse : vert sous 5 s" },
   { version: "1.8.5", date: "2026-10-23", summary: "La réponse à voix haute s'active téléphone par téléphone, la sauvegarde ne la recopie plus" },
