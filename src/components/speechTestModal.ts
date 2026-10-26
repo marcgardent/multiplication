@@ -1,13 +1,9 @@
-import { guessLabel, interpretAlternatives, SpeechGuess, SpeechRule } from "../voices/speechGuess";
-import { createHoldToTalk } from "../voices/holdToTalk";
-import { createSpeechListener, HeardSpeech, ListenMode, SpeechProblem } from "../voices/speechListener";
-import { MODEL_SIZE_MB } from "../voices/voiceModel";
-
-const PROBLEMS: Record<SpeechProblem, string> = {
-  "no-mic": "Le micro n'est pas autorisé pour cette application.",
-  download: `Le modèle vocal (${MODEL_SIZE_MB} Mo) n'a pas pu être téléchargé : il faut internet la première fois.`,
-  unavailable: "La reconnaissance vocale ne marche pas sur cet appareil."
-};
+import { AnswerPreferencesStore } from "../services/answerPreferences";
+import { AudioService } from "../services/audioService";
+import { SpeechRule } from "../voices/speechGuess";
+import { HeardSpeech } from "../voices/speechListener";
+import { createAnswerInput } from "./answerInput";
+import { KeypadComponent } from "./keypad";
 
 // Heuristique qui a décidé du résultat, dite simplement
 const RULE_TEXTS: Record<SpeechRule, string> = {
@@ -18,180 +14,132 @@ const RULE_TEXTS: Record<SpeechRule, string> = {
   loneHomophones: "mot qui sonne comme un nombre"
 };
 
-interface Attempt {
-  a: number;
-  b: number;
-  transcript: string;
+// Temps pendant lequel le verdict reste affiché avant la suite
+const VERDICT_MS = 1500;
+
+// Les réglages de l'enfant, la voix allumée en plus : l'essai écoute même si l'enfant a choisi le clavier,
+// et un micro refusé ne la lui éteint pas
+function withSpeechOn(preferences: AnswerPreferencesStore): AnswerPreferencesStore {
+  return {
+    ...preferences,
+    get: () => ({ ...preferences.get(), speech: true }),
+    set({ speech: _speech, ...change }) {
+      if (Object.keys(change).length > 0) preferences.set(change);
+    },
+    subscribe: (listener) => preferences.subscribe((p) => listener({ ...p, speech: true }))
+  };
 }
 
-const THINKING_MAX_MS = 8000;
-
-// Espace parent : essayer la réponse à voix haute, sans toucher à la progression. Le micro s'ouvre avec la fenêtre.
-// Elle écoute comme la séance sur ce téléphone : avec le même bouton à maintenir, ou au volume
-export function openSpeechTestModal(options: { mode: () => ListenMode; floor: () => number | undefined }): void {
-  const isHold = options.mode() === "hold";
+// Espace parent : essayer la réponse à voix haute, sans toucher à la progression.
+// C'est l'écran de la séance, avec la même saisie (bouton à maintenir ou volume, micro dans la case, clavier) :
+// le parent voit exactement ce que verra l'enfant, plus ce qui a été entendu et la règle qui a décidé
+export function openSpeechTestModal(options: { audio: AudioService; preferences: AnswerPreferencesStore }): void {
+  const { audio } = options;
   let a = 0;
   let b = 0;
-  const attempts: Attempt[] = [];
+  let nextTimer: ReturnType<typeof setTimeout> | null = null;
 
   const modal = document.createElement("div");
   modal.className = "session-modal-overlay";
   modal.innerHTML = `
-    <div class="session-modal-container prompt-choice-modal speech-test-modal">
+    <div class="session-modal-container workshop-active-modal mode-screen speech-test-modal">
       <div class="prompt-header">
         <h3>🎤 Essai de la réponse à voix haute</h3>
         <button type="button" class="btn-modal-close" id="btn-speech-test-close" aria-label="Fermer">✕</button>
       </div>
-      <p class="speech-test-help">Dites la réponse, ou « je passe », ou « je ne sais pas ». Rien n'est compté dans la progression.</p>
+      <p class="speech-test-help">Comme en séance. Rien n'est compté.</p>
 
-      <div class="speech-test-card">
-        <span class="speech-test-label">Combien font</span>
-        <span class="speech-test-question" id="speech-test-question"></span>
+      <div class="question-stage giant-stage giant-operation-zone">
+        <div class="stage-card giant-card" id="speech-test-card">
+          <span class="stage-factors giant-factors" id="speech-test-factors"></span>
+          <span class="stage-equals giant-equals">=</span>
+          <span class="stage-answer giant-answer" id="speech-test-answer">_</span>
+        </div>
+        <div class="feedback-cue speech-test-heard" id="speech-test-cue" aria-live="polite"></div>
       </div>
 
-      <div class="speech-test-card" aria-live="polite">
-        <span class="speech-test-guess" id="speech-test-guess">…</span>
-        <span class="speech-test-heard" id="speech-test-heard"></span>
-        <span class="speech-test-rules" id="speech-test-rules"></span>
+      <div class="action-bar-secondary">
+        <button type="button" class="btn-help-inline" id="btn-speech-test-next">Autre calcul →</button>
+        <button type="button" class="btn-repeat-audio" id="btn-speech-test-repeat" aria-label="Répéter la question">🔊</button>
       </div>
 
-      <p class="speech-test-status" id="speech-test-status"></p>
-      <div class="speech-test-level" aria-hidden="true"><span id="speech-test-level"></span></div>
-      <div class="speech-strip is-hold-mode" ${isHold ? "" : "hidden"}>
-        <button type="button" class="speech-hold" disabled><span class="speech-hold-icon" aria-hidden="true">🎤</span><span class="speech-hold-label">Maintenez et parlez</span></button>
-      </div>
-
-      <div class="speech-test-actions">
-        <button type="button" class="btn-choice-helper" id="btn-speech-test-next">Autre calcul →</button>
-      </div>
-
-      <ol class="speech-test-history" id="speech-test-history"></ol>
+      <div class="keypad-mount-point giant-keypad-mount giant-keypad-zone" id="speech-test-keypad"></div>
     </div>
   `;
 
-  const questionEl = modal.querySelector("#speech-test-question") as HTMLElement;
-  const guessEl = modal.querySelector("#speech-test-guess") as HTMLElement;
-  const heardEl = modal.querySelector("#speech-test-heard") as HTMLElement;
-  const rulesEl = modal.querySelector("#speech-test-rules") as HTMLElement;
-  const statusEl = modal.querySelector("#speech-test-status") as HTMLElement;
-  const historyEl = modal.querySelector("#speech-test-history") as HTMLElement;
-  const levelEl = modal.querySelector("#speech-test-level") as HTMLElement;
-  const holdBtn = modal.querySelector(".speech-hold") as HTMLButtonElement;
-  const holdLabelEl = modal.querySelector(".speech-hold-label") as HTMLElement;
+  const factorsEl = modal.querySelector("#speech-test-factors") as HTMLElement;
+  const answerEl = modal.querySelector("#speech-test-answer") as HTMLElement;
+  const cueEl = modal.querySelector("#speech-test-cue") as HTMLElement;
 
-  const label = (guess: SpeechGuess | null) => (guess ? guessLabel(guess) : "?");
-  const verdictClass = (guess: SpeechGuess | null, x: number, y: number) =>
-    guess?.kind === "number" ? (guess.value === x * y ? "is-right" : "is-wrong") : "";
-
-  // Ce que la séance comprendrait, et l'heuristique qui en a décidé
-  function interpret(attempt: Attempt) {
-    const result = interpretAlternatives([attempt.transcript]);
-    const usedText = result.rulesUsed.map((rule) => RULE_TEXTS[rule]).join(", ");
-    return { result, rulesText: usedText ? `Deviné : ${usedText}` : "" };
+  // Pour le parent, sous le calcul : la phrase entendue, et l'heuristique qui en a tiré la réponse.
+  // Le verdict prend la même ligne après Valider
+  function showHeard(heard: HeardSpeech) {
+    const rules = heard.rulesUsed.map((rule) => RULE_TEXTS[rule]).join(", ");
+    cueEl.textContent = heard.transcript ? `Entendu : « ${heard.transcript} »${rules ? ` · Deviné : ${rules}` : ""}` : "";
   }
 
-  function showCurrent(attempt: Attempt | null, isInterim = false) {
-    if (!attempt) {
-      guessEl.textContent = "…";
-      guessEl.className = "speech-test-guess";
-      heardEl.textContent = "";
-      rulesEl.textContent = "";
-      return;
-    }
-    const { result, rulesText } = interpret(attempt);
-    const verdict = result.guess?.kind === "number" ? (result.guess.value === a * b ? " ✓" : " ✗") : "";
-    guessEl.textContent = `${label(result.guess)}${verdict}`;
-    guessEl.className = `speech-test-guess ${isInterim ? "is-interim" : ""} ${verdictClass(result.guess, a, b)}`;
-    heardEl.textContent = `Entendu : « ${attempt.transcript} »`;
-    rulesEl.textContent = rulesText;
+  function showVerdict(text: string, then: () => void) {
+    input.setEnabled(false);
+    cueEl.textContent = text;
+    if (nextTimer) clearTimeout(nextTimer);
+    nextTimer = setTimeout(() => {
+      nextTimer = null;
+      then();
+    }, VERDICT_MS);
   }
 
-  function renderHistory() {
-    historyEl.innerHTML = attempts
-      .map((attempt) => {
-        const { result, rulesText } = interpret(attempt);
-        return `
-          <li>
-            <span>${attempt.a} × ${attempt.b}</span>
-            <strong class="${verdictClass(result.guess, attempt.a, attempt.b)}">${label(result.guess)}</strong>
-            <em>« ${attempt.transcript} »</em>
-            ${rulesText ? `<small>${rulesText}</small>` : ""}
-          </li>
-        `;
-      })
-      .join("");
-  }
-
-  function showHeard({ transcript, isFinal }: HeardSpeech) {
-    const attempt = { a, b, transcript };
-    showCurrent(attempt, !isFinal);
-    if (isFinal) {
-      attempts.unshift(attempt);
-      attempts.length = Math.min(attempts.length, 12);
-      renderHistory();
-    }
-  }
-
-  const readyText = isHold
-    ? "🎤 Maintenez le bouton pendant que vous parlez. Tout se passe sur l'appareil, sans internet."
-    : "🎤 J'écoute… Tout se passe sur l'appareil, sans internet.";
-
-  const listener = createSpeechListener({
-    onHeard: (heard) => (isHold ? hold.heard(heard) : showHeard(heard)),
-    onState(state) {
-      statusEl.textContent =
-        state === "loading" ? `⏳ Préparation de la reconnaissance… La première fois, téléchargement du modèle vocal (${MODEL_SIZE_MB} Mo).` : readyText;
-      holdBtn.disabled = state !== "ready";
+  const input: KeypadComponent = createAnswerInput({
+    audio,
+    preferences: withSpeechOn(options.preferences),
+    answerSlot: () => answerEl,
+    onHeard: showHeard,
+    onInput: (_digit, value) => {
+      answerEl.textContent = value;
     },
-    // Ce que le micro capte : rien ne bouge, c'est le micro ; ça bouge sans texte, c'est la reconnaissance
-    onLevel(level) {
-      levelEl.style.width = `${Math.round(level * 100)}%`;
+    onDelete: (value) => {
+      answerEl.textContent = value || "_";
     },
-    onProblem(problem) {
-      statusEl.textContent = `⚠️ ${PROBLEMS[problem]}`;
-      statusEl.classList.add("is-warning");
-      holdBtn.disabled = true;
-    },
-    mode: options.mode,
-    floor: options.floor
-  });
-
-  const hold = createHoldToTalk({
-    listener,
-    thinkingMaxMs: THINKING_MAX_MS,
-    onPhase(phase) {
-      holdBtn.dataset.state = phase === "holding" ? "hearing" : phase;
-      holdLabelEl.textContent = phase === "holding" ? "Relâchez quand vous avez fini" : phase === "thinking" ? "Je réfléchis…" : "Maintenez et parlez";
-      if (phase === "holding") {
-        showCurrent(null);
-        statusEl.textContent = readyText;
+    onSubmit(value) {
+      if (!value) return;
+      const result = a * b;
+      if (Number(value) === result) {
+        showVerdict(`✅ Juste : ${a} × ${b} = ${result}`, newQuestion);
+      } else {
+        showVerdict(`❌ ${value} : ce n'est pas ça, on réessaie`, () => {
+          input.clear();
+          answerEl.textContent = "_";
+          cueEl.textContent = "";
+          input.setEnabled(true);
+        });
       }
     },
-    onPartial: showHeard,
-    onOutcome(outcome) {
-      if (outcome.kind === "heard") showHeard(outcome.heard);
-      else statusEl.textContent = outcome.kind === "too-short" ? "✋ Trop court : gardez le doigt appuyé pendant que vous parlez." : "🤔 Rien n'est revenu de la reconnaissance : réessayez.";
+    onDontKnow() {
+      showVerdict(`🤷 « Je passe » compris : c'était ${a * b}`, newQuestion);
     }
   });
-  const unbindHold = hold.bind(holdBtn);
+  input.mount(modal.querySelector("#speech-test-keypad") as HTMLElement);
 
   function newQuestion() {
-    hold.cancel();
+    if (nextTimer) clearTimeout(nextTimer);
+    nextTimer = null;
     a = 1 + Math.floor(Math.random() * 10);
     b = 1 + Math.floor(Math.random() * 10);
-    questionEl.textContent = `${a} × ${b}`;
-    showCurrent(null);
+    factorsEl.textContent = `${a} × ${b}`;
+    input.clear();
+    answerEl.textContent = "_";
+    cueEl.textContent = "";
+    input.setEnabled(true);
+    audio.playQuestion(a, b);
   }
 
   modal.querySelector("#btn-speech-test-next")?.addEventListener("click", newQuestion);
+  modal.querySelector("#btn-speech-test-repeat")?.addEventListener("click", () => audio.playQuestion(a, b));
   modal.querySelector("#btn-speech-test-close")?.addEventListener("click", () => {
-    unbindHold();
-    hold.cancel();
-    listener.release();
+    if (nextTimer) clearTimeout(nextTimer);
+    input.destroy();
     modal.remove();
   });
 
-  newQuestion();
   document.body.appendChild(modal);
-  listener.start();
+  newQuestion();
 }

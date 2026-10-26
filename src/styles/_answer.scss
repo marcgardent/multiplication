@@ -254,138 +254,29 @@
 }
 
 
-/* Espace parent : essai de la réponse à voix haute */
+/* Espace parent : essai de la réponse à voix haute, sur l'écran de la séance */
 .speech-test-modal {
-  .speech-test-help, .speech-test-status {
-    margin: 0;
-    font-size: $fs-small;
-    line-height: 1.4;
-    color: $ink-soft;
-    text-align: center;
-  }
-
-  .speech-test-status {
-    min-height: 1.4em;
-
-    &.is-warning {
-      color: $status-review-ink;
-    }
-  }
-
-  .speech-test-card {
-    @include card;
+  .prompt-header {
     display: flex;
-    flex-direction: column;
+    justify-content: space-between;
     align-items: center;
-    gap: 4px;
-    padding: 14px 12px;
+    gap: 12px;
+
+    h3 {
+      font-size: $fs-body;
+    }
   }
 
-  .speech-test-label, .speech-test-heard {
-    font-size: $fs-small;
+  .speech-test-help {
+    margin: -6px 0 0;
+    font-size: $fs-caption;
     color: $ink-soft;
     text-align: center;
   }
 
-  .speech-test-question {
-    font-size: clamp(1.4rem, 6vw, 2rem);
-    font-weight: 600;
-    color: $ink;
-  }
-
-  .speech-test-guess {
-    font-size: clamp(1.8rem, 9vw, 2.6rem);
-    font-weight: 700;
-    font-variant-numeric: tabular-nums;
-    color: $ink;
-
-    &.is-right {
-      color: $status-mastered;
-    }
-
-    &.is-wrong {
-      color: $danger;
-    }
-
-    &.is-interim {
-      opacity: 0.45;
-    }
-  }
-
-  .speech-test-actions {
-    display: flex;
-    gap: 8px;
-
-    button {
-      flex: 1;
-    }
-  }
-
-  .speech-test-history {
-    margin: 0;
-    padding: 0;
-    list-style: none;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    font-size: $fs-small;
-
-    li {
-      display: grid;
-      grid-template-columns: 4em 6em 1fr;
-      gap: 8px;
-      align-items: baseline;
-      color: $ink-soft;
-    }
-
-    strong {
-      color: $ink;
-
-      &.is-right {
-        color: $status-mastered;
-      }
-
-      &.is-wrong {
-        color: $danger;
-      }
-    }
-
-    em {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-  }
-}
-
-.speech-test-modal {
-  .speech-test-rules {
-    font-size: $fs-caption;
+  // Pour le parent : la phrase entendue et la règle qui a décidé, puis le verdict
+  .question-stage .speech-test-heard {
     color: $accent-ink;
-    text-align: center;
-  }
-
-  .speech-test-history small {
-    grid-column: 1 / -1;
-    margin-top: -2px;
-    font-size: $fs-caption;
-    color: $accent-ink;
-  }
-}
-
-// Volume capté par le micro pendant l'essai
-.speech-test-modal .speech-test-level {
-  height: 8px;
-  border-radius: $radius-pill;
-  background: $line;
-  overflow: hidden;
-
-  span {
-    display: block;
-    width: 0;
-    height: 100%;
-    background: $accent;
-    transition: width 0.08s linear;
   }
 }
 

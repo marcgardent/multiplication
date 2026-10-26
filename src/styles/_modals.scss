@@ -23,12 +23,15 @@
   border-radius: 20px;
   width: 100%;
   max-width: 480px;
-  max-height: 96vh;
+  /* La hauteur du voile, pas 96vh : sur Android, vh compte la barre d'adresse cachée,
+     et la carte débordait de l'écran (croix et bas coupés, hors de portée du défilement) */
+  max-height: 100%;
   display: flex;
   flex-direction: column;
   padding: 18px;
   gap: 12px;
   overflow-y: auto;
+  overscroll-behavior: contain;
 
   h3 {
     @include modal-title;
@@ -390,7 +393,6 @@
 /* Modale de choix de durée avec affichage complet des files (mode supervisé) */
 .duration-queues-modal {
   max-width: 520px;
-  max-height: 94vh;
   gap: 14px;
 
   .modal-subheading {
