@@ -886,11 +886,19 @@
   z-index: 1000;
   padding: 16px;
 
+  @media (max-width: 600px) {
+    padding: 6px;
+  }
+
   .modal-card {
     @include card;
     border-radius: 20px;
     width: 100%;
     max-width: 400px;
+    /* Fiche plus haute que l'écran (petit téléphone, Points + historique) : elle défile */
+    max-height: 100%;
+    overflow-y: auto;
+    overscroll-behavior: contain;
     padding: 20px;
 
     .modal-header {
