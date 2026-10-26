@@ -11,6 +11,8 @@ export interface AnswerInputOptions extends KeypadOptions {
   onDontKnow(): void;
   // Case de la réponse dans le grand calcul : à la voix, le micro s'y affiche tant que rien n'est entendu
   answerSlot?(): HTMLElement | null;
+  // Chaque phrase entendue, telle que la reconnaissance l'a comprise : l'essai du parent la montre
+  onHeard?(heard: HeardSpeech): void;
 }
 
 // Bandeau au-dessus du clavier quand l'enfant répond à la voix : où il en est, en une phrase
@@ -261,6 +263,7 @@ export function createAnswerInput(options: AnswerInputOptions): KeypadComponent 
 
   function handleHeard(heard: HeardSpeech) {
     if (!isListening() || performance.now() < ignoreUntil) return;
+    options.onHeard?.(heard);
     const { guess, isFinal } = heard;
     if (isFinal) setThinking(false);
 
